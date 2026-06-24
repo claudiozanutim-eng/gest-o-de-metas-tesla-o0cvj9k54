@@ -12,6 +12,12 @@ import Simulation from './pages/simulation/Simulation'
 import Assistant from './pages/assistant/Assistant'
 import Users from './pages/admin/Users'
 import Structure from './pages/admin/Structure'
+import Districts from './pages/admin/Districts'
+import Regionals from './pages/admin/Regionals'
+import Areas from './pages/admin/Areas'
+import Sellers from './pages/admin/Sellers'
+import Importacao from './pages/admin/Importacao'
+import Auditoria from './pages/admin/Auditoria'
 import Parameters from './pages/admin/Parameters'
 import Reports from './pages/reports/Reports'
 import Login from './pages/auth/Login'
@@ -44,7 +50,13 @@ const App = () => (
               <Route path="/admin">
                 <Route path="usuarios" element={<Users />} />
                 <Route path="estrutura" element={<Structure />} />
+                <Route path="distritos" element={<Districts />} />
+                <Route path="regionais" element={<Regionals />} />
+                <Route path="areas" element={<Areas />} />
+                <Route path="vendedores" element={<Sellers />} />
+                <Route path="importacao" element={<Importacao />} />
                 <Route path="parametros" element={<Parameters />} />
+                <Route path="auditoria" element={<Auditoria />} />
               </Route>
             </Route>
           </Route>

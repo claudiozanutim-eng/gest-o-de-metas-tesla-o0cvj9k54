@@ -21,6 +21,12 @@ import {
   Settings,
   Users,
   Network,
+  Map,
+  MapPin,
+  MapPinned,
+  UserCog,
+  Upload,
+  ShieldAlert,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/use-auth-store'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -36,8 +42,15 @@ const mainNavItems = [
 ]
 
 const adminItems = [
-  { title: 'Usuários', url: '/admin/usuarios', icon: Users },
+  { title: 'Usuários', url: '/admin/usuarios', icon: UserCog },
+  { title: 'Distritos', url: '/admin/distritos', icon: Map },
+  { title: 'Regionais', url: '/admin/regionais', icon: MapPin },
+  { title: 'Áreas', url: '/admin/areas', icon: MapPinned },
+  { title: 'Vendedores', url: '/admin/vendedores', icon: Users },
   { title: 'Estrutura Hierárquica', url: '/admin/estrutura', icon: Network },
+  { title: 'Importar Planilha', url: '/admin/importacao', icon: Upload },
+  { title: 'Parâmetros', url: '/admin/parametros', icon: Settings },
+  { title: 'Auditoria', url: '/admin/auditoria', icon: ShieldAlert },
 ]
 
 export function AppSidebar() {

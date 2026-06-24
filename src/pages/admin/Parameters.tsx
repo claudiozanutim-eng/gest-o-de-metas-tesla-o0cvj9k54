@@ -3,10 +3,19 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 
 export default function Parameters() {
+  const [families, setFamilies] = useState<any[]>([])
   const { toast } = useToast()
   const [paramsId, setParamsId] = useState('')
   const [rules, setRules] = useState({
@@ -21,7 +30,17 @@ export default function Parameters() {
 
   useEffect(() => {
     loadParams()
+    loadFamilies()
   }, [])
+
+  const loadFamilies = async () => {
+    try {
+      const records = await pb.collection('product_families').getFullList()
+      setFamilies(records)
+    } catch (e) {
+      console.error(e)
+    }
+  }
 
   const loadParams = async () => {
     try {
@@ -151,6 +170,48 @@ export default function Parameters() {
           </div>
 
           <Button onClick={saveParams}>Salvar Parâmetros</Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Famílias de Produtos e Mix</CardTitle>
+          <CardDescription>
+            Configure as Famílias (F1, F2, F3), pesos relativos e composição interna.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Código</TableHead>
+                <TableHead>Nome</TableHead>
+                <TableHead>Peso (%)</TableHead>
+                <TableHead>Composição Interna</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {families.map((f) => (
+                <TableRow key={f.id}>
+                  <TableCell className="font-mono text-sm">{f.code}</TableCell>
+                  <TableCell>{f.name}</TableCell>
+                  <TableCell>{f.weight ? `${f.weight}%` : '-'}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {f.composition ? JSON.stringify(f.composition) : '-'}
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="sm">
+                      Editar
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <Button variant="outline" className="mt-4">
+            Adicionar Família
+          </Button>
         </CardContent>
       </Card>
     </div>
