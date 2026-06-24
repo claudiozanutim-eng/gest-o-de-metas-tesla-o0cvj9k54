@@ -11,6 +11,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 
@@ -28,21 +35,16 @@ export default function Parameters() {
     ouro_multiplier: 0.05,
   })
 
-  useEffect(() => {
-    loadParams()
-    loadFamilies()
-  }, [])
+  const [isOpen, setIsOpen] = useState(false)
+  const [familyData, setFamilyData] = useState<any>({
+    id: '',
+    code: '',
+    name: '',
+    weight: 0,
+    composition: '{}',
+  })
 
-  const loadFamilies = async () => {
-    try {
-      const records = await pb.collection('product_families').getFullList()
-      setFamilies(records)
-    } catch (e) {
-      console.error(e)
-    }
-  }
-
-  const loadParams = async () => {
+  const loadData = async () => {
     try {
       const records = await pb
         .collection('system_parameters')
@@ -51,134 +53,108 @@ export default function Parameters() {
         setParamsId(records[0].id)
         setRules(records[0].value)
       }
+      setFamilies(await pb.collection('product_families').getFullList())
     } catch (e) {
       console.error(e)
     }
   }
 
+  useEffect(() => {
+    loadData()
+  }, [])
+
   const saveParams = async () => {
     try {
-      if (paramsId) {
-        await pb.collection('system_parameters').update(paramsId, { value: rules })
-      } else {
-        const res = await pb.collection('system_parameters').create({
-          key: 'commission_rules',
-          value: rules,
-          description: 'Regras de comissionamento',
-        })
+      if (paramsId) await pb.collection('system_parameters').update(paramsId, { value: rules })
+      else {
+        const res = await pb
+          .collection('system_parameters')
+          .create({ key: 'commission_rules', value: rules })
         setParamsId(res.id)
       }
-      toast({ title: 'Parâmetros atualizados com sucesso' })
+      toast({ title: 'Parâmetros atualizados' })
     } catch (e) {
-      console.error(e)
       toast({ title: 'Erro ao salvar', variant: 'destructive' })
     }
   }
 
-  const handleChange = (key: string, value: string) => {
-    setRules((prev) => ({ ...prev, [key]: Number(value) }))
+  const handleFamilySave = async () => {
+    try {
+      let comp = {}
+      try {
+        comp = JSON.parse(familyData.composition)
+      } catch {
+        return toast({ title: 'JSON Inválido', variant: 'destructive' })
+      }
+      const data = { ...familyData, composition: comp }
+      if (data.id) await pb.collection('product_families').update(data.id, data)
+      else await pb.collection('product_families').create(data)
+      setIsOpen(false)
+      loadData()
+      toast({ title: 'Família salva' })
+    } catch (e: any) {
+      toast({ title: 'Erro ao salvar', description: e.message, variant: 'destructive' })
+    }
+  }
+
+  const openFamilyEdit = (f: any) => {
+    setFamilyData({
+      id: f.id,
+      code: f.code,
+      name: f.name,
+      weight: f.weight,
+      composition: JSON.stringify(f.composition || {}),
+    })
+    setIsOpen(true)
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-primary">Parâmetros do Sistema</h1>
+        <h1 className="text-3xl font-bold text-primary">Parâmetros e Configurações</h1>
         <p className="text-muted-foreground">
-          Gerencie as regras de comissionamento e limites de categorias.
+          Gerencie as regras de comissionamento e famílias de produtos.
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Regras de Comissionamento e Categorias</CardTitle>
+          <CardTitle>Regras de Comissionamento (%)</CardTitle>
           <CardDescription>
-            Defina os thresholds (%) e os multiplicadores de cada categoria.
+            Defina limites e multiplicadores das metas Base, Bronze, Prata e Ouro.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label>Base Threshold (%)</Label>
-              <Input
-                type="number"
-                value={rules.base_threshold}
-                onChange={(e) => handleChange('base_threshold', e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Base Multiplicador</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={rules.base_multiplier}
-                onChange={(e) => handleChange('base_multiplier', e.target.value)}
-              />
-            </div>
+            {Object.entries(rules).map(([k, v]) => (
+              <div key={k} className="space-y-2">
+                <Label className="capitalize">{k.replace('_', ' ')}</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={v}
+                  onChange={(e) => setRules({ ...rules, [k]: Number(e.target.value) })}
+                />
+              </div>
+            ))}
           </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label>Bronze Threshold (%)</Label>
-              <Input
-                type="number"
-                value={rules.bronze_threshold}
-                onChange={(e) => handleChange('bronze_threshold', e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Bronze Multiplicador</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={rules.bronze_multiplier}
-                onChange={(e) => handleChange('bronze_multiplier', e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label>Prata Threshold (%)</Label>
-              <Input
-                type="number"
-                value={rules.prata_threshold}
-                onChange={(e) => handleChange('prata_threshold', e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Prata Multiplicador</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={rules.prata_multiplier}
-                onChange={(e) => handleChange('prata_multiplier', e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="col-start-1 col-end-3" />
-            <div className="space-y-2">
-              <Label>Ouro Multiplicador</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={rules.ouro_multiplier}
-                onChange={(e) => handleChange('ouro_multiplier', e.target.value)}
-              />
-            </div>
-          </div>
-
           <Button onClick={saveParams}>Salvar Parâmetros</Button>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Famílias de Produtos e Mix</CardTitle>
-          <CardDescription>
-            Configure as Famílias (F1, F2, F3), pesos relativos e composição interna.
-          </CardDescription>
+        <CardHeader className="flex flex-row justify-between items-center">
+          <div>
+            <CardTitle>Famílias de Produtos</CardTitle>
+            <CardDescription>Configuração de pesos e mix (JSON).</CardDescription>
+          </div>
+          <Button
+            onClick={() =>
+              openFamilyEdit({ id: '', code: '', name: '', weight: 0, composition: '{}' })
+            }
+          >
+            Nova Família
+          </Button>
         </CardHeader>
         <CardContent>
           <Table>
@@ -187,21 +163,21 @@ export default function Parameters() {
                 <TableHead>Código</TableHead>
                 <TableHead>Nome</TableHead>
                 <TableHead>Peso (%)</TableHead>
-                <TableHead>Composição Interna</TableHead>
+                <TableHead>Composição</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {families.map((f) => (
                 <TableRow key={f.id}>
-                  <TableCell className="font-mono text-sm">{f.code}</TableCell>
+                  <TableCell className="font-mono">{f.code}</TableCell>
                   <TableCell>{f.name}</TableCell>
-                  <TableCell>{f.weight ? `${f.weight}%` : '-'}</TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {f.composition ? JSON.stringify(f.composition) : '-'}
+                  <TableCell>{f.weight}%</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {JSON.stringify(f.composition)}
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" onClick={() => openFamilyEdit(f)}>
                       Editar
                     </Button>
                   </TableCell>
@@ -209,11 +185,50 @@ export default function Parameters() {
               ))}
             </TableBody>
           </Table>
-          <Button variant="outline" className="mt-4">
-            Adicionar Família
-          </Button>
         </CardContent>
       </Card>
+
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{familyData.id ? 'Editar' : 'Nova'} Família</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Código (ex: F1)</Label>
+              <Input
+                value={familyData.code}
+                onChange={(e) => setFamilyData({ ...familyData, code: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Nome</Label>
+              <Input
+                value={familyData.name}
+                onChange={(e) => setFamilyData({ ...familyData, name: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Peso (%)</Label>
+              <Input
+                type="number"
+                value={familyData.weight}
+                onChange={(e) => setFamilyData({ ...familyData, weight: Number(e.target.value) })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Composição (JSON)</Label>
+              <Input
+                value={familyData.composition}
+                onChange={(e) => setFamilyData({ ...familyData, composition: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleFamilySave}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

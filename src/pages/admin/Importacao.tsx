@@ -9,7 +9,6 @@ import {
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Table,
   TableBody,
@@ -19,7 +18,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useToast } from '@/hooks/use-toast'
-import { Upload, CheckCircle, FileSpreadsheet } from 'lucide-react'
+import { Upload, CheckCircle } from 'lucide-react'
+import pb from '@/lib/pocketbase/client'
 
 export default function Importacao() {
   const { toast } = useToast()
@@ -27,6 +27,7 @@ export default function Importacao() {
   const [data, setData] = useState<any[]>([])
   const [headers, setHeaders] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+  const [stats, setStats] = useState({ updated: 0, created: 0, errors: 0 })
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -35,8 +36,7 @@ export default function Importacao() {
     reader.onload = (event) => {
       const text = event.target?.result as string
       const rows = text.split('\n').filter((r) => r.trim().length > 0)
-      if (rows.length < 2)
-        return toast({ title: 'Arquivo inválido ou vazio', variant: 'destructive' })
+      if (rows.length < 2) return toast({ title: 'Arquivo inválido', variant: 'destructive' })
       const h = rows[0].split(',').map((s) => s.trim())
       const d = rows.slice(1).map((r) => {
         const cols = r.split(',')
@@ -53,12 +53,54 @@ export default function Importacao() {
 
   const handleSync = async () => {
     setLoading(true)
-    // Simulando processamento no backend
-    setTimeout(() => {
-      setLoading(false)
+    let updated = 0,
+      created = 0,
+      errors = 0
+    try {
+      const users = await pb.collection('users').getFullList()
+      const sellers = await pb.collection('sellers').getFullList()
+
+      for (const row of data) {
+        const vCode = row['Vendedor']
+        const seller = sellers.find((s) => s.code === vCode)
+        const sellerUserId = seller?.user_id || users.find((u) => u.email === vCode)?.id
+
+        if (!sellerUserId) {
+          errors++
+          continue
+        }
+
+        const payload = {
+          seller_id: sellerUserId,
+          period: row['Período'] || '2026-07',
+          metric: row['Métrica'] || 'Faturamento',
+          target_base: Number(row['Base']) || 0,
+          target_bronze: Number(row['Bronze']) || 0,
+          target_prata: Number(row['Prata']) || 0,
+          target_ouro: Number(row['Ouro']) || 0,
+        }
+
+        try {
+          const existing = await pb
+            .collection('goals')
+            .getFirstListItem(
+              `seller_id="${payload.seller_id}" && period="${payload.period}" && metric="${payload.metric}"`,
+            )
+          await pb.collection('goals').update(existing.id, payload)
+          updated++
+        } catch {
+          await pb.collection('goals').create(payload)
+          created++
+        }
+      }
+      setStats({ updated, created, errors })
       setStep(3)
-      toast({ title: 'Planilha processada com sucesso!' })
-    }, 1500)
+      toast({ title: 'Importação finalizada' })
+    } catch (e: any) {
+      toast({ title: 'Erro na sincronização', description: e.message, variant: 'destructive' })
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -77,17 +119,12 @@ export default function Importacao() {
           <CardHeader className="text-center">
             <CardTitle>Passo 1: Upload</CardTitle>
             <CardDescription>
-              Envie um arquivo .csv contendo colunas Vendedor, Distrito, Regional, Área, Período e
-              Metas.
+              Envie um .csv com: Vendedor, Período, Métrica, Base, Bronze, Prata, Ouro
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center py-10 space-y-4">
-            <FileSpreadsheet className="w-16 h-16 text-muted-foreground" />
+          <CardContent className="flex justify-center py-10">
             <div className="w-full max-w-sm">
-              <Label htmlFor="file" className="sr-only">
-                Arquivo
-              </Label>
-              <Input id="file" type="file" accept=".csv" onChange={handleFileUpload} />
+              <Input type="file" accept=".csv" onChange={handleFileUpload} />
             </div>
           </CardContent>
         </Card>
@@ -96,12 +133,7 @@ export default function Importacao() {
       {step === 2 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Passo 2: Validação e Preview</span>
-              <span className="text-sm font-normal text-muted-foreground">
-                {data.length} linhas lidas
-              </span>
-            </CardTitle>
+            <CardTitle>Passo 2: Preview ({data.length} linhas)</CardTitle>
           </CardHeader>
           <CardContent className="max-h-[400px] overflow-auto">
             <Table>
@@ -122,18 +154,13 @@ export default function Importacao() {
                 ))}
               </TableBody>
             </Table>
-            {data.length > 10 && (
-              <p className="text-center text-sm text-muted-foreground mt-4">
-                Exibindo as primeiras 10 linhas...
-              </p>
-            )}
           </CardContent>
           <CardFooter className="flex justify-between border-t p-4 bg-muted/20">
             <Button variant="outline" onClick={() => setStep(1)}>
               Cancelar
             </Button>
             <Button onClick={handleSync} disabled={loading}>
-              {loading ? 'Processando...' : 'Aplicar e Sincronizar Metas'}
+              {loading ? 'Processando...' : 'Sincronizar Metas Importadas'}
             </Button>
           </CardFooter>
         </Card>
@@ -143,11 +170,16 @@ export default function Importacao() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 space-y-4 text-center">
             <CheckCircle className="w-20 h-20 text-green-500" />
-            <h2 className="text-2xl font-bold">Importação Concluída</h2>
+            <h2 className="text-2xl font-bold">Sincronização Concluída</h2>
             <p className="text-muted-foreground">
-              Foram processadas e atualizadas {data.length} linhas com sucesso.
+              Criados: {stats.created} | Atualizados: {stats.updated} | Erros: {stats.errors}
             </p>
-            <Button onClick={() => setStep(1)} className="mt-4">
+            <Button
+              onClick={() => {
+                setStep(1)
+                setData([])
+              }}
+            >
               Nova Importação
             </Button>
           </CardContent>

@@ -11,32 +11,85 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Plus, MapPinned } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 
 export default function Areas() {
   const [areas, setAreas] = useState<any[]>([])
+  const [regionals, setRegionals] = useState<any[]>([])
+  const [users, setUsers] = useState<any[]>([])
+  const [isOpen, setIsOpen] = useState(false)
+  const [formData, setFormData] = useState<any>({
+    id: '',
+    name: '',
+    is_active: true,
+    regional_id: '',
+    responsible_id: '',
+  })
+  const { toast } = useToast()
 
+  const loadData = async () => {
+    const a = await pb.collection('areas').getFullList({ expand: 'regional_id,responsible_id' })
+    setAreas(a)
+    setRegionals(await pb.collection('regionals').getFullList())
+    setUsers(await pb.collection('users').getFullList())
+  }
   useEffect(() => {
-    pb.collection('areas')
-      .getFullList({ expand: 'regional_id,responsible_id' })
-      .then(setAreas)
-      .catch(console.error)
+    loadData()
   }, [])
+
+  const handleSave = async () => {
+    try {
+      const data = { ...formData }
+      if (!data.responsible_id || data.responsible_id === 'none') delete data.responsible_id
+      if (data.id) await pb.collection('areas').update(data.id, data)
+      else await pb.collection('areas').create(data)
+      toast({ title: 'Área salva com sucesso' })
+      setIsOpen(false)
+      loadData()
+    } catch (e: any) {
+      toast({ title: 'Erro ao salvar', description: e.message, variant: 'destructive' })
+    }
+  }
+
+  const openEdit = (a: any) => {
+    setFormData({
+      id: a.id,
+      name: a.name,
+      is_active: a.is_active,
+      regional_id: a.regional_id || '',
+      responsible_id: a.responsible_id || 'none',
+    })
+    setIsOpen(true)
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-primary flex items-center gap-2">
-            <MapPinned className="w-8 h-8" /> Áreas
-          </h1>
-          <p className="text-muted-foreground">Gerencie as Áreas comerciais.</p>
-        </div>
-        <Button className="gap-2">
-          <Plus className="w-4 h-4" /> Nova Área
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold flex items-center gap-2">
+          <MapPinned className="w-8 h-8" /> Áreas
+        </h1>
+        <Button onClick={() => openEdit({ id: '', is_active: true })}>
+          <Plus className="w-4 h-4 mr-2" /> Nova Área
         </Button>
       </div>
-
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -46,7 +99,7 @@ export default function Areas() {
                 <TableHead>Regional</TableHead>
                 <TableHead>Responsável</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-[80px]"></TableHead>
+                <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -56,12 +109,12 @@ export default function Areas() {
                   <TableCell>{a.expand?.regional_id?.name || '-'}</TableCell>
                   <TableCell>{a.expand?.responsible_id?.name || '-'}</TableCell>
                   <TableCell>
-                    <Badge variant={a.is_active !== false ? 'default' : 'secondary'}>
-                      {a.is_active !== false ? 'Ativo' : 'Inativo'}
+                    <Badge variant={a.is_active ? 'default' : 'secondary'}>
+                      {a.is_active ? 'Ativo' : 'Inativo'}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(a)}>
                       Editar
                     </Button>
                   </TableCell>
@@ -71,6 +124,70 @@ export default function Areas() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{formData.id ? 'Editar' : 'Nova'} Área</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Nome</Label>
+              <Input
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Regional</Label>
+              <Select
+                value={formData.regional_id}
+                onValueChange={(v) => setFormData({ ...formData, regional_id: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione uma regional" />
+                </SelectTrigger>
+                <SelectContent>
+                  {regionals.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Responsável (Usuário)</Label>
+              <Select
+                value={formData.responsible_id}
+                onValueChange={(v) => setFormData({ ...formData, responsible_id: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Nenhum" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {users.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={formData.is_active}
+                onCheckedChange={(c) => setFormData({ ...formData, is_active: c })}
+              />
+              <Label>Ativo</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleSave}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -9,69 +9,106 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Search, MoreHorizontal, UserCog } from 'lucide-react'
+import { Plus, UserCog } from 'lucide-react'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
+
+const roles = [
+  'Administrator',
+  'National Manager',
+  'District Manager',
+  'Regional Manager',
+  'Seller',
+  'Sales Assistant',
+]
 
 export default function Users() {
   const [users, setUsers] = useState<any[]>([])
-  const [search, setSearch] = useState('')
+  const [districts, setDistricts] = useState<any[]>([])
+  const [isOpen, setIsOpen] = useState(false)
+  const [formData, setFormData] = useState<any>({
+    id: '',
+    name: '',
+    email: '',
+    password: '',
+    role: 'Seller',
+    is_active: true,
+    district_id: '',
+  })
+  const { toast } = useToast()
 
+  const loadData = async () => {
+    const u = await pb.collection('users').getFullList()
+    setUsers(u)
+    const d = await pb.collection('districts').getFullList()
+    setDistricts(d)
+  }
   useEffect(() => {
-    fetchUsers()
+    loadData()
   }, [])
 
-  const fetchUsers = async () => {
+  const handleSave = async () => {
     try {
-      const records = await pb
-        .collection('users')
-        .getFullList({ expand: 'district_id,regional_id,area_id' })
-      setUsers(records)
-    } catch (e) {
-      console.error(e)
+      const data = { ...formData }
+      if (!data.password) delete data.password
+      if (!data.district_id || data.district_id === 'none') delete data.district_id
+      if (data.password) data.passwordConfirm = data.password
+
+      if (data.id) {
+        await pb.collection('users').update(data.id, data)
+      } else {
+        await pb.collection('users').create(data)
+      }
+      toast({ title: 'Usuário salvo com sucesso' })
+      setIsOpen(false)
+      loadData()
+    } catch (e: any) {
+      toast({ title: 'Erro ao salvar usuário', description: e.message, variant: 'destructive' })
     }
   }
 
-  const filtered = users.filter(
-    (u) =>
-      u.name?.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase()),
-  )
+  const openEdit = (u: any) => {
+    setFormData({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      is_active: u.is_active,
+      district_id: u.district_id || 'none',
+      password: '',
+    })
+    setIsOpen(true)
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-primary flex items-center gap-2">
-            <UserCog className="w-8 h-8" /> Gestão de Usuários
-          </h1>
-          <p className="text-muted-foreground">Administre acessos e perfis no sistema.</p>
-        </div>
-        <Button className="gap-2">
-          <Plus className="w-4 h-4" /> Novo Usuário
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold flex items-center gap-2">
+          <UserCog className="w-8 h-8" /> Usuários
+        </h1>
+        <Button onClick={() => openEdit({ id: '', is_active: true, role: 'Seller' })}>
+          <Plus className="w-4 h-4 mr-2" /> Novo Usuário
         </Button>
       </div>
-
       <Card>
-        <CardHeader className="py-4 flex flex-row items-center justify-between border-b">
-          <CardTitle className="text-lg">Lista de Usuários</CardTitle>
-          <div className="relative w-64">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nome ou email"
-              className="pl-9 h-9"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-        </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
@@ -80,35 +117,26 @@ export default function Users() {
                 <TableHead>Email</TableHead>
                 <TableHead>Perfil</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-[80px]"></TableHead>
+                <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell className="pl-6 font-medium">{user.name || '-'}</TableCell>
-                  <TableCell className="text-muted-foreground">{user.email}</TableCell>
+              {users.map((u) => (
+                <TableRow key={u.id}>
+                  <TableCell className="pl-6 font-medium">{u.name}</TableCell>
+                  <TableCell>{u.email}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{user.role || 'Usuário'}</Badge>
+                    <Badge variant="outline">{u.role}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={user.is_active !== false ? 'default' : 'secondary'}>
-                      {user.is_active !== false ? 'Ativo' : 'Inativo'}
+                    <Badge variant={u.is_active ? 'default' : 'secondary'}>
+                      {u.is_active ? 'Ativo' : 'Inativo'}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>Editar</DropdownMenuItem>
-                        <DropdownMenuItem>Vincular Área</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">Desativar</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(u)}>
+                      Editar
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -116,6 +144,88 @@ export default function Users() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{formData.id ? 'Editar' : 'Novo'} Usuário</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Nome</Label>
+              <Input
+                value={formData.name || ''}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={formData.email || ''}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              />
+            </div>
+            {!formData.id && (
+              <div className="grid gap-2">
+                <Label>Senha</Label>
+                <Input
+                  type="password"
+                  value={formData.password || ''}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                />
+              </div>
+            )}
+            <div className="grid gap-2">
+              <Label>Perfil</Label>
+              <Select
+                value={formData.role}
+                onValueChange={(v) => setFormData({ ...formData, role: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {roles.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {r}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Distrito (Opcional)</Label>
+              <Select
+                value={formData.district_id}
+                onValueChange={(v) => setFormData({ ...formData, district_id: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Nenhum" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {districts.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={formData.is_active}
+                onCheckedChange={(c) => setFormData({ ...formData, is_active: c })}
+              />
+              <Label>Ativo</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleSave}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

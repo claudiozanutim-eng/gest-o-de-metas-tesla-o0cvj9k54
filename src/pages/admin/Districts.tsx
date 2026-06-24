@@ -11,29 +11,62 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Map } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 
 export default function Districts() {
   const [districts, setDistricts] = useState<any[]>([])
+  const [isOpen, setIsOpen] = useState(false)
+  const [formData, setFormData] = useState({ id: '', name: '', is_active: true })
+  const { toast } = useToast()
 
+  const loadData = () => pb.collection('districts').getFullList().then(setDistricts)
   useEffect(() => {
-    pb.collection('districts').getFullList().then(setDistricts).catch(console.error)
+    loadData()
   }, [])
+
+  const handleSave = async () => {
+    try {
+      if (formData.id) {
+        await pb.collection('districts').update(formData.id, formData)
+      } else {
+        await pb.collection('districts').create(formData)
+      }
+      toast({ title: 'Salvo com sucesso' })
+      setIsOpen(false)
+      loadData()
+    } catch (e) {
+      toast({ title: 'Erro ao salvar', variant: 'destructive' })
+    }
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex justify-between items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-primary flex items-center gap-2">
+          <h1 className="text-3xl font-bold flex items-center gap-2">
             <Map className="w-8 h-8" /> Distritos
           </h1>
-          <p className="text-muted-foreground">Gerencie os Distritos.</p>
         </div>
-        <Button className="gap-2">
-          <Plus className="w-4 h-4" /> Novo Distrito
+        <Button
+          onClick={() => {
+            setFormData({ id: '', name: '', is_active: true })
+            setIsOpen(true)
+          }}
+        >
+          <Plus className="w-4 h-4 mr-2" /> Novo Distrito
         </Button>
       </div>
-
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -41,20 +74,27 @@ export default function Districts() {
               <TableRow>
                 <TableHead className="pl-6">Nome</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-[80px]"></TableHead>
+                <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {districts.map((d) => (
                 <TableRow key={d.id}>
-                  <TableCell className="pl-6 font-medium">{d.name}</TableCell>
+                  <TableCell className="pl-6">{d.name}</TableCell>
                   <TableCell>
-                    <Badge variant={d.is_active !== false ? 'default' : 'secondary'}>
-                      {d.is_active !== false ? 'Ativo' : 'Inativo'}
+                    <Badge variant={d.is_active ? 'default' : 'secondary'}>
+                      {d.is_active ? 'Ativo' : 'Inativo'}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="sm">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setFormData(d)
+                        setIsOpen(true)
+                      }}
+                    >
                       Editar
                     </Button>
                   </TableCell>
@@ -64,6 +104,32 @@ export default function Districts() {
           </Table>
         </CardContent>
       </Card>
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{formData.id ? 'Editar' : 'Novo'} Distrito</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nome</Label>
+              <Input
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={formData.is_active}
+                onCheckedChange={(c) => setFormData({ ...formData, is_active: c })}
+              />
+              <Label>Ativo</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleSave}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

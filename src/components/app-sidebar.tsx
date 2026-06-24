@@ -27,10 +27,10 @@ import {
   UserCog,
   Upload,
   ShieldAlert,
+  ChevronRight,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/use-auth-store'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { ChevronRight } from 'lucide-react'
 
 const mainNavItems = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
@@ -56,7 +56,7 @@ const adminItems = [
 export function AppSidebar() {
   const location = useLocation()
   const user = useAuthStore((state) => state.user)
-  const isAdmin = user?.role === 'Admin' || user?.role === 'Gerente Nacional'
+  const isAdmin = user?.role === 'Administrator' || user?.role === 'National Manager'
 
   return (
     <Sidebar variant="inset">
@@ -70,7 +70,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>
+          <SidebarGroupLabel>Operação</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {mainNavItems.map((item) => (
@@ -96,7 +96,7 @@ export function AppSidebar() {
             <SidebarGroup>
               <SidebarGroupLabel asChild>
                 <CollapsibleTrigger className="w-full flex items-center justify-between hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md p-2">
-                  <span>Cadastros</span>
+                  <span>Administração</span>
                   <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
                 </CollapsibleTrigger>
               </SidebarGroupLabel>
