@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
+import logoUrl from '@/assets/image-247cf.png'
 
 export default function Login() {
   const { signIn, isAuthenticated, loading: authLoading } = useAuth()
@@ -36,9 +37,13 @@ export default function Login() {
   return (
     <div className="flex h-screen w-full items-center justify-center bg-muted/30 px-4">
       <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Gestão de Metas</CardTitle>
-          <CardDescription>Tesla Mecatrônica</CardDescription>
+        <CardHeader className="text-center space-y-4">
+          <div className="flex justify-center">
+            <img src={logoUrl} alt="Tesla Mecatrônica" className="h-12 w-auto object-contain" />
+          </div>
+          <div>
+            <CardTitle className="text-2xl font-bold">Gestão de Metas</CardTitle>
+          </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

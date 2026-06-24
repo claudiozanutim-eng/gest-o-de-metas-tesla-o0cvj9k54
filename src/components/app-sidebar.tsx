@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import logoUrl from '@/assets/image-7530a.png'
+import logoUrl from '@/assets/image-247cf.png'
 import {
   Sidebar,
   SidebarContent,
