@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -6,19 +7,30 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Label } from '@/components/ui/label'
 
 export default function Login() {
-  const { signIn } = useAuth()
+  const { signIn, isAuthenticated, loading: authLoading } = useAuth()
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  if (authLoading) return null
+
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
     const { error: err } = await signIn(email, password)
-    if (err) setError('Credenciais inválidas.')
-    setLoading(false)
+    if (err) {
+      setError('Credenciais inválidas.')
+      setLoading(false)
+    } else {
+      navigate('/', { replace: true })
+    }
   }
 
   return (

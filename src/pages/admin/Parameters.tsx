@@ -42,13 +42,11 @@ export default function Parameters() {
       if (paramsId) {
         await pb.collection('system_parameters').update(paramsId, { value: rules })
       } else {
-        const res = await pb
-          .collection('system_parameters')
-          .create({
-            key: 'commission_rules',
-            value: rules,
-            description: 'Regras de comissionamento',
-          })
+        const res = await pb.collection('system_parameters').create({
+          key: 'commission_rules',
+          value: rules,
+          description: 'Regras de comissionamento',
+        })
         setParamsId(res.id)
       }
       toast({ title: 'Parâmetros atualizados com sucesso' })
