@@ -1,28 +1,50 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Slider } from '@/components/ui/slider'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { formatCurrency } from '@/lib/mock-data'
 import { Calculator, DollarSign, TrendingUp } from 'lucide-react'
+import pb from '@/lib/pocketbase/client'
 
 export default function Simulation() {
   const [baseSalary, setBaseSalary] = useState(3000)
   const [goal, setGoal] = useState(200000)
-  const [achievementPercent, setAchievementPercent] = useState([85]) // Slider uses array
+  const [achievementPercent, setAchievementPercent] = useState([85])
+
+  const [rules, setRules] = useState({
+    base_threshold: 80,
+    base_multiplier: 0,
+    bronze_threshold: 95,
+    bronze_multiplier: 0.02,
+    prata_threshold: 110,
+    prata_multiplier: 0.035,
+    ouro_multiplier: 0.05,
+  })
+
+  useEffect(() => {
+    pb.collection('system_parameters')
+      .getFullList({ filter: 'key = "commission_rules"' })
+      .then((records) => {
+        if (records.length > 0) setRules(records[0].value)
+      })
+      .catch(console.error)
+  }, [])
 
   const getMultiplier = (percent: number) => {
-    if (percent < 80) return 0 // Base
-    if (percent < 95) return 0.02 // Bronze (2% sobre faturamento real)
-    if (percent < 110) return 0.035 // Prata (3.5%)
-    return 0.05 // Ouro (5%)
+    if (percent < rules.base_threshold) return 0 // Abaixo da base
+    if (percent < rules.bronze_threshold) return rules.base_multiplier
+    if (percent < rules.prata_threshold) return rules.bronze_multiplier
+    if (percent < rules.prata_threshold + 15) return rules.prata_multiplier
+    return rules.ouro_multiplier
   }
 
   const getCategory = (percent: number) => {
-    if (percent < 80) return { name: 'Base', color: 'text-category-base' }
-    if (percent < 95) return { name: 'Bronze', color: 'text-category-bronze' }
-    if (percent < 110) return { name: 'Prata', color: 'text-category-prata' }
-    return { name: 'Ouro', color: 'text-category-ouro' }
+    if (percent < rules.base_threshold) return { name: 'Abaixo da Base', color: 'text-destructive' }
+    if (percent < rules.bronze_threshold) return { name: 'Base', color: 'text-zinc-500' }
+    if (percent < rules.prata_threshold) return { name: 'Bronze', color: 'text-amber-600' }
+    if (percent < rules.prata_threshold + 15) return { name: 'Prata', color: 'text-zinc-400' }
+    return { name: 'Ouro', color: 'text-yellow-500' }
   }
 
   const percent = achievementPercent[0]
@@ -36,7 +58,7 @@ export default function Simulation() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-primary">Simulação de Ganho</h1>
         <p className="text-muted-foreground">
-          Estime seus recebimentos baseado no atingimento da meta.
+          Estime seus recebimentos baseado no atingimento da meta com regras dinâmicas.
         </p>
       </div>
 
@@ -68,10 +90,21 @@ export default function Simulation() {
                 <strong>Regras de Comissão:</strong>
               </p>
               <ul className="list-disc pl-4 space-y-1">
-                <li>Base (&lt;80%): Sem comissão</li>
-                <li>Bronze (80-94%): 2.0% sobre o real</li>
-                <li>Prata (95-109%): 3.5% sobre o real</li>
-                <li>Ouro (≥110%): 5.0% sobre o real</li>
+                <li>
+                  Base ({rules.base_threshold}-{rules.bronze_threshold - 1}%):{' '}
+                  {(rules.base_multiplier * 100).toFixed(1)}%
+                </li>
+                <li>
+                  Bronze ({rules.bronze_threshold}-{rules.prata_threshold - 1}%):{' '}
+                  {(rules.bronze_multiplier * 100).toFixed(1)}%
+                </li>
+                <li>
+                  Prata ({rules.prata_threshold}-{rules.prata_threshold + 14}%):{' '}
+                  {(rules.prata_multiplier * 100).toFixed(1)}%
+                </li>
+                <li>
+                  Ouro (≥{rules.prata_threshold + 15}%): {(rules.ouro_multiplier * 100).toFixed(1)}%
+                </li>
               </ul>
             </div>
           </CardContent>
@@ -94,13 +127,6 @@ export default function Simulation() {
                 step={1}
                 className="py-4"
               />
-              <div className="flex justify-between text-xs text-muted-foreground px-1">
-                <span>0%</span>
-                <span>80% (B)</span>
-                <span>95% (P)</span>
-                <span>110% (O)</span>
-                <span>150%</span>
-              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

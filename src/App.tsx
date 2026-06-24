@@ -12,6 +12,7 @@ import Simulation from './pages/simulation/Simulation'
 import Assistant from './pages/assistant/Assistant'
 import Users from './pages/admin/Users'
 import Structure from './pages/admin/Structure'
+import Parameters from './pages/admin/Parameters'
 import Reports from './pages/reports/Reports'
 import Login from './pages/auth/Login'
 import { AuthProvider, useAuth } from './hooks/use-auth'
@@ -43,6 +44,7 @@ const App = () => (
               <Route path="/admin">
                 <Route path="usuarios" element={<Users />} />
                 <Route path="estrutura" element={<Structure />} />
+                <Route path="parametros" element={<Parameters />} />
               </Route>
             </Route>
           </Route>

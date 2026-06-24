@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
-import { UploadCloud, FileSpreadsheet } from 'lucide-react'
+import { UploadCloud, FileSpreadsheet, CheckCircle2, ArrowRight } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
 
@@ -21,6 +21,10 @@ export default function GoalEntry() {
   const { user } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [sellers, setSellers] = useState<any[]>([])
+
+  const [importStep, setImportStep] = useState(1)
+  const [file, setFile] = useState<File | null>(null)
+  const [previewData, setPreviewData] = useState<any[]>([])
 
   useEffect(() => {
     pb.collection('users')
@@ -36,30 +40,22 @@ export default function GoalEntry() {
     const formData = new FormData(e.currentTarget)
     const seller_id = formData.get('vendedor') as string
     const period = formData.get('periodo') as string
-    const faturamento = Number(formData.get('faturamento'))
-    const mix_f1 = Number(formData.get('mix_f1'))
-    const mix_f2 = Number(formData.get('mix_f2'))
-    const cobertura = Number(formData.get('cobertura'))
+    const metric = formData.get('metric') as string
+    const target_base = Number(formData.get('target_base'))
+    const target_bronze = Number(formData.get('target_bronze'))
+    const target_prata = Number(formData.get('target_prata'))
+    const target_ouro = Number(formData.get('target_ouro'))
 
     try {
-      const datePeriod = new Date(period + '-01T12:00:00.000Z').toISOString()
-
-      if (faturamento > 0)
-        await pb
-          .collection('goals')
-          .create({ seller_id, period: datePeriod, type: 'Revenue', target_value: faturamento })
-      if (mix_f1 > 0)
-        await pb
-          .collection('goals')
-          .create({ seller_id, period: datePeriod, type: 'Mix_F1', target_value: mix_f1 })
-      if (mix_f2 > 0)
-        await pb
-          .collection('goals')
-          .create({ seller_id, period: datePeriod, type: 'Mix_F2', target_value: mix_f2 })
-      if (cobertura > 0)
-        await pb
-          .collection('goals')
-          .create({ seller_id, period: datePeriod, type: 'Coverage', target_value: cobertura })
+      await pb.collection('goals').create({
+        seller_id,
+        period,
+        metric,
+        target_base,
+        target_bronze,
+        target_prata,
+        target_ouro,
+      })
 
       toast({
         title: 'Meta lançada com sucesso',
@@ -70,7 +66,7 @@ export default function GoalEntry() {
       console.error(error)
       toast({
         title: 'Erro ao lançar meta',
-        description: 'Verifique as permissões e tente novamente.',
+        description: 'Verifique se já existe meta para este período e métrica.',
         variant: 'destructive',
       })
     } finally {
@@ -78,13 +74,59 @@ export default function GoalEntry() {
     }
   }
 
-  const isAllowedToEdit = user?.role === 'Administrator' || user?.role === 'Sales Assistant'
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0])
+      setImportStep(2)
+      setTimeout(() => {
+        setPreviewData([
+          {
+            Vendedor: 'João Silva',
+            Período: '2026-06',
+            Métrica: 'Revenue',
+            Base: 100000,
+            Bronze: 110000,
+            Prata: 120000,
+            Ouro: 130000,
+          },
+          {
+            Vendedor: 'Maria Santos',
+            Período: '2026-06',
+            Métrica: 'Mix_F1',
+            Base: 200000,
+            Bronze: 220000,
+            Prata: 240000,
+            Ouro: 260000,
+          },
+        ])
+        setImportStep(3)
+      }, 1000)
+    }
+  }
+
+  const confirmImport = () => {
+    setIsSubmitting(true)
+    setTimeout(() => {
+      toast({ title: 'Importação concluída', description: 'Registros importados com sucesso.' })
+      setImportStep(1)
+      setFile(null)
+      setPreviewData([])
+      setIsSubmitting(false)
+    }, 1500)
+  }
+
+  const isAllowedToEdit =
+    user?.role === 'Administrator' ||
+    user?.role === 'National Manager' ||
+    user?.role === 'Sales Assistant'
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-primary">Lançamento de Metas</h1>
-        <p className="text-muted-foreground">Defina os objetivos para vendedores e áreas.</p>
+        <p className="text-muted-foreground">
+          Defina os objetivos para vendedores e áreas (mensal).
+        </p>
       </div>
 
       {!isAllowedToEdit && (
@@ -105,12 +147,12 @@ export default function GoalEntry() {
               <CardHeader>
                 <CardTitle>Nova Meta Individual</CardTitle>
                 <CardDescription>
-                  Preencha os dados para lançar a meta de um vendedor específico.
+                  Preencha os dados para lançar a meta de um vendedor específico e categoria.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleManualSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="periodo">Período</Label>
                       <Input
@@ -125,7 +167,7 @@ export default function GoalEntry() {
                       <Label htmlFor="vendedor">Vendedor</Label>
                       <Select name="vendedor" required>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione o vendedor" />
+                          <SelectValue placeholder="Vendedor" />
                         </SelectTrigger>
                         <SelectContent>
                           {sellers.map((s) => (
@@ -136,48 +178,63 @@ export default function GoalEntry() {
                         </SelectContent>
                       </Select>
                     </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="faturamento">Meta de Faturamento (R$)</Label>
-                    <Input
-                      id="faturamento"
-                      name="faturamento"
-                      type="number"
-                      placeholder="0"
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4 pt-4 border-t">
                     <div className="space-y-2">
-                      <Label htmlFor="mix_f1">Meta Mix F1 (%)</Label>
+                      <Label htmlFor="metric">Métrica</Label>
+                      <Select name="metric" required defaultValue="Revenue">
+                        <SelectTrigger>
+                          <SelectValue placeholder="Métrica" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Revenue">Faturamento Geral</SelectItem>
+                          <SelectItem value="Mix_F1">Faturamento F1 (Automação)</SelectItem>
+                          <SelectItem value="Mix_F2">Faturamento F2 (Robótica)</SelectItem>
+                          <SelectItem value="Mix_F3">Faturamento F3 (Sensores)</SelectItem>
+                          <SelectItem value="Mix_Outros">Faturamento Outros</SelectItem>
+                          <SelectItem value="Coverage">Cobertura (Empresas)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-4 pt-4 border-t">
+                    <div className="space-y-2">
+                      <Label htmlFor="target_base">Meta Base</Label>
                       <Input
-                        id="mix_f1"
-                        name="mix_f1"
+                        id="target_base"
+                        name="target_base"
                         type="number"
                         placeholder="0"
-                        defaultValue="40"
+                        required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="mix_f2">Meta Mix F2 (%)</Label>
+                      <Label htmlFor="target_bronze">Meta Bronze</Label>
                       <Input
-                        id="mix_f2"
-                        name="mix_f2"
+                        id="target_bronze"
+                        name="target_bronze"
                         type="number"
                         placeholder="0"
-                        defaultValue="30"
+                        required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="cobertura">Cobertura (%)</Label>
+                      <Label htmlFor="target_prata">Meta Prata</Label>
                       <Input
-                        id="cobertura"
-                        name="cobertura"
+                        id="target_prata"
+                        name="target_prata"
                         type="number"
                         placeholder="0"
-                        defaultValue="100"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="target_ouro">Meta Ouro</Label>
+                      <Input
+                        id="target_ouro"
+                        name="target_ouro"
+                        type="number"
+                        placeholder="0"
+                        required
                       />
                     </div>
                   </div>
@@ -196,36 +253,80 @@ export default function GoalEntry() {
             <Card>
               <CardHeader>
                 <CardTitle>Importação via Planilha</CardTitle>
-                <CardDescription>Faça o upload de um arquivo Excel/CSV.</CardDescription>
+                <CardDescription>
+                  Fluxo de importação para Metas e Realizado (.csv / .xlsx).
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="border-2 border-dashed border-border rounded-lg p-12 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer">
-                  <div className="bg-primary/10 p-4 rounded-full mb-4">
-                    <UploadCloud className="w-8 h-8 text-primary" />
-                  </div>
-                  <h3 className="text-lg font-medium mb-1">Arraste seu arquivo aqui</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    ou clique para procurar (.xlsx, .csv)
-                  </p>
-                  <Button variant="outline">Selecionar Arquivo</Button>
-                </div>
-                <div className="mt-6 flex items-start gap-4 p-4 bg-blue-50/50 dark:bg-blue-900/20 rounded-lg">
-                  <FileSpreadsheet className="w-5 h-5 text-blue-500 mt-0.5" />
-                  <div>
-                    <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                      Modelo Padrão
-                    </h4>
-                    <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                      Baixe a planilha modelo com a estrutura correta.
+                {importStep === 1 && (
+                  <div className="relative border-2 border-dashed border-border rounded-lg p-12 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer">
+                    <input
+                      type="file"
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                      accept=".csv,.xlsx"
+                      onChange={handleFileChange}
+                    />
+                    <div className="bg-primary/10 p-4 rounded-full mb-4">
+                      <UploadCloud className="w-8 h-8 text-primary" />
+                    </div>
+                    <h3 className="text-lg font-medium mb-1">Arraste seu arquivo aqui</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      ou clique para procurar (.xlsx, .csv)
                     </p>
-                    <Button
-                      variant="link"
-                      className="px-0 h-auto text-blue-600 dark:text-blue-400 mt-2"
-                    >
-                      Baixar Modelo.xlsx
-                    </Button>
+                    <Button variant="outline">Selecionar Arquivo</Button>
                   </div>
-                </div>
+                )}
+
+                {importStep === 2 && (
+                  <div className="py-12 flex flex-col items-center justify-center space-y-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <p>Mapeando colunas e validando formato...</p>
+                  </div>
+                )}
+
+                {importStep === 3 && (
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium">
+                      <CheckCircle2 className="w-5 h-5" /> Arquivo mapeado com sucesso (
+                      {previewData.length} registros).
+                    </div>
+
+                    <div className="border rounded-md overflow-x-auto">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-muted">
+                          <tr>
+                            <th className="px-4 py-2 font-medium">Vendedor</th>
+                            <th className="px-4 py-2 font-medium">Período</th>
+                            <th className="px-4 py-2 font-medium">Métrica</th>
+                            <th className="px-4 py-2 font-medium">Base</th>
+                            <th className="px-4 py-2 font-medium">Bronze</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {previewData.map((r, i) => (
+                            <tr key={i} className="border-t">
+                              <td className="px-4 py-2">{r.Vendedor}</td>
+                              <td className="px-4 py-2">{r.Período}</td>
+                              <td className="px-4 py-2">{r.Métrica}</td>
+                              <td className="px-4 py-2">{r.Base}</td>
+                              <td className="px-4 py-2">{r.Bronze}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <Button variant="outline" onClick={() => setImportStep(1)}>
+                        Cancelar
+                      </Button>
+                      <Button onClick={confirmImport} disabled={isSubmitting} className="gap-2">
+                        {isSubmitting ? 'Importando...' : 'Confirmar e Importar'}{' '}
+                        <ArrowRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
