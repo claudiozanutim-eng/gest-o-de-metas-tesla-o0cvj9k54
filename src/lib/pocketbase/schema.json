@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-24T23:16:43.899Z",
+  "generatedAt": "2026-06-24T23:34:19.188Z",
   "collections": [
     {
       "name": "users",
@@ -503,6 +503,65 @@
           "name": "is_active",
           "type": "bool",
           "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "import_history",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "source",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "file_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "stats",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": true,
           "system": false
         },
         {
