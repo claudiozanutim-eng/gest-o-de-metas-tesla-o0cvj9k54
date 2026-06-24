@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
+import logoUrl from '@/assets/image-7530a.png'
 import {
   Sidebar,
   SidebarContent,
@@ -61,11 +62,8 @@ export function AppSidebar() {
   return (
     <Sidebar variant="inset">
       <SidebarHeader className="border-b p-4">
-        <div className="flex items-center gap-2 font-bold text-xl text-primary">
-          <div className="bg-primary text-primary-foreground p-1 rounded">
-            <Settings className="w-5 h-5" />
-          </div>
-          Tesla Metas
+        <div className="flex items-center py-1">
+          <img src={logoUrl} alt="Tesla Mecatrônica" className="h-8 w-auto object-contain" />
         </div>
       </SidebarHeader>
       <SidebarContent>
