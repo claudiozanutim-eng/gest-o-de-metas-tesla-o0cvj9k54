@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
@@ -17,33 +18,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-
-const mockUsers = [
-  {
-    id: '1',
-    name: 'Roberto Almeida',
-    email: 'roberto@tesla.com.br',
-    role: 'Gerente Regional',
-    status: 'Ativo',
-  },
-  {
-    id: '2',
-    name: 'Carlos Ferreira',
-    email: 'carlos@tesla.com.br',
-    role: 'Vendedor',
-    status: 'Ativo',
-  },
-  { id: '3', name: 'Admin Master', email: 'admin@tesla.com.br', role: 'Admin', status: 'Ativo' },
-  {
-    id: '4',
-    name: 'Lucia Gomes',
-    email: 'lucia@tesla.com.br',
-    role: 'Vendedor',
-    status: 'Inativo',
-  },
-]
+import pb from '@/lib/pocketbase/client'
 
 export default function Users() {
+  const [users, setUsers] = useState<any[]>([])
+
+  useEffect(() => {
+    pb.collection('users').getFullList().then(setUsers).catch(console.error)
+  }, [])
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -71,29 +54,18 @@ export default function Users() {
                 <TableHead className="pl-6">Nome</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Perfil</TableHead>
-                <TableHead>Status</TableHead>
                 <TableHead className="w-[80px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockUsers.map((user) => (
+              {users.map((user) => (
                 <TableRow key={user.id}>
-                  <TableCell className="pl-6 font-medium">{user.name}</TableCell>
+                  <TableCell className="pl-6 font-medium">{user.name || '-'}</TableCell>
                   <TableCell className="text-muted-foreground">{user.email}</TableCell>
                   <TableCell>
                     <Badge variant="secondary" className="font-normal">
-                      {user.role}
+                      {user.role || 'Usuário'}
                     </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={`inline-flex items-center gap-1.5 ${user.status === 'Ativo' ? 'text-emerald-600' : 'text-muted-foreground'}`}
-                    >
-                      <span
-                        className={`w-2 h-2 rounded-full ${user.status === 'Ativo' ? 'bg-emerald-500' : 'bg-muted-foreground'}`}
-                      ></span>
-                      {user.status}
-                    </span>
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>

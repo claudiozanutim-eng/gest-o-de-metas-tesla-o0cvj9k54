@@ -1,29 +1,13 @@
 import { create } from 'zustand'
+import pb from '@/lib/pocketbase/client'
 
-type Role = 'Admin' | 'Gerente Nacional' | 'Gerente Regional' | 'Vendedor'
-
-interface User {
-  id: string
-  name: string
-  role: Role
-  contexto: string // e.g., 'Regional Sul'
-}
-
-interface AuthState {
-  user: User | null
-  setUser: (user: User | null) => void
-  selectedContext: string
-  setSelectedContext: (context: string) => void
-}
-
-export const useAuthStore = create<AuthState>((set) => ({
-  user: {
-    id: 'u1',
-    name: 'Roberto Almeida',
-    role: 'Gerente Regional',
-    contexto: 'Regional Paraná',
-  },
-  selectedContext: 'Regional Paraná',
-  setUser: (user) => set({ user }),
-  setSelectedContext: (selectedContext) => set({ selectedContext }),
+export const useAuthStore = create<any>((set) => ({
+  user: pb.authStore.record,
+  selectedContext: 'Global',
+  setUser: (user: any) => set({ user }),
+  setSelectedContext: (selectedContext: string) => set({ selectedContext }),
 }))
+
+pb.authStore.onChange((_token, record) => {
+  useAuthStore.setState({ user: record })
+})

@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -78,6 +79,3 @@ export default function Reports() {
     </div>
   )
 }
-
-// Temporary input mock since I didn't import Input in this specific file yet, fixing it:
-import { Input } from '@/components/ui/input'

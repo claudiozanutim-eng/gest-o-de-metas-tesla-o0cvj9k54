@@ -1,6 +1,6 @@
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { FolderTree, ChevronRight, MapPin, Users } from 'lucide-react'
-import { mockHierarchy } from '@/lib/mock-data'
+import { FolderTree, ChevronRight, MapPin, Users as UsersIcon } from 'lucide-react'
 import {
   Accordion,
   AccordionContent,
@@ -9,8 +9,30 @@ import {
 } from '@/components/ui/accordion'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import pb from '@/lib/pocketbase/client'
 
 export default function Structure() {
+  const [distritos, setDistritos] = useState<any[]>([])
+  const [regionais, setRegionais] = useState<any[]>([])
+  const [areas, setAreas] = useState<any[]>([])
+  const [vendedores, setVendedores] = useState<any[]>([])
+
+  useEffect(() => {
+    Promise.all([
+      pb.collection('districts').getFullList(),
+      pb.collection('regionals').getFullList(),
+      pb.collection('areas').getFullList(),
+      pb.collection('users').getFullList({ filter: 'role = "Seller"' }),
+    ])
+      .then(([d, r, a, v]) => {
+        setDistritos(d)
+        setRegionais(r)
+        setAreas(a)
+        setVendedores(v)
+      })
+      .catch(console.error)
+  }, [])
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -33,26 +55,22 @@ export default function Structure() {
           </CardHeader>
           <CardContent>
             <Accordion type="single" collapsible className="w-full">
-              {mockHierarchy.distritos.map((distrito) => {
-                const regionais = mockHierarchy.regionais.filter(
-                  (r) => r.distritoId === distrito.id,
-                )
+              {distritos.map((distrito) => {
+                const regs = regionais.filter((r) => r.district_id === distrito.id)
                 return (
                   <AccordionItem value={distrito.id} key={distrito.id} className="border-b-0 mb-2">
                     <AccordionTrigger className="hover:bg-muted/50 rounded-lg px-4 border">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold">{distrito.name}</span>
                         <Badge variant="secondary" className="ml-2 text-xs">
-                          {regionais.length} Regionais
+                          {regs.length} Regionais
                         </Badge>
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="pt-2 pb-0 pl-6">
                       <Accordion type="multiple" className="w-full border-l-2 ml-2 pl-4">
-                        {regionais.map((regional) => {
-                          const areas = mockHierarchy.areas.filter(
-                            (a) => a.regionalId === regional.id,
-                          )
+                        {regs.map((regional) => {
+                          const ars = areas.filter((a) => a.regional_id === regional.id)
                           return (
                             <AccordionItem
                               value={regional.id}
@@ -67,10 +85,8 @@ export default function Structure() {
                               </AccordionTrigger>
                               <AccordionContent className="pt-2 pb-2 pl-6">
                                 <div className="space-y-2 border-l ml-2 pl-4">
-                                  {areas.map((area) => {
-                                    const vendedores = mockHierarchy.vendedores.filter(
-                                      (v) => v.areaId === area.id,
-                                    )
+                                  {ars.map((area) => {
+                                    const vends = vendedores.filter((v) => v.area_id === area.id)
                                     return (
                                       <div
                                         key={area.id}
@@ -81,8 +97,8 @@ export default function Structure() {
                                           <span>{area.name}</span>
                                         </div>
                                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                          <Users className="w-3 h-3" />
-                                          {vendedores.length} Vendedor(es)
+                                          <UsersIcon className="w-3 h-3" />
+                                          {vends.length} Vendedor(es)
                                         </div>
                                       </div>
                                     )

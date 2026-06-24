@@ -5,6 +5,9 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Bot, Send, Sparkles, User } from 'lucide-react'
+import { streamAgentChat } from '@/lib/skipAi'
+import pb from '@/lib/pocketbase/client'
+import { useAuth } from '@/hooks/use-auth'
 
 type Message = {
   id: string
@@ -13,16 +16,18 @@ type Message = {
 }
 
 export default function Assistant() {
+  const { user } = useAuth()
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'assistant',
       content:
-        'Olá! Sou o assistente de IA da Tesla Mecatrônica. Posso analisar os dados da sua regional, apontar áreas de risco ou sugerir ações para melhorar o mix de produtos. Como posso ajudar hoje?',
+        'Olá! Sou o assistente de IA da Tesla Mecatrônica. Posso analisar dados, apontar áreas de risco e sugerir ações de vendas. Como posso ajudar hoje?',
     },
   ])
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
+  const [conversationId, setConversationId] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -31,25 +36,53 @@ export default function Assistant() {
     }
   }, [messages, isTyping])
 
-  const handleSend = (e?: React.FormEvent) => {
+  const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault()
-    if (!input.trim()) return
+    if (!input.trim() || isTyping) return
 
     const userMsg: Message = { id: Date.now().toString(), role: 'user', content: input }
     setMessages((prev) => [...prev, userMsg])
     setInput('')
     setIsTyping(true)
 
-    // Mock AI response
-    setTimeout(() => {
+    try {
+      const abortController = new AbortController()
+      const res = await fetch(
+        `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/ask-assistant-stream`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: pb.authStore.token },
+          body: JSON.stringify({ message: userMsg.content, conversation_id: conversationId }),
+          signal: abortController.signal,
+        },
+      )
+
+      const assistantId = (Date.now() + 1).toString()
+      setMessages((prev) => [...prev, { id: assistantId, role: 'assistant', content: '' }])
+
+      const result = await streamAgentChat(res, {
+        onChunk: (_, full) => {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === assistantId ? { ...m, content: full } : m)),
+          )
+        },
+        signal: abortController.signal,
+      })
+
+      setConversationId(result.conversation_id)
+    } catch (err) {
+      console.error(err)
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: 'Desculpe, ocorreu um erro de conexão.',
+        },
+      ])
+    } finally {
       setIsTyping(false)
-      const aiMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: `Analisando os dados da **Regional Paraná**, notei que a **Área Ponta Grossa** está com 75% da meta (Categoria Base). Sugiro focar no mix da Família F2 (Robótica) nesta região, que apresenta a maior margem de crescimento histórico neste trimestre. Deseja que eu gere um relatório detalhado dessa área?`,
-      }
-      setMessages((prev) => [...prev, aiMsg])
-    }, 1500)
+    }
   }
 
   return (
@@ -67,7 +100,7 @@ export default function Assistant() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-accent" />
-              Tesla IA - Contexto: Regional Paraná
+              Tesla IA - Contexto: {user?.role || 'Global'}
             </CardTitle>
           </div>
         </CardHeader>
@@ -88,7 +121,9 @@ export default function Assistant() {
                     <Bot className="w-4 h-4" />
                   ) : (
                     <>
-                      <AvatarImage src="https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1" />
+                      <AvatarImage
+                        src={`https://img.usecurling.com/ppl/thumbnail?gender=male&seed=${user?.id}`}
+                      />
                       <AvatarFallback>
                         <User className="w-4 h-4" />
                       </AvatarFallback>
@@ -103,16 +138,17 @@ export default function Assistant() {
                       : 'bg-muted rounded-tl-sm border'
                   }`}
                 >
-                  {/* Basic markdown rendering simulation */}
                   <div
                     dangerouslySetInnerHTML={{
-                      __html: msg.content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'),
+                      __html: msg.content
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\n/g, '<br />'),
                     }}
                   />
                 </div>
               </div>
             ))}
-            {isTyping && (
+            {isTyping && messages[messages.length - 1]?.role === 'user' && (
               <div className="flex gap-4 max-w-[85%]">
                 <Avatar className="w-8 h-8 mt-1 border shadow-sm bg-primary text-primary-foreground">
                   <Bot className="w-4 h-4" />
