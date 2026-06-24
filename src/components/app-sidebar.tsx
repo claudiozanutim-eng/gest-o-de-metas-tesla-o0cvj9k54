@@ -1,0 +1,125 @@
+import { Link, useLocation } from 'react-router-dom'
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from '@/components/ui/sidebar'
+import {
+  LayoutDashboard,
+  Target,
+  TrendingUp,
+  Calculator,
+  Bot,
+  FileText,
+  Settings,
+  Users,
+  Network,
+} from 'lucide-react'
+import { useAuthStore } from '@/stores/use-auth-store'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { ChevronRight } from 'lucide-react'
+
+const mainNavItems = [
+  { title: 'Dashboard', url: '/', icon: LayoutDashboard },
+  { title: 'Lançamento de Metas', url: '/metas', icon: Target },
+  { title: 'Acompanhamento', url: '/acompanhamento', icon: TrendingUp },
+  { title: 'Simulação de Ganho', url: '/simulacao', icon: Calculator },
+  { title: 'Assistente IA', url: '/assistente', icon: Bot },
+  { title: 'Relatórios', url: '/relatorios', icon: FileText },
+]
+
+const adminItems = [
+  { title: 'Usuários', url: '/admin/usuarios', icon: Users },
+  { title: 'Estrutura Hierárquica', url: '/admin/estrutura', icon: Network },
+]
+
+export function AppSidebar() {
+  const location = useLocation()
+  const user = useAuthStore((state) => state.user)
+  const isAdmin = user?.role === 'Admin' || user?.role === 'Gerente Nacional'
+
+  return (
+    <Sidebar variant="inset">
+      <SidebarHeader className="border-b p-4">
+        <div className="flex items-center gap-2 font-bold text-xl text-primary">
+          <div className="bg-primary text-primary-foreground p-1 rounded">
+            <Settings className="w-5 h-5" />
+          </div>
+          Tesla Metas
+        </div>
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {mainNavItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location.pathname === item.url}
+                    tooltip={item.title}
+                  >
+                    <Link to={item.url}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {isAdmin && (
+          <Collapsible defaultOpen className="group/collapsible">
+            <SidebarGroup>
+              <SidebarGroupLabel asChild>
+                <CollapsibleTrigger className="w-full flex items-center justify-between hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md p-2">
+                  <span>Cadastros</span>
+                  <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                </CollapsibleTrigger>
+              </SidebarGroupLabel>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {adminItems.map((item) => (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton asChild isActive={location.pathname === item.url}>
+                          <Link to={item.url}>
+                            <item.icon />
+                            <span>{item.title}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </SidebarGroup>
+          </Collapsible>
+        )}
+      </SidebarContent>
+      <SidebarFooter className="border-t p-4">
+        <div className="flex items-center gap-3">
+          <img
+            src="https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1"
+            alt="User"
+            className="w-8 h-8 rounded-full"
+          />
+          <div className="flex flex-col truncate">
+            <span className="text-sm font-medium">{user?.name}</span>
+            <span className="text-xs text-muted-foreground">{user?.role}</span>
+          </div>
+        </div>
+      </SidebarFooter>
+    </Sidebar>
+  )
+}
