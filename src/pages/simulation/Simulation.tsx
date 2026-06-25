@@ -7,6 +7,7 @@ import { formatCurrency } from '@/lib/mock-data'
 import { Calculator, DollarSign, TrendingUp, Award, Info } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { Badge } from '@/components/ui/badge'
 
 export default function Simulation() {
   const [baseSalary, setBaseSalary] = useState(3000)
