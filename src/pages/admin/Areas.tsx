@@ -46,9 +46,11 @@ export default function Areas() {
   const { toast } = useToast()
 
   const loadData = async () => {
-    const a = await pb.collection('areas').getFullList({ expand: 'regional_id,responsible_id' })
+    const a = await pb
+      .collection('areas')
+      .getFullList({ expand: 'regional_id.district_id,responsible_id' })
     setAreas(a)
-    setRegionals(await pb.collection('regionals').getFullList())
+    setRegionals(await pb.collection('regionals').getFullList({ expand: 'district_id' }))
     setUsers(await pb.collection('users').getFullList())
   }
   useEffect(() => {
@@ -97,6 +99,7 @@ export default function Areas() {
               <TableRow>
                 <TableHead className="pl-6">Nome</TableHead>
                 <TableHead>Regional</TableHead>
+                <TableHead>Nível Intermediário</TableHead>
                 <TableHead>Responsável</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead></TableHead>
@@ -106,6 +109,7 @@ export default function Areas() {
               {areas.map((a) => (
                 <TableRow key={a.id}>
                   <TableCell className="pl-6 font-medium">{a.name}</TableCell>
+                  <TableCell>{a.expand?.regional_id?.expand?.district_id?.name || '-'}</TableCell>
                   <TableCell>{a.expand?.regional_id?.name || '-'}</TableCell>
                   <TableCell>{a.expand?.responsible_id?.name || '-'}</TableCell>
                   <TableCell>
@@ -139,13 +143,13 @@ export default function Areas() {
               />
             </div>
             <div className="grid gap-2">
-              <Label>Regional</Label>
+              <Label>Nível Intermediário</Label>
               <Select
                 value={formData.regional_id}
                 onValueChange={(v) => setFormData({ ...formData, regional_id: v })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma regional" />
+                  <SelectValue placeholder="Selecione um nível intermediário" />
                 </SelectTrigger>
                 <SelectContent>
                   {regionals.map((r) => (
@@ -156,6 +160,18 @@ export default function Areas() {
                 </SelectContent>
               </Select>
             </div>
+            {formData.regional_id && (
+              <div className="grid gap-2">
+                <Label>Regional (Automático)</Label>
+                <Input
+                  disabled
+                  value={
+                    regionals.find((r) => r.id === formData.regional_id)?.expand?.district_id
+                      ?.name || '-'
+                  }
+                />
+              </div>
+            )}
             <div className="grid gap-2">
               <Label>Responsável (Usuário)</Label>
               <Select
