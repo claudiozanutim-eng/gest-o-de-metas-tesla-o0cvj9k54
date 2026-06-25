@@ -11,13 +11,18 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import pb from '@/lib/pocketbase/client'
 
+import { useToast } from '@/hooks/use-toast'
+import { Loader2 } from 'lucide-react'
+
 export default function Structure() {
   const [distritos, setDistritos] = useState<any[]>([])
   const [regionais, setRegionais] = useState<any[]>([])
   const [areas, setAreas] = useState<any[]>([])
   const [vendedores, setVendedores] = useState<any[]>([])
+  const [loadingStruct, setLoadingStruct] = useState(false)
+  const { toast } = useToast()
 
-  useEffect(() => {
+  const loadData = () => {
     Promise.all([
       pb.collection('districts').getFullList(),
       pb.collection('regionals').getFullList(),
@@ -31,7 +36,27 @@ export default function Structure() {
         setVendedores(v)
       })
       .catch(console.error)
+  }
+
+  useEffect(() => {
+    loadData()
   }, [])
+
+  const handleLoadStructure = async () => {
+    setLoadingStruct(true)
+    try {
+      const res = await pb.send('/backend/v1/load-structure', { method: 'POST' })
+      toast({
+        title: 'Estrutura Carregada',
+        description: `Regionais criadas/atualizadas: ${res.regionals_created + res.regionals_updated}. Agrupamentos associados: ${res.scopes_associated}. Áreas vinculadas: ${res.areas_linked}. Pendentes de revisão: ${res.pending_review}.`,
+      })
+      loadData()
+    } catch (e: any) {
+      toast({ title: 'Erro ao carregar', description: e.message, variant: 'destructive' })
+    } finally {
+      setLoadingStruct(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -42,7 +67,13 @@ export default function Structure() {
             Gerencie Distritos, Regionais, Áreas e Vendedores.
           </p>
         </div>
-        <Button variant="outline">Adicionar Nível</Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={handleLoadStructure} disabled={loadingStruct}>
+            {loadingStruct && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            Carregar Estrutura Comercial Padrão
+          </Button>
+          <Button variant="outline">Adicionar Nível</Button>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">

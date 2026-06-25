@@ -30,13 +30,14 @@ import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
 
 const REQ_FIELDS = [
-  { k: 'seller', l: 'Vendedor' },
-  { k: 'period', l: 'Período' },
-  { k: 'metric', l: 'Métrica' },
-  { k: 'target_base', l: 'Base' },
-  { k: 'target_bronze', l: 'Bronze' },
-  { k: 'target_prata', l: 'Prata' },
-  { k: 'target_ouro', l: 'Ouro' },
+  { k: 'seller', l: 'Vendedor (E-mail ou Cód.)', req: true },
+  { k: 'area', l: 'Área (Opcional)', req: false },
+  { k: 'period', l: 'Período', req: true },
+  { k: 'metric', l: 'Métrica', req: true },
+  { k: 'target_base', l: 'Base', req: true },
+  { k: 'target_bronze', l: 'Bronze', req: true },
+  { k: 'target_prata', l: 'Prata', req: true },
+  { k: 'target_ouro', l: 'Ouro', req: true },
 ]
 
 export default function Importacao() {
@@ -99,11 +100,12 @@ export default function Importacao() {
       reader.readAsText(file)
     } else {
       setTimeout(() => {
-        const mh = ['Vendedor', 'Período', 'Métrica', 'Base', 'Bronze', 'Prata', 'Ouro']
+        const mh = ['Vendedor', 'Área', 'Período', 'Métrica', 'Base', 'Bronze', 'Prata', 'Ouro']
         setHeaders(mh)
         setData([
           {
             Vendedor: user?.email || '',
+            Área: 'SP - Capital',
             Período: '2026-08',
             Métrica: 'Faturamento',
             Base: '15000',
@@ -121,11 +123,12 @@ export default function Importacao() {
   const handleGoogle = () => {
     setFileName('Metas_Drive_2026.xlsx')
     setTimeout(() => {
-      const mh = ['Vendedor', 'Período', 'Métrica', 'Base', 'Bronze', 'Prata', 'Ouro']
+      const mh = ['Vendedor', 'Área', 'Período', 'Métrica', 'Base', 'Bronze', 'Prata', 'Ouro']
       setHeaders(mh)
       setData([
         {
           Vendedor: user?.email || '',
+          Área: 'RJ - Interior',
           Período: '2026-08',
           Métrica: 'Faturamento',
           Base: '10000',
@@ -165,6 +168,7 @@ export default function Importacao() {
           target_bronze: pNum(r[mapping.target_bronze]),
           target_prata: pNum(r[mapping.target_prata]),
           target_ouro: pNum(r[mapping.target_ouro]),
+          area_name: mapping.area ? r[mapping.area] : null,
         },
         err,
         i: i + 1,
@@ -184,17 +188,32 @@ export default function Importacao() {
         e++
         continue
       }
+
+      if (r.map.area_name) {
+        try {
+          await pb.collection('areas').getFirstListItem(`name="${r.map.area_name}"`)
+        } catch {
+          await pb
+            .collection('areas')
+            .create({ name: r.map.area_name, is_active: true })
+            .catch(() => {})
+        }
+      }
+
+      const goalData = { ...r.map }
+      delete goalData.area_name
+
       try {
         const ex = await pb
           .collection('goals')
           .getFirstListItem(
-            `seller_id="${r.map.seller_id}" && period="${r.map.period}" && metric="${r.map.metric}"`,
+            `seller_id="${goalData.seller_id}" && period="${goalData.period}" && metric="${goalData.metric}"`,
           )
-        await pb.collection('goals').update(ex.id, r.map)
+        await pb.collection('goals').update(ex.id, goalData)
         u++
       } catch {
         try {
-          await pb.collection('goals').create(r.map)
+          await pb.collection('goals').create(goalData)
           c++
         } catch {
           e++
@@ -327,7 +346,7 @@ export default function Importacao() {
             <Button variant="outline" onClick={() => setStep(2)}>
               Voltar
             </Button>
-            <Button onClick={validate} disabled={REQ_FIELDS.some((f) => !mapping[f.k])}>
+            <Button onClick={validate} disabled={REQ_FIELDS.some((f) => f.req && !mapping[f.k])}>
               Validar Mapeamento
             </Button>
           </CardFooter>

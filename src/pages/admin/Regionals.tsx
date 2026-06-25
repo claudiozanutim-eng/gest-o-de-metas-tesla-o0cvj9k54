@@ -95,6 +95,7 @@ export default function Regionals() {
                 <TableHead className="pl-6">Nome</TableHead>
                 <TableHead>Distrito</TableHead>
                 <TableHead>Cor</TableHead>
+                <TableHead>Abrangência</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead></TableHead>
               </TableRow>
@@ -108,7 +109,13 @@ export default function Regionals() {
                     <div
                       className="w-6 h-6 rounded border"
                       style={{ backgroundColor: r.color_code || '#ccc' }}
+                      title={r.color_code}
                     />
+                  </TableCell>
+                  <TableCell className="max-w-[200px] truncate" title={r.observations}>
+                    {r.observations
+                      ? r.observations.replace(/[[\]"]/g, '').replace(/,/g, ', ')
+                      : '-'}
                   </TableCell>
                   <TableCell>
                     <Badge variant={r.is_active ? 'default' : 'secondary'}>
