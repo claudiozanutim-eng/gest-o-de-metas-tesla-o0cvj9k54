@@ -16,9 +16,9 @@ export default function Simulation() {
   const [goal, setGoal] = useState(200000)
 
   const [achievements, setAchievements] = useState({
-    revenue: [80],
-    mix: [80],
-    coverage: [80],
+    revenue: [100],
+    mix: [100],
+    coverage: [100],
   })
 
   const [tiers, setTiers] = useState<any[]>([])
@@ -145,7 +145,7 @@ export default function Simulation() {
                 <Slider
                   value={achievements.revenue}
                   onValueChange={(v) => setAchievements({ ...achievements, revenue: v })}
-                  min={80}
+                  min={0}
                   max={190}
                   step={1}
                 />
@@ -163,7 +163,7 @@ export default function Simulation() {
                 <Slider
                   value={achievements.mix}
                   onValueChange={(v) => setAchievements({ ...achievements, mix: v })}
-                  min={80}
+                  min={0}
                   max={190}
                   step={1}
                 />
@@ -181,7 +181,7 @@ export default function Simulation() {
                 <Slider
                   value={achievements.coverage}
                   onValueChange={(v) => setAchievements({ ...achievements, coverage: v })}
-                  min={80}
+                  min={0}
                   max={190}
                   step={1}
                 />
