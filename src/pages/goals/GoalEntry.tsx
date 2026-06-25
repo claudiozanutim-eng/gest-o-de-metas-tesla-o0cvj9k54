@@ -33,8 +33,14 @@ export default function GoalEntry() {
 
   // Manual Entry States
   const [sellers, setSellers] = useState<any[]>([])
+  const [regionals, setRegionals] = useState<any[]>([])
+  const [areas, setAreas] = useState<any[]>([])
   const [open, setOpen] = useState(false)
+  const [openRegional, setOpenRegional] = useState(false)
+  const [openArea, setOpenArea] = useState(false)
   const [selectedSellerId, setSelectedSellerId] = useState<string>('')
+  const [selectedRegionalId, setSelectedRegionalId] = useState<string>('')
+  const [selectedAreaId, setSelectedAreaId] = useState<string>('')
 
   const [period, setPeriod] = useState('2026-06')
   const [metric, setMetric] = useState('Revenue')
@@ -56,9 +62,18 @@ export default function GoalEntry() {
   const [previewData, setPreviewData] = useState<any[]>([])
 
   useEffect(() => {
-    pb.collection('sellers')
-      .getFullList({ expand: 'area_id.regional_id', filter: 'is_active = true', sort: 'name' })
-      .then(setSellers)
+    Promise.all([
+      pb
+        .collection('sellers')
+        .getFullList({ expand: 'area_id.regional_id', filter: 'is_active = true', sort: 'name' }),
+      pb.collection('regionals').getFullList({ filter: 'is_active = true', sort: 'name' }),
+      pb.collection('areas').getFullList({ filter: 'is_active = true', sort: 'name' }),
+    ])
+      .then(([sellersData, regionalsData, areasData]) => {
+        setSellers(sellersData)
+        setRegionals(regionalsData)
+        setAreas(areasData)
+      })
       .catch(console.error)
   }, [])
 
@@ -85,8 +100,13 @@ export default function GoalEntry() {
         setFocusFleet('')
         setFocusCompanies('')
         setMixFamily('')
+        setSelectedRegionalId('')
+        setSelectedAreaId('')
         return
       }
+
+      const defaultAreaId = seller.area_id || ''
+      const defaultRegionalId = seller.expand?.area_id?.regional_id || ''
 
       try {
         const goal = await pb
@@ -102,6 +122,8 @@ export default function GoalEntry() {
         setFocusFleet(goal.focus_fleet?.toString() || '')
         setFocusCompanies(goal.focus_companies?.toString() || '')
         setMixFamily(goal.mix_family || '')
+        setSelectedRegionalId(goal.regional_id || defaultRegionalId)
+        setSelectedAreaId(goal.area_id || defaultAreaId)
       } catch (e) {
         setExistingGoalId(null)
         setTargetBase('')
@@ -111,6 +133,8 @@ export default function GoalEntry() {
         setFocusFleet('')
         setFocusCompanies('')
         setMixFamily('')
+        setSelectedRegionalId(defaultRegionalId)
+        setSelectedAreaId(defaultAreaId)
       }
     }
 
@@ -140,6 +164,8 @@ export default function GoalEntry() {
     try {
       const data = {
         seller_id: seller.user_id,
+        regional_id: selectedRegionalId || null,
+        area_id: selectedAreaId || null,
         period,
         metric,
         target_base: Number(targetBase),
@@ -155,14 +181,14 @@ export default function GoalEntry() {
         await pb.collection('goals').update(existingGoalId, data)
         toast({
           title: 'Sucesso',
-          description: 'Dados salvos com sucesso',
+          description: 'Meta salva com sucesso!',
         })
       } else {
         const newGoal = await pb.collection('goals').create(data)
         setExistingGoalId(newGoal.id)
         toast({
           title: 'Sucesso',
-          description: 'Dados salvos com sucesso',
+          description: 'Meta salva com sucesso!',
         })
       }
     } catch (error) {
@@ -222,10 +248,6 @@ export default function GoalEntry() {
     user?.role === 'Administrator' ||
     user?.role === 'National Manager' ||
     user?.role === 'Sales Assistant'
-
-  const selectedSeller = sellers.find((s) => s.id === selectedSellerId)
-  const regionalName = selectedSeller?.expand?.area_id?.expand?.regional_id?.name || ''
-  const areaName = selectedSeller?.expand?.area_id?.name || ''
 
   const getRegionalColor = (name: string) => {
     if (!name) return 'bg-muted'
@@ -326,21 +348,116 @@ export default function GoalEntry() {
 
                     <div className="space-y-2">
                       <Label>Regional</Label>
-                      <Input
-                        value={regionalName}
-                        disabled
-                        className={cn('transition-colors', getRegionalColor(regionalName))}
-                        placeholder="Automático"
-                      />
+                      <Popover open={openRegional} onOpenChange={setOpenRegional}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={openRegional}
+                            className={cn(
+                              'w-full justify-between font-normal',
+                              getRegionalColor(
+                                regionals.find((r) => r.id === selectedRegionalId)?.name || '',
+                              ),
+                            )}
+                          >
+                            {selectedRegionalId
+                              ? regionals.find((r) => r.id === selectedRegionalId)?.name
+                              : 'Selecione a regional...'}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                          <Command>
+                            <CommandInput placeholder="Buscar regional..." />
+                            <CommandList>
+                              <CommandEmpty>Nenhuma regional encontrada.</CommandEmpty>
+                              <CommandGroup>
+                                {regionals.map((reg) => (
+                                  <CommandItem
+                                    key={reg.id}
+                                    value={reg.name}
+                                    onSelect={() => {
+                                      setSelectedRegionalId(reg.id)
+                                      if (selectedAreaId) {
+                                        const currentArea = areas.find(
+                                          (a) => a.id === selectedAreaId,
+                                        )
+                                        if (currentArea && currentArea.regional_id !== reg.id) {
+                                          setSelectedAreaId('')
+                                        }
+                                      }
+                                      setOpenRegional(false)
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        'mr-2 h-4 w-4',
+                                        selectedRegionalId === reg.id ? 'opacity-100' : 'opacity-0',
+                                      )}
+                                    />
+                                    {reg.name}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     <div className="space-y-2">
                       <Label>Área</Label>
-                      <Input
-                        value={areaName}
-                        disabled
-                        className="bg-muted"
-                        placeholder="Automático"
-                      />
+                      <Popover open={openArea} onOpenChange={setOpenArea}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={openArea}
+                            className="w-full justify-between font-normal"
+                          >
+                            {selectedAreaId
+                              ? areas.find((a) => a.id === selectedAreaId)?.name
+                              : 'Selecione a área...'}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                          <Command>
+                            <CommandInput placeholder="Buscar área..." />
+                            <CommandList>
+                              <CommandEmpty>Nenhuma área encontrada.</CommandEmpty>
+                              <CommandGroup>
+                                {areas
+                                  .filter(
+                                    (a) =>
+                                      !selectedRegionalId || a.regional_id === selectedRegionalId,
+                                  )
+                                  .map((area) => (
+                                    <CommandItem
+                                      key={area.id}
+                                      value={area.name}
+                                      onSelect={() => {
+                                        setSelectedAreaId(area.id)
+                                        if (!selectedRegionalId && area.regional_id) {
+                                          setSelectedRegionalId(area.regional_id)
+                                        }
+                                        setOpenArea(false)
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          'mr-2 h-4 w-4',
+                                          selectedAreaId === area.id ? 'opacity-100' : 'opacity-0',
+                                        )}
+                                      />
+                                      {area.name}
+                                    </CommandItem>
+                                  ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   </div>
 

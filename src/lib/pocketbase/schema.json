@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-25T15:31:52.525Z",
+  "generatedAt": "2026-06-25T17:54:56.027Z",
   "collections": [
     {
       "name": "users",
@@ -432,6 +432,20 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "regional_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "regionals"
+        },
+        {
+          "name": "area_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "areas"
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_goals_unique ON goals (seller_id, period, metric)"]
