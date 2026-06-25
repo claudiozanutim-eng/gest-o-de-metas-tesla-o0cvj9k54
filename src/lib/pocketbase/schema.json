@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-25T18:52:59.933Z",
+  "generatedAt": "2026-06-25T19:55:05.000Z",
   "collections": [
     {
       "name": "users",
@@ -623,6 +623,82 @@
           "name": "status",
           "type": "text",
           "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "commission_tiers",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.role = 'Administrator'",
+        "update": "@request.auth.role = 'Administrator'",
+        "delete": "@request.auth.role = 'Administrator'"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "order",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "color",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "min_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "max_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "commission_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "multiplier",
+          "type": "number",
+          "required": false,
           "system": false
         },
         {
