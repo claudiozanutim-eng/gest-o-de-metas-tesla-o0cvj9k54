@@ -222,6 +222,21 @@ export default function GoalEntry() {
   const regionalName = selectedSeller?.expand?.area_id?.expand?.regional_id?.name || ''
   const areaName = selectedSeller?.expand?.area_id?.name || ''
 
+  const getRegionalColor = (name: string) => {
+    if (!name) return 'bg-muted'
+    const lower = name.toLowerCase()
+    if (lower.includes('r1')) return 'bg-green-600 !text-white !opacity-100 font-medium' // Verde
+    if (lower.includes('r2')) return 'bg-purple-600 !text-white !opacity-100 font-medium' // Roxa
+    if (lower.includes('r3')) return 'bg-orange-500 !text-white !opacity-100 font-medium' // Laranja
+    if (lower.includes('r4')) return 'bg-yellow-400 !text-black !opacity-100 font-medium' // Amarela
+    if (lower.includes('r5')) return 'bg-sky-300 !text-black !opacity-100 font-medium' // Azul Claro
+    if (lower.includes('r6')) return 'bg-red-600 !text-white !opacity-100 font-medium' // Vermelho
+    if (lower.includes('r7')) return 'bg-amber-600 !text-white !opacity-100 font-medium' // Marrom Claro
+    if (lower.includes('r8')) return 'bg-gray-500 !text-white !opacity-100 font-medium' // Cinza
+    if (lower.includes('r0')) return 'bg-purple-300 !text-black !opacity-100 font-medium' // Lilás
+    return 'bg-muted'
+  }
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
@@ -309,7 +324,7 @@ export default function GoalEntry() {
                       <Input
                         value={regionalName}
                         disabled
-                        className="bg-muted"
+                        className={cn('transition-colors', getRegionalColor(regionalName))}
                         placeholder="Automático"
                       />
                     </div>
