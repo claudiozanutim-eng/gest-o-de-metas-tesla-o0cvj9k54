@@ -2,10 +2,41 @@ import { createContext, useContext, useEffect, useState, useMemo, ReactNode } fr
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 
+export const STATE_TO_REG_NUMBER: Record<string, string> = {
+  SP: '1',
+  RS: '2',
+  SC: '2',
+  PR: '2',
+  RJ: '3',
+  ES: '3',
+  MG: '4',
+  BA: '5',
+  AL: '5',
+  SE: '5',
+  PE: '5',
+  PB: '5',
+  RN: '5',
+  AP: '6',
+  AM: '6',
+  AC: '6',
+  RR: '6',
+  PA: '6',
+  RO: '7',
+  MT: '7',
+  MS: '7',
+  GO: '8',
+  DF: '8',
+  TO: '0',
+  CE: '0',
+  PI: '0',
+  MA: '0',
+}
+
 export interface DashboardFilters {
   year: string
   period: string
   regional: string
+  state: string
   area: string
   seller: string
   family: string
@@ -35,6 +66,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     year: 'All',
     period: 'All',
     regional: 'All',
+    state: 'All',
     area: 'All',
     seller: 'All',
     family: 'All',
@@ -86,6 +118,13 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       if (filters.area !== 'All' && seller?.area_id !== filters.area) return false
       if (filters.regional !== 'All' && seller?.regional_id !== filters.regional) return false
 
+      if (filters.state !== 'All') {
+        const expectedReg = STATE_TO_REG_NUMBER[filters.state]
+        const regName = seller?.expand?.regional_id?.name || ''
+        const regNum = regName.match(/\b(0|1|2|3|4|5|6|7|8)\b/)?.[1]
+        if (expectedReg && regNum !== expectedReg) return false
+      }
+
       return true
     })
   }, [actuals, filters])
@@ -100,6 +139,13 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       if (filters.seller !== 'All' && seller?.id !== filters.seller) return false
       if (filters.area !== 'All' && seller?.area_id !== filters.area) return false
       if (filters.regional !== 'All' && seller?.regional_id !== filters.regional) return false
+
+      if (filters.state !== 'All') {
+        const expectedReg = STATE_TO_REG_NUMBER[filters.state]
+        const regName = seller?.expand?.regional_id?.name || ''
+        const regNum = regName.match(/\b(0|1|2|3|4|5|6|7|8)\b/)?.[1]
+        if (expectedReg && regNum !== expectedReg) return false
+      }
 
       return true
     })

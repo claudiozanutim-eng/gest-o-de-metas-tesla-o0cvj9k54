@@ -4,7 +4,7 @@ import { DashboardKPIs } from '@/components/dashboard/kpi-cards'
 import { MixDonutChart } from '@/components/dashboard/mix-donut'
 import { SellerRanking } from '@/components/dashboard/seller-ranking'
 import { ProductsRanking } from '@/components/dashboard/products-ranking'
-import { RegionalTiles } from '@/components/dashboard/regional-tiles'
+import { BrazilMap } from '@/components/dashboard/brazil-map'
 import { TrendLineChart } from '@/components/dashboard/trend-line'
 import { Activity } from 'lucide-react'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -42,7 +42,7 @@ function DashboardContent() {
         <ProductsRanking />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 pb-8">
-        <RegionalTiles />
+        <BrazilMap />
         <TrendLineChart />
       </div>
     </div>
