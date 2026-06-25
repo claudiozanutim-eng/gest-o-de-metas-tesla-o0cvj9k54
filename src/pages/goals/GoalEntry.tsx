@@ -12,61 +12,159 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
-import { UploadCloud, FileSpreadsheet, CheckCircle2, ArrowRight } from 'lucide-react'
+import { UploadCloud, CheckCircle2, ArrowRight, Check, ChevronsUpDown } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
+import { cn } from '@/lib/utils'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 export default function GoalEntry() {
   const { toast } = useToast()
   const { user } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [sellers, setSellers] = useState<any[]>([])
 
+  // Manual Entry States
+  const [sellers, setSellers] = useState<any[]>([])
+  const [open, setOpen] = useState(false)
+  const [selectedSellerId, setSelectedSellerId] = useState<string>('')
+
+  const [period, setPeriod] = useState('2026-06')
+  const [metric, setMetric] = useState('Revenue')
+
+  const [focusFleet, setFocusFleet] = useState('')
+  const [focusCompanies, setFocusCompanies] = useState('')
+
+  const [targetBase, setTargetBase] = useState('')
+  const [targetBronze, setTargetBronze] = useState('')
+  const [targetPrata, setTargetPrata] = useState('')
+  const [targetOuro, setTargetOuro] = useState('')
+
+  const [existingGoalId, setExistingGoalId] = useState<string | null>(null)
+
+  // Import States
   const [importStep, setImportStep] = useState(1)
   const [file, setFile] = useState<File | null>(null)
   const [previewData, setPreviewData] = useState<any[]>([])
 
   useEffect(() => {
-    pb.collection('users')
-      .getFullList({ filter: 'role = "Seller"' })
+    pb.collection('sellers')
+      .getFullList({ expand: 'area_id.regional_id', filter: 'is_active = true', sort: 'name' })
       .then(setSellers)
       .catch(console.error)
   }, [])
 
+  useEffect(() => {
+    const loadGoal = async () => {
+      if (!selectedSellerId || !period || !metric) {
+        setExistingGoalId(null)
+        setTargetBase('')
+        setTargetBronze('')
+        setTargetPrata('')
+        setTargetOuro('')
+        setFocusFleet('')
+        setFocusCompanies('')
+        return
+      }
+
+      const seller = sellers.find((s) => s.id === selectedSellerId)
+      if (!seller?.user_id) {
+        setExistingGoalId(null)
+        setTargetBase('')
+        setTargetBronze('')
+        setTargetPrata('')
+        setTargetOuro('')
+        setFocusFleet('')
+        setFocusCompanies('')
+        return
+      }
+
+      try {
+        const goal = await pb
+          .collection('goals')
+          .getFirstListItem(
+            `seller_id="${seller.user_id}" && period="${period}" && metric="${metric}"`,
+          )
+        setExistingGoalId(goal.id)
+        setTargetBase(goal.target_base?.toString() || '')
+        setTargetBronze(goal.target_bronze?.toString() || '')
+        setTargetPrata(goal.target_prata?.toString() || '')
+        setTargetOuro(goal.target_ouro?.toString() || '')
+        setFocusFleet(goal.focus_fleet?.toString() || '')
+        setFocusCompanies(goal.focus_companies?.toString() || '')
+      } catch (e) {
+        setExistingGoalId(null)
+        setTargetBase('')
+        setTargetBronze('')
+        setTargetPrata('')
+        setTargetOuro('')
+        setFocusFleet('')
+        setFocusCompanies('')
+      }
+    }
+
+    loadGoal()
+  }, [selectedSellerId, period, metric, sellers])
+
   const handleManualSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+
+    if (!selectedSellerId) {
+      toast({ title: 'Atenção', description: 'Selecione um vendedor.', variant: 'destructive' })
+      return
+    }
+
+    const seller = sellers.find((s) => s.id === selectedSellerId)
+    if (!seller?.user_id) {
+      toast({
+        title: 'Atenção',
+        description: 'O vendedor selecionado não possui um usuário associado.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     setIsSubmitting(true)
 
-    const formData = new FormData(e.currentTarget)
-    const seller_id = formData.get('vendedor') as string
-    const period = formData.get('periodo') as string
-    const metric = formData.get('metric') as string
-    const target_base = Number(formData.get('target_base'))
-    const target_bronze = Number(formData.get('target_bronze'))
-    const target_prata = Number(formData.get('target_prata'))
-    const target_ouro = Number(formData.get('target_ouro'))
-
     try {
-      await pb.collection('goals').create({
-        seller_id,
+      const data = {
+        seller_id: seller.user_id,
         period,
         metric,
-        target_base,
-        target_bronze,
-        target_prata,
-        target_ouro,
-      })
+        target_base: Number(targetBase),
+        target_bronze: Number(targetBronze),
+        target_prata: Number(targetPrata),
+        target_ouro: Number(targetOuro),
+        focus_fleet: focusFleet ? Number(focusFleet) : 0,
+        focus_companies: focusCompanies ? Number(focusCompanies) : 0,
+      }
 
-      toast({
-        title: 'Meta lançada com sucesso',
-        description: 'Os valores foram atualizados no sistema.',
-      })
-      e.currentTarget.reset()
+      if (existingGoalId) {
+        await pb.collection('goals').update(existingGoalId, data)
+        toast({
+          title: 'Meta atualizada',
+          description: 'Os valores foram atualizados com sucesso.',
+        })
+      } else {
+        const newGoal = await pb.collection('goals').create(data)
+        setExistingGoalId(newGoal.id)
+        toast({
+          title: 'Meta lançada',
+          description: 'Os valores foram registrados com sucesso.',
+        })
+      }
     } catch (error) {
       console.error(error)
       toast({
-        title: 'Erro ao lançar meta',
-        description: 'Verifique se já existe meta para este período e métrica.',
+        title: 'Erro ao salvar',
+        description: 'Verifique os dados e tente novamente.',
         variant: 'destructive',
       })
     } finally {
@@ -120,6 +218,10 @@ export default function GoalEntry() {
     user?.role === 'National Manager' ||
     user?.role === 'Sales Assistant'
 
+  const selectedSeller = sellers.find((s) => s.id === selectedSellerId)
+  const regionalName = selectedSeller?.expand?.area_id?.expand?.regional_id?.name || ''
+  const areaName = selectedSeller?.expand?.area_id?.name || ''
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
@@ -152,35 +254,91 @@ export default function GoalEntry() {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleManualSubmit} className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>Vendedor</Label>
+                      <Popover open={open} onOpenChange={setOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={open}
+                            className="w-full justify-between font-normal"
+                          >
+                            {selectedSellerId
+                              ? sellers.find((s) => s.id === selectedSellerId)?.name
+                              : 'Selecione o vendedor...'}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                          <Command>
+                            <CommandInput placeholder="Buscar vendedor..." />
+                            <CommandList>
+                              <CommandEmpty>Nenhum vendedor encontrado.</CommandEmpty>
+                              <CommandGroup>
+                                {sellers.map((seller) => (
+                                  <CommandItem
+                                    key={seller.id}
+                                    value={seller.name}
+                                    onSelect={() => {
+                                      setSelectedSellerId(seller.id)
+                                      setOpen(false)
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        'mr-2 h-4 w-4',
+                                        selectedSellerId === seller.id
+                                          ? 'opacity-100'
+                                          : 'opacity-0',
+                                      )}
+                                    />
+                                    {seller.name}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Regional</Label>
+                      <Input
+                        value={regionalName}
+                        disabled
+                        className="bg-muted"
+                        placeholder="Automático"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Área</Label>
+                      <Input
+                        value={areaName}
+                        disabled
+                        className="bg-muted"
+                        placeholder="Automático"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
                     <div className="space-y-2">
                       <Label htmlFor="periodo">Período</Label>
                       <Input
                         id="periodo"
                         name="periodo"
                         type="month"
-                        defaultValue="2026-06"
+                        value={period}
+                        onChange={(e) => setPeriod(e.target.value)}
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="vendedor">Vendedor</Label>
-                      <Select name="vendedor" required>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Vendedor" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {sellers.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>
-                              {s.name || s.email}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
                       <Label htmlFor="metric">Métrica</Label>
-                      <Select name="metric" required defaultValue="Revenue">
+                      <Select value={metric} onValueChange={setMetric} required>
                         <SelectTrigger>
                           <SelectValue placeholder="Métrica" />
                         </SelectTrigger>
@@ -196,13 +354,37 @@ export default function GoalEntry() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-4 pt-4 border-t">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                    <div className="space-y-2">
+                      <Label htmlFor="focus_fleet">Frota Foco da Área</Label>
+                      <Input
+                        id="focus_fleet"
+                        type="number"
+                        value={focusFleet}
+                        onChange={(e) => setFocusFleet(e.target.value)}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="focus_companies">Empresas Foco da Área</Label>
+                      <Input
+                        id="focus_companies"
+                        type="number"
+                        value={focusCompanies}
+                        onChange={(e) => setFocusCompanies(e.target.value)}
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
                     <div className="space-y-2">
                       <Label htmlFor="target_base">Meta Base</Label>
                       <Input
                         id="target_base"
-                        name="target_base"
                         type="number"
+                        value={targetBase}
+                        onChange={(e) => setTargetBase(e.target.value)}
                         placeholder="0"
                         required
                       />
@@ -211,8 +393,9 @@ export default function GoalEntry() {
                       <Label htmlFor="target_bronze">Meta Bronze</Label>
                       <Input
                         id="target_bronze"
-                        name="target_bronze"
                         type="number"
+                        value={targetBronze}
+                        onChange={(e) => setTargetBronze(e.target.value)}
                         placeholder="0"
                         required
                       />
@@ -221,8 +404,9 @@ export default function GoalEntry() {
                       <Label htmlFor="target_prata">Meta Prata</Label>
                       <Input
                         id="target_prata"
-                        name="target_prata"
                         type="number"
+                        value={targetPrata}
+                        onChange={(e) => setTargetPrata(e.target.value)}
                         placeholder="0"
                         required
                       />
@@ -231,8 +415,9 @@ export default function GoalEntry() {
                       <Label htmlFor="target_ouro">Meta Ouro</Label>
                       <Input
                         id="target_ouro"
-                        name="target_ouro"
                         type="number"
+                        value={targetOuro}
+                        onChange={(e) => setTargetOuro(e.target.value)}
                         placeholder="0"
                         required
                       />
@@ -240,8 +425,14 @@ export default function GoalEntry() {
                   </div>
 
                   <div className="pt-4 flex justify-end">
-                    <Button type="submit" disabled={isSubmitting}>
-                      {isSubmitting ? 'Salvando...' : 'Salvar Meta'}
+                    <Button type="submit" disabled={isSubmitting || !selectedSellerId}>
+                      {existingGoalId
+                        ? isSubmitting
+                          ? 'Atualizando...'
+                          : 'Atualizar Meta'
+                        : isSubmitting
+                          ? 'Salvando...'
+                          : 'Salvar Meta'}
                     </Button>
                   </div>
                 </form>

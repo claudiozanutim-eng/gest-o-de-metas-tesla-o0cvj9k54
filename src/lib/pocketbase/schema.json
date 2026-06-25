@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-25T12:32:07.318Z",
+  "generatedAt": "2026-06-25T13:17:39.599Z",
   "collections": [
     {
       "name": "users",
@@ -403,6 +403,18 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "focus_fleet",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "focus_companies",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_goals_unique ON goals (seller_id, period, metric)"]
