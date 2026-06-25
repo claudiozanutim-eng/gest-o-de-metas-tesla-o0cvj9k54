@@ -8,8 +8,10 @@ import { Calculator, DollarSign, TrendingUp, Award, Info } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Badge } from '@/components/ui/badge'
+import { useAuth } from '@/hooks/use-auth'
 
 export default function Simulation() {
+  const { user } = useAuth()
   const [baseSalary, setBaseSalary] = useState(3000)
   const [goal, setGoal] = useState(200000)
 
@@ -21,23 +23,32 @@ export default function Simulation() {
 
   const [tiers, setTiers] = useState<any[]>([])
   const [weights, setWeights] = useState({ revenue: 50, mix: 25, coverage: 25 })
-  const [adjustments, setAdjustments] = useState({ rate: 0, tax: 32, retention: 0, discount: 0 })
 
   useEffect(() => {
     Promise.all([
       pb.collection('commission_tiers').getFullList({ sort: 'order' }),
       pb.collection('system_parameters').getFullList(),
+      user
+        ? pb
+            .collection('goals')
+            .getList(1, 1, {
+              filter: `seller_id="${user.id}" && metric~'faturamento'`,
+              sort: '-created',
+            })
+            .catch(() => null)
+        : Promise.resolve(null),
     ])
-      .then(([tiersRes, sysRes]) => {
+      .then(([tiersRes, sysRes, goalsRes]) => {
         setTiers(tiersRes)
         const wRec = sysRes.find((r) => r.key === 'commission_weights')
         if (wRec && wRec.value) setWeights(wRec.value)
 
-        const aRec = sysRes.find((r) => r.key === 'financial_adjustments')
-        if (aRec && aRec.value) setAdjustments(aRec.value)
+        if (goalsRes && goalsRes.items.length > 0) {
+          setGoal(goalsRes.items[0].target_base)
+        }
       })
       .catch(console.error)
-  }, [])
+  }, [user])
 
   // Calculate Overall Achievement %
   const overallPercent =
@@ -67,9 +78,8 @@ export default function Simulation() {
 
   // Financial Math
   const grossRevenue = goal * (achievements.revenue[0] / 100)
-  const totalAdjustments =
-    adjustments.rate + adjustments.tax + adjustments.retention + adjustments.discount
-  const liquidRevenue = grossRevenue * (1 - totalAdjustments / 100)
+  const totalAdjustments = 32 // 32% tax discount
+  const liquidRevenue = grossRevenue * (1 - 0.32)
   const commission = liquidRevenue * multiplier
   const totalEarnings = baseSalary + commission
 
@@ -211,7 +221,7 @@ export default function Simulation() {
                         <Info className="w-3 h-3 text-muted-foreground ml-1" />
                       </TooltipTrigger>
                       <TooltipContent>
-                        Dedução de impostos, taxas, descontos e retenções parametrizados no sistema.
+                        Dedução de 32% referente a impostos e taxas, conforme regra de negócio.
                       </TooltipContent>
                     </Tooltip>
                   </p>
@@ -219,7 +229,7 @@ export default function Simulation() {
                     {formatCurrency(liquidRevenue)}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Dedução de {totalAdjustments.toFixed(1)}%
+                    Dedução de {totalAdjustments}%
                   </p>
                 </div>
                 <div className="bg-background rounded-lg p-4 border shadow-sm col-span-2 flex justify-between items-center">
