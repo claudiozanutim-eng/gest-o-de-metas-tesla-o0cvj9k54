@@ -16,9 +16,9 @@ export default function Simulation() {
   const [goal, setGoal] = useState(200000)
 
   const [achievements, setAchievements] = useState({
-    revenue: [85],
-    mix: [85],
-    coverage: [85],
+    revenue: [80],
+    mix: [80],
+    coverage: [80],
   })
 
   const [tiers, setTiers] = useState<any[]>([])
