@@ -77,7 +77,7 @@ export default function Simulation() {
   const multiplier = matchedTier ? matchedTier.multiplier : 0
 
   // Financial Math
-  const grossRevenue = goal
+  const grossRevenue = goal * (achievements.revenue[0] / 100)
   const totalAdjustments = 32 // 32% tax discount
   const liquidRevenue = grossRevenue * (1 - 0.32)
   const commission = liquidRevenue * multiplier
