@@ -49,7 +49,25 @@ export default function Areas() {
     const a = await pb.collection('areas').getFullList({ expand: 'district_id,responsible_id' })
     setAreas(a)
     setDistricts(await pb.collection('districts').getFullList())
-    setUsers(await pb.collection('users').getFullList({ filter: "role = 'Seller'" }))
+
+    const [sellerUsers, sellerRecords] = await Promise.all([
+      pb.collection('users').getFullList({ filter: "role = 'Seller'", sort: 'name' }),
+      pb.collection('sellers').getFullList({ expand: 'user_id' }),
+    ])
+
+    const uniqueSellers = new Map()
+    sellerUsers.forEach((u) => uniqueSellers.set(u.id, u))
+    sellerRecords.forEach((s) => {
+      if (s.expand?.user_id) {
+        uniqueSellers.set(s.expand.user_id.id, s.expand.user_id)
+      }
+    })
+
+    setUsers(
+      Array.from(uniqueSellers.values()).sort((a: any, b: any) =>
+        (a.name || '').localeCompare(b.name || ''),
+      ),
+    )
   }
 
   useEffect(() => {
@@ -174,13 +192,13 @@ export default function Areas() {
                 onValueChange={(v) => setFormData({ ...formData, responsible_id: v })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Nenhum" />
+                  <SelectValue placeholder="Selecione um vendedor..." />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Nenhum</SelectItem>
                   {users.map((u) => (
                     <SelectItem key={u.id} value={u.id}>
-                      {u.name}
+                      {u.name || 'Sem nome'}
                     </SelectItem>
                   ))}
                 </SelectContent>
