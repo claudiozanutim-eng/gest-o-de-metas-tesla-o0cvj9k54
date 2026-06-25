@@ -33,26 +33,25 @@ import pb from '@/lib/pocketbase/client'
 
 export default function Areas() {
   const [areas, setAreas] = useState<any[]>([])
-  const [regionals, setRegionals] = useState<any[]>([])
+  const [districts, setDistricts] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [formData, setFormData] = useState<any>({
     id: '',
     name: '',
     is_active: true,
-    regional_id: '',
+    district_id: '',
     responsible_id: '',
   })
   const { toast } = useToast()
 
   const loadData = async () => {
-    const a = await pb
-      .collection('areas')
-      .getFullList({ expand: 'regional_id.district_id,responsible_id' })
+    const a = await pb.collection('areas').getFullList({ expand: 'district_id,responsible_id' })
     setAreas(a)
-    setRegionals(await pb.collection('regionals').getFullList({ expand: 'district_id' }))
-    setUsers(await pb.collection('users').getFullList())
+    setDistricts(await pb.collection('districts').getFullList())
+    setUsers(await pb.collection('users').getFullList({ filter: "role = 'Seller'" }))
   }
+
   useEffect(() => {
     loadData()
   }, [])
@@ -60,9 +59,19 @@ export default function Areas() {
   const handleSave = async () => {
     try {
       const data = { ...formData }
-      if (!data.responsible_id || data.responsible_id === 'none') delete data.responsible_id
-      if (data.id) await pb.collection('areas').update(data.id, data)
-      else await pb.collection('areas').create(data)
+      if (!data.responsible_id || data.responsible_id === 'none') {
+        data.responsible_id = null
+      }
+      if (!data.district_id) {
+        throw new Error('A Regional é obrigatória.')
+      }
+
+      if (data.id) {
+        await pb.collection('areas').update(data.id, data)
+      } else {
+        await pb.collection('areas').create({ ...data, regional_id: '' })
+      }
+
       toast({ title: 'Área salva com sucesso' })
       setIsOpen(false)
       loadData()
@@ -76,7 +85,7 @@ export default function Areas() {
       id: a.id,
       name: a.name,
       is_active: a.is_active,
-      regional_id: a.regional_id || '',
+      district_id: a.district_id || '',
       responsible_id: a.responsible_id || 'none',
     })
     setIsOpen(true)
@@ -99,8 +108,7 @@ export default function Areas() {
               <TableRow>
                 <TableHead className="pl-6">Nome</TableHead>
                 <TableHead>Regional</TableHead>
-                <TableHead>Nível Intermediário</TableHead>
-                <TableHead>Responsável</TableHead>
+                <TableHead>Vendedor da Área</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead></TableHead>
               </TableRow>
@@ -109,8 +117,7 @@ export default function Areas() {
               {areas.map((a) => (
                 <TableRow key={a.id}>
                   <TableCell className="pl-6 font-medium">{a.name}</TableCell>
-                  <TableCell>{a.expand?.regional_id?.expand?.district_id?.name || '-'}</TableCell>
-                  <TableCell>{a.expand?.regional_id?.name || '-'}</TableCell>
+                  <TableCell>{a.expand?.district_id?.name || '-'}</TableCell>
                   <TableCell>{a.expand?.responsible_id?.name || '-'}</TableCell>
                   <TableCell>
                     <Badge variant={a.is_active ? 'default' : 'secondary'}>
@@ -143,16 +150,16 @@ export default function Areas() {
               />
             </div>
             <div className="grid gap-2">
-              <Label>Nível Intermediário</Label>
+              <Label>Regional</Label>
               <Select
-                value={formData.regional_id}
-                onValueChange={(v) => setFormData({ ...formData, regional_id: v })}
+                value={formData.district_id}
+                onValueChange={(v) => setFormData({ ...formData, district_id: v })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione um nível intermediário" />
+                  <SelectValue placeholder="Selecione uma regional" />
                 </SelectTrigger>
                 <SelectContent>
-                  {regionals.map((r) => (
+                  {districts.map((r) => (
                     <SelectItem key={r.id} value={r.id}>
                       {r.name}
                     </SelectItem>
@@ -160,20 +167,8 @@ export default function Areas() {
                 </SelectContent>
               </Select>
             </div>
-            {formData.regional_id && (
-              <div className="grid gap-2">
-                <Label>Regional (Automático)</Label>
-                <Input
-                  disabled
-                  value={
-                    regionals.find((r) => r.id === formData.regional_id)?.expand?.district_id
-                      ?.name || '-'
-                  }
-                />
-              </div>
-            )}
             <div className="grid gap-2">
-              <Label>Responsável (Usuário)</Label>
+              <Label>Vendedor da Área</Label>
               <Select
                 value={formData.responsible_id}
                 onValueChange={(v) => setFormData({ ...formData, responsible_id: v })}
