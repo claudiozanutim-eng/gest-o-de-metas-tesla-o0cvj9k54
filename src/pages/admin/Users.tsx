@@ -101,7 +101,7 @@ export default function Users() {
     }
 
     try {
-      const data = { ...formData }
+      const data = { ...formData, emailVisibility: true }
 
       if (!data.password) {
         delete data.password
