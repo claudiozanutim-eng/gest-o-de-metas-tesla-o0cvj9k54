@@ -88,7 +88,7 @@ export default function Index() {
           const mg = goals.filter((g) => g.metric === m)
           const ma = actuals.filter((a) => a.metric === m)
           return {
-            name: m,
+            name: m === 'Revenue' ? 'Faturamento' : m,
             metaBase: mg.reduce((acc, g) => acc + g.target_base, 0),
             metaBronze: mg.reduce((acc, g) => acc + g.target_bronze, 0),
             metaPrata: mg.reduce((acc, g) => acc + g.target_prata, 0),
@@ -126,7 +126,11 @@ export default function Index() {
     realizado: { label: 'Realizado', color: '#3b82f6' },
   }
 
-  const faturamento = chartData.find((d) => d.name === 'Faturamento') || chartData[0] || {}
+  const faturamento =
+    chartData.find((d) => d.name === 'Faturamento') ||
+    chartData.find((d) => d.name === 'Revenue') ||
+    chartData[0] ||
+    {}
   const atingimento = faturamento.metaBase
     ? (faturamento.realizado / faturamento.metaBase) * 100
     : 0
@@ -135,9 +139,7 @@ export default function Index() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-primary">
-            Dashboard de Desempenho
-          </h1>
+          <h1 className="text-3xl font-bold tracking-tight text-primary">Painel de Desempenho</h1>
           <p className="text-muted-foreground">
             Acompanhamento consolidado de Metas vs Realizado em tempo real.
           </p>

@@ -82,11 +82,11 @@ export default function Sellers() {
       if (!data.user_id || data.user_id === 'none') delete data.user_id
       if (data.id) await pb.collection('sellers').update(data.id, data)
       else await pb.collection('sellers').create(data)
-      toast({ title: 'Vendedor salvo com sucesso' })
+      toast({ title: 'Sucesso', description: 'Dados salvos com sucesso' })
       setIsOpen(false)
       loadData()
     } catch (e: any) {
-      toast({ title: 'Erro ao salvar', description: e.message, variant: 'destructive' })
+      toast({ title: 'Ocorreu um erro', description: e.message, variant: 'destructive' })
     }
   }
 
@@ -119,7 +119,7 @@ export default function Sellers() {
           <Users className="w-8 h-8" /> Vendedores
         </h1>
         <Button onClick={() => openEdit({ id: '', is_active: true })}>
-          <Plus className="w-4 h-4 mr-2" /> Novo Vendedor
+          <Plus className="w-4 h-4 mr-2" /> Adicionar Novo
         </Button>
       </div>
 
@@ -128,7 +128,7 @@ export default function Sellers() {
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por nome ou código..."
+              placeholder="Pesquisar..."
               className="pl-9 bg-background"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -174,7 +174,7 @@ export default function Sellers() {
                   <TableHead>Nome</TableHead>
                   <TableHead>Área</TableHead>
                   <TableHead>Usuário</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Situação</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>

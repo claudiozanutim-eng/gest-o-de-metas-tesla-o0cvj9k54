@@ -35,6 +35,20 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { EmptyState } from '@/components/ui/empty-state'
 
+const roleDisplayMap: Record<string, string> = {
+  Administrator: 'Administrador',
+  'National Manager': 'Gerente Nacional',
+  'District Manager': 'Gerente Distrital',
+  'Regional Manager': 'Gerente Regional',
+  Seller: 'Vendedor',
+  'Sales Assistant': 'Assistente de Vendas',
+  'Gerente Nacional': 'Gerente Nacional',
+  'Gerente Distrital Geral': 'Gerente Distrital Geral',
+  'Gerente Distrital': 'Gerente Distrital',
+  'Gerente Regional': 'Gerente Regional',
+  Vendedor: 'Vendedor',
+}
+
 const roles = [
   'Administrator',
   'Gerente Nacional',
@@ -122,19 +136,19 @@ export default function Users() {
         if (!data.password) {
           toast({
             title: 'Erro de validação',
-            description: 'A senha é obrigatória para novos usuários.',
+            description: 'Este campo é obrigatório.',
             variant: 'destructive',
           })
           return
         }
         await pb.collection('users').create(data)
       }
-      toast({ title: 'Usuário salvo com sucesso' })
+      toast({ title: 'Sucesso', description: 'Dados salvos com sucesso' })
       setIsOpen(false)
       await loadData()
     } catch (e: any) {
       toast({
-        title: 'Erro ao salvar usuário',
+        title: 'Ocorreu um erro',
         description: getErrorMessage(e),
         variant: 'destructive',
       })
@@ -163,7 +177,8 @@ export default function Users() {
       const matchRole =
         filters.role === 'all' ||
         u.role === filters.role ||
-        (filters.role === 'Vendedor' && u.role === 'Seller')
+        (filters.role === 'Vendedor' && u.role === 'Seller') ||
+        u.role === filters.role
       const matchDistrict = filters.district === 'all' || u.district_id === filters.district
       return matchSearch && matchRole && matchDistrict
     })
@@ -176,7 +191,7 @@ export default function Users() {
           <UserCog className="w-8 h-8" /> Usuários
         </h1>
         <Button onClick={() => openEdit({})}>
-          <Plus className="w-4 h-4 mr-2" /> Novo Usuário
+          <Plus className="w-4 h-4 mr-2" /> Adicionar Novo
         </Button>
       </div>
 
@@ -185,7 +200,7 @@ export default function Users() {
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por nome ou email..."
+              placeholder="Pesquisar..."
               className="pl-9 bg-background"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -202,7 +217,7 @@ export default function Users() {
               <SelectItem value="all">Todos os Cargos</SelectItem>
               {roles.map((r) => (
                 <SelectItem key={r} value={r}>
-                  {r}
+                  {roleDisplayMap[r] || r}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -245,9 +260,9 @@ export default function Users() {
                 <TableRow>
                   <TableHead className="pl-6">Nome</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Cargo</TableHead>
+                  <TableHead>Cargo/Função</TableHead>
                   <TableHead>Distrito</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Situação</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -257,7 +272,7 @@ export default function Users() {
                     <TableCell className="pl-6 font-medium">{u.name}</TableCell>
                     <TableCell>{u.email}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{u.role === 'Seller' ? 'Vendedor' : u.role}</Badge>
+                      <Badge variant="outline">{roleDisplayMap[u.role] || u.role}</Badge>
                     </TableCell>
                     <TableCell>{u.expand?.district_id?.name || '-'}</TableCell>
                     <TableCell>
@@ -324,10 +339,10 @@ export default function Users() {
                 <SelectContent>
                   {roles.map((r) => (
                     <SelectItem key={r} value={r}>
-                      {r}
+                      {roleDisplayMap[r] || r}
                     </SelectItem>
                   ))}
-                </SelectContent>
+                </SelectContent>{' '}
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">

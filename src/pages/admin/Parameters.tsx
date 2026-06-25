@@ -85,13 +85,11 @@ export default function Parameters() {
 
       if (taxRateId) await pb.collection('system_parameters').update(taxRateId, { value: taxRate })
       else {
-        const res = await pb
-          .collection('system_parameters')
-          .create({
-            key: 'tax_rate',
-            value: taxRate,
-            description: 'Tax deduction for net commission value',
-          })
+        const res = await pb.collection('system_parameters').create({
+          key: 'tax_rate',
+          value: taxRate,
+          description: 'Tax deduction for net commission value',
+        })
         setTaxRateId(res.id)
       }
 

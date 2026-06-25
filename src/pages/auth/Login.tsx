@@ -27,7 +27,7 @@ export default function Login() {
     setError('')
     const { error: err } = await signIn(email, password)
     if (err) {
-      setError('Credenciais inválidas.')
+      setError('E-mail ou senha incorretos.')
       setLoading(false)
     } else {
       navigate('/', { replace: true })
@@ -48,7 +48,7 @@ export default function Login() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">E-mail</Label>
               <Input
                 id="email"
                 type="email"
@@ -69,7 +69,7 @@ export default function Login() {
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Entrando...' : 'Entrar'}
+              {loading ? 'Entrando...' : 'Entrar no Sistema'}
             </Button>
           </form>
         </CardContent>

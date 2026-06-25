@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
-import { CheckCircle, FileSpreadsheet, HardDrive, AlertTriangle } from 'lucide-react'
+import { CheckCircle, FileSpreadsheet, HardDrive, AlertTriangle, History } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { Progress } from '@/components/ui/progress'
@@ -60,6 +60,18 @@ export default function Importacao() {
   const [stats, setStats] = useState({ updated: 0, created: 0, errors: 0, entities_created: 0 })
   const [mapping, setMapping] = useState<Record<string, string>>({})
   const [errorDetails, setErrorDetails] = useState<any[]>([])
+  const [importHistory, setImportHistory] = useState<any[]>([])
+
+  const loadHistory = async () => {
+    try {
+      const hist = await pb
+        .collection('import_history')
+        .getList(1, 10, { sort: '-created', expand: 'user_id' })
+      setImportHistory(hist.items)
+    } catch (e) {
+      console.error(e)
+    }
+  }
 
   useEffect(() => {
     Promise.all([
@@ -69,6 +81,7 @@ export default function Importacao() {
       setUsers(u)
       setSellers(s)
     })
+    loadHistory()
   }, [])
 
   const autoMap = (h: string[]) => {
@@ -302,14 +315,12 @@ export default function Importacao() {
         } catch {
           try {
             areaId = (
-              await pb
-                .collection('areas')
-                .create({
-                  name: r.map.area_name,
-                  is_active: true,
-                  regional_id: regId,
-                  district_id: distId,
-                })
+              await pb.collection('areas').create({
+                name: r.map.area_name,
+                is_active: true,
+                regional_id: regId,
+                district_id: distId,
+              })
             ).id
             entCreated++
           } catch {
@@ -386,9 +397,10 @@ export default function Importacao() {
         source: source === 'excel' ? 'Excel' : 'Google Sheets',
         file_name: fileName,
         stats: { updated: u, created: c, errors: e, entities_created: entCreated },
-        status: e === 0 ? 'Success' : c + u > 0 ? 'Partial' : 'Failed',
+        status: e === 0 ? 'Sucesso' : c + u > 0 ? 'Parcial' : 'Falha',
       })
       .catch(() => {})
+      .finally(() => loadHistory())
 
     setStats({ updated: u, created: c, errors: e, entities_created: entCreated })
     setErrorDetails(errList)
@@ -408,30 +420,83 @@ export default function Importacao() {
       </div>
 
       {step === 1 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card
-            className="hover:border-primary cursor-pointer transition-colors"
-            onClick={() => {
-              setSource('excel')
-              setStep(2)
-            }}
-          >
-            <CardHeader className="text-center py-10">
-              <FileSpreadsheet className="w-12 h-12 mx-auto mb-4 text-green-600" />
-              <CardTitle>Excel / CSV</CardTitle>
+        <div className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card
+              className="hover:border-primary cursor-pointer transition-colors"
+              onClick={() => {
+                setSource('excel')
+                setStep(2)
+              }}
+            >
+              <CardHeader className="text-center py-10">
+                <FileSpreadsheet className="w-12 h-12 mx-auto mb-4 text-green-600" />
+                <CardTitle>Excel / CSV</CardTitle>
+              </CardHeader>
+            </Card>
+            <Card
+              className="hover:border-primary cursor-pointer transition-colors"
+              onClick={() => {
+                setSource('google')
+                setStep(2)
+              }}
+            >
+              <CardHeader className="text-center py-10">
+                <HardDrive className="w-12 h-12 mx-auto mb-4 text-blue-600" />
+                <CardTitle>Google Sheets</CardTitle>
+              </CardHeader>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5" /> Histórico de Importação
+              </CardTitle>
             </CardHeader>
-          </Card>
-          <Card
-            className="hover:border-primary cursor-pointer transition-colors"
-            onClick={() => {
-              setSource('google')
-              setStep(2)
-            }}
-          >
-            <CardHeader className="text-center py-10">
-              <HardDrive className="w-12 h-12 mx-auto mb-4 text-blue-600" />
-              <CardTitle>Google Sheets</CardTitle>
-            </CardHeader>
+            <CardContent>
+              {importHistory.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Nenhum histórico encontrado.
+                </div>
+              ) : (
+                <div className="overflow-x-auto border rounded-md">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Criado em</TableHead>
+                        <TableHead>Nome do Arquivo</TableHead>
+                        <TableHead>Importado por</TableHead>
+                        <TableHead>Estatísticas</TableHead>
+                        <TableHead>Situação</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {importHistory.map((h) => (
+                        <TableRow key={h.id}>
+                          <TableCell className="whitespace-nowrap">
+                            {new Date(h.created).toLocaleString()}
+                          </TableCell>
+                          <TableCell>{h.file_name}</TableCell>
+                          <TableCell>{h.expand?.user_id?.name || '-'}</TableCell>
+                          <TableCell className="text-xs">
+                            C: {h.stats?.created || 0} | A: {h.stats?.updated || 0} | E:{' '}
+                            {h.stats?.errors || 0}
+                          </TableCell>
+                          <TableCell>
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${h.status === 'Sucesso' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : h.status === 'Parcial' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}`}
+                            >
+                              {h.status}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
           </Card>
         </div>
       )}

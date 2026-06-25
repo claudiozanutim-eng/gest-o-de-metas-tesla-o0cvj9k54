@@ -154,21 +154,21 @@ export default function GoalEntry() {
       if (existingGoalId) {
         await pb.collection('goals').update(existingGoalId, data)
         toast({
-          title: 'Meta atualizada',
-          description: 'Os valores foram atualizados com sucesso.',
+          title: 'Sucesso',
+          description: 'Dados salvos com sucesso',
         })
       } else {
         const newGoal = await pb.collection('goals').create(data)
         setExistingGoalId(newGoal.id)
         toast({
-          title: 'Meta lançada',
-          description: 'Os valores foram registrados com sucesso.',
+          title: 'Sucesso',
+          description: 'Dados salvos com sucesso',
         })
       }
     } catch (error) {
       console.error(error)
       toast({
-        title: 'Erro ao salvar',
+        title: 'Ocorreu um erro',
         description: 'Verifique os dados e tente novamente.',
         variant: 'destructive',
       })
@@ -457,11 +457,11 @@ export default function GoalEntry() {
                     <Button type="submit" disabled={isSubmitting || !selectedSellerId}>
                       {existingGoalId
                         ? isSubmitting
-                          ? 'Atualizando...'
-                          : 'Atualizar Meta'
+                          ? 'Salvando...'
+                          : 'Salvar'
                         : isSubmitting
                           ? 'Salvando...'
-                          : 'Salvar Meta'}
+                          : 'Salvar'}
                     </Button>
                   </div>
                 </form>
@@ -489,10 +489,8 @@ export default function GoalEntry() {
                     <div className="bg-primary/10 p-4 rounded-full mb-4">
                       <UploadCloud className="w-8 h-8 text-primary" />
                     </div>
-                    <h3 className="text-lg font-medium mb-1">Arraste seu arquivo aqui</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      ou clique para procurar (.xlsx, .csv)
-                    </p>
+                    <h3 className="text-lg font-medium mb-1">Clique ou arraste o arquivo</h3>
+                    <p className="text-sm text-muted-foreground mb-4">(.xlsx, .csv)</p>
                     <Button variant="outline">Selecionar Arquivo</Button>
                   </div>
                 )}

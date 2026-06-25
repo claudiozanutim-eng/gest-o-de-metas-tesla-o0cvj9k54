@@ -34,23 +34,23 @@ import { useAuthStore } from '@/stores/use-auth-store'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 
 const mainNavItems = [
-  { title: 'Dashboard', url: '/', icon: LayoutDashboard },
-  { title: 'Lançamento de Metas', url: '/metas', icon: Target },
+  { title: 'Painel', url: '/', icon: LayoutDashboard },
+  { title: 'Metas', url: '/metas', icon: Target },
   { title: 'Acompanhamento', url: '/acompanhamento', icon: TrendingUp },
-  { title: 'Simulação de Ganho', url: '/simulacao', icon: Calculator },
+  { title: 'Simulação', url: '/simulacao', icon: Calculator },
   { title: 'Assistente IA', url: '/assistente', icon: Bot },
   { title: 'Relatórios', url: '/relatorios', icon: FileText },
 ]
 
 const adminItems = [
   { title: 'Usuários', url: '/admin/usuarios', icon: UserCog },
-  { title: 'Regional', url: '/admin/distritos', icon: Map },
+  { title: 'Distritos', url: '/admin/distritos', icon: Map },
   { title: 'Regionais', url: '/admin/regionais', icon: MapPin },
   { title: 'Áreas', url: '/admin/areas', icon: MapPinned },
   { title: 'Vendedores', url: '/admin/vendedores', icon: Users },
   { title: 'Estrutura Hierárquica', url: '/admin/estrutura', icon: Network },
-  { title: 'Importar Planilha', url: '/admin/importacao', icon: Upload },
-  { title: 'Parâmetros', url: '/admin/parametros', icon: Settings },
+  { title: 'Importação', url: '/admin/importacao', icon: Upload },
+  { title: 'Configurações', url: '/admin/parametros', icon: Settings },
   { title: 'Auditoria', url: '/admin/auditoria', icon: ShieldAlert },
 ]
 
@@ -128,7 +128,19 @@ export function AppSidebar() {
           <div className="flex flex-col truncate">
             <span className="text-sm font-medium">{user?.name}</span>
             <span className="text-xs text-muted-foreground">
-              {user?.role === 'District Manager' ? 'Regional Manager' : user?.role}
+              {user?.role === 'District Manager'
+                ? 'Gerente Distrital'
+                : user?.role === 'National Manager'
+                  ? 'Gerente Nacional'
+                  : user?.role === 'Administrator'
+                    ? 'Administrador'
+                    : user?.role === 'Seller'
+                      ? 'Vendedor'
+                      : user?.role === 'Sales Assistant'
+                        ? 'Assistente de Vendas'
+                        : user?.role === 'Regional Manager'
+                          ? 'Gerente Regional'
+                          : user?.role}
             </span>
           </div>
         </div>
