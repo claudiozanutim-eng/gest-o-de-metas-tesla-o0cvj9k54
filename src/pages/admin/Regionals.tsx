@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
+import { EmptyState } from '@/components/ui/empty-state'
 
 export default function Regionals() {
   const [regionals, setRegionals] = useState<any[]>([])
@@ -87,52 +88,62 @@ export default function Regionals() {
           <Plus className="w-4 h-4 mr-2" /> Nova Regional
         </Button>
       </div>
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-6">Nome</TableHead>
-                <TableHead>Regional</TableHead>
-                <TableHead>Cor</TableHead>
-                <TableHead>Abrangência</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {regionals.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="pl-6 font-medium">{r.name}</TableCell>
-                  <TableCell>{r.expand?.district_id?.name || '-'}</TableCell>
-                  <TableCell>
-                    <div
-                      className="w-6 h-6 rounded border"
-                      style={{ backgroundColor: r.color_code || '#ccc' }}
-                      title={r.color_code}
-                    />
-                  </TableCell>
-                  <TableCell className="max-w-[200px] truncate" title={r.observations}>
-                    {r.observations
-                      ? r.observations.replace(/[[\]"]/g, '').replace(/,/g, ', ')
-                      : '-'}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={r.is_active ? 'default' : 'secondary'}>
-                      {r.is_active ? 'Ativo' : 'Inativo'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="sm" onClick={() => openEdit(r)}>
-                      Editar
-                    </Button>
-                  </TableCell>
+      {regionals.length === 0 ? (
+        <EmptyState
+          icon={MapPin}
+          title="Nenhuma regional"
+          description="Crie regionais para agrupar suas áreas."
+          actionLabel="Nova Regional"
+          onAction={() => openEdit({ id: '', is_active: true, color_code: '#3b82f6' })}
+        />
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="pl-6">Nome</TableHead>
+                  <TableHead>Regional</TableHead>
+                  <TableHead>Cor</TableHead>
+                  <TableHead>Abrangência</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead></TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {regionals.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell className="pl-6 font-medium">{r.name}</TableCell>
+                    <TableCell>{r.expand?.district_id?.name || '-'}</TableCell>
+                    <TableCell>
+                      <div
+                        className="w-6 h-6 rounded border"
+                        style={{ backgroundColor: r.color_code || '#ccc' }}
+                        title={r.color_code}
+                      />
+                    </TableCell>
+                    <TableCell className="max-w-[200px] truncate" title={r.observations}>
+                      {r.observations
+                        ? r.observations.replace(/[[\]"]/g, '').replace(/,/g, ', ')
+                        : '-'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={r.is_active ? 'default' : 'secondary'}>
+                        {r.is_active ? 'Ativo' : 'Inativo'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(r)}>
+                        Editar
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>

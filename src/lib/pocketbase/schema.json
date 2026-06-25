@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-25T14:39:54.365Z",
+  "generatedAt": "2026-06-25T15:07:44.104Z",
   "collections": [
     {
       "name": "users",
@@ -426,6 +426,12 @@
           "type": "number",
           "required": false,
           "system": false
+        },
+        {
+          "name": "mix_family",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_goals_unique ON goals (seller_id, period, metric)"]
@@ -479,6 +485,24 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "mix_family",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "focus_fleet",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "focus_companies",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

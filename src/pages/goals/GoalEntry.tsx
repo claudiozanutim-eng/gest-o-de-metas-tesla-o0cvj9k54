@@ -41,6 +41,7 @@ export default function GoalEntry() {
 
   const [focusFleet, setFocusFleet] = useState('')
   const [focusCompanies, setFocusCompanies] = useState('')
+  const [mixFamily, setMixFamily] = useState('')
 
   const [targetBase, setTargetBase] = useState('')
   const [targetBronze, setTargetBronze] = useState('')
@@ -83,6 +84,7 @@ export default function GoalEntry() {
         setTargetOuro('')
         setFocusFleet('')
         setFocusCompanies('')
+        setMixFamily('')
         return
       }
 
@@ -99,6 +101,7 @@ export default function GoalEntry() {
         setTargetOuro(goal.target_ouro?.toString() || '')
         setFocusFleet(goal.focus_fleet?.toString() || '')
         setFocusCompanies(goal.focus_companies?.toString() || '')
+        setMixFamily(goal.mix_family || '')
       } catch (e) {
         setExistingGoalId(null)
         setTargetBase('')
@@ -107,6 +110,7 @@ export default function GoalEntry() {
         setTargetOuro('')
         setFocusFleet('')
         setFocusCompanies('')
+        setMixFamily('')
       }
     }
 
@@ -144,6 +148,7 @@ export default function GoalEntry() {
         target_ouro: Number(targetOuro),
         focus_fleet: focusFleet ? Number(focusFleet) : 0,
         focus_companies: focusCompanies ? Number(focusCompanies) : 0,
+        mix_family: mixFamily,
       }
 
       if (existingGoalId) {
@@ -369,7 +374,16 @@ export default function GoalEntry() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
+                    <div className="space-y-2">
+                      <Label htmlFor="mix_family">Família Mix</Label>
+                      <Input
+                        id="mix_family"
+                        value={mixFamily}
+                        onChange={(e) => setMixFamily(e.target.value)}
+                        placeholder="Ex: F1, F2..."
+                      />
+                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="focus_fleet">Frota Foco da Área</Label>
                       <Input

@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
+import { EmptyState } from '@/components/ui/empty-state'
 
 export default function Areas() {
   const [areas, setAreas] = useState<any[]>([])
@@ -119,40 +120,50 @@ export default function Areas() {
           <Plus className="w-4 h-4 mr-2" /> Nova Área
         </Button>
       </div>
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-6">Nome</TableHead>
-                <TableHead>Regional</TableHead>
-                <TableHead>Vendedor da Área</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {areas.map((a) => (
-                <TableRow key={a.id}>
-                  <TableCell className="pl-6 font-medium">{a.name}</TableCell>
-                  <TableCell>{a.expand?.district_id?.name || '-'}</TableCell>
-                  <TableCell>{a.expand?.responsible_id?.name || '-'}</TableCell>
-                  <TableCell>
-                    <Badge variant={a.is_active ? 'default' : 'secondary'}>
-                      {a.is_active ? 'Ativo' : 'Inativo'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="sm" onClick={() => openEdit(a)}>
-                      Editar
-                    </Button>
-                  </TableCell>
+      {areas.length === 0 ? (
+        <EmptyState
+          icon={MapPinned}
+          title="Nenhuma área"
+          description="Você ainda não possui áreas cadastradas. Crie a primeira para organizar seus vendedores."
+          actionLabel="Nova Área"
+          onAction={() => openEdit({ id: '', is_active: true })}
+        />
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="pl-6">Nome</TableHead>
+                  <TableHead>Regional</TableHead>
+                  <TableHead>Vendedor da Área</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead></TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {areas.map((a) => (
+                  <TableRow key={a.id}>
+                    <TableCell className="pl-6 font-medium">{a.name}</TableCell>
+                    <TableCell>{a.expand?.district_id?.name || '-'}</TableCell>
+                    <TableCell>{a.expand?.responsible_id?.name || '-'}</TableCell>
+                    <TableCell>
+                      <Badge variant={a.is_active ? 'default' : 'secondary'}>
+                        {a.is_active ? 'Ativo' : 'Inativo'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(a)}>
+                        Editar
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>

@@ -32,6 +32,9 @@ import { Progress } from '@/components/ui/progress'
 
 const REQ_FIELDS = [
   { k: 'seller', l: 'Vendedor (E-mail ou Cód.)', req: true },
+  { k: 'seller_name', l: 'Nome do Vendedor (Opcional)', req: false },
+  { k: 'district', l: 'Distrito (Opcional)', req: false },
+  { k: 'regional', l: 'Regional (Opcional)', req: false },
   { k: 'area', l: 'Área (Opcional)', req: false },
   { k: 'period', l: 'Período', req: true },
   { k: 'metric', l: 'Métrica', req: true },
@@ -54,7 +57,7 @@ export default function Importacao() {
   const [users, setUsers] = useState<any[]>([])
   const [sellers, setSellers] = useState<any[]>([])
   const [validatedData, setValidatedData] = useState<any[]>([])
-  const [stats, setStats] = useState({ updated: 0, created: 0, errors: 0 })
+  const [stats, setStats] = useState({ updated: 0, created: 0, errors: 0, entities_created: 0 })
   const [mapping, setMapping] = useState<Record<string, string>>({})
   const [errorDetails, setErrorDetails] = useState<any[]>([])
 
@@ -73,7 +76,7 @@ export default function Importacao() {
     h.forEach((header) => {
       const hl = header.toLowerCase()
       REQ_FIELDS.forEach((f) => {
-        if (hl.includes(f.l.toLowerCase())) map[f.k] = header
+        if (hl.includes(f.l.toLowerCase().split(' ')[0])) map[f.k] = header
       })
     })
     setMapping(map)
@@ -103,11 +106,26 @@ export default function Importacao() {
       reader.readAsText(file)
     } else {
       setTimeout(() => {
-        const mh = ['Vendedor', 'Área', 'Período', 'Métrica', 'Base', 'Bronze', 'Prata', 'Ouro']
+        const mh = [
+          'Vendedor',
+          'Nome',
+          'Distrito',
+          'Regional',
+          'Área',
+          'Período',
+          'Métrica',
+          'Base',
+          'Bronze',
+          'Prata',
+          'Ouro',
+        ]
         setHeaders(mh)
         setData([
           {
             Vendedor: user?.email || '',
+            Nome: user?.name || 'Admin',
+            Distrito: 'BR Sudeste',
+            Regional: 'SP',
             Área: 'SP - Capital',
             Período: '2026-08',
             Métrica: 'Faturamento',
@@ -126,11 +144,26 @@ export default function Importacao() {
   const handleGoogle = () => {
     setFileName('Metas_Drive_2026.xlsx')
     setTimeout(() => {
-      const mh = ['Vendedor', 'Área', 'Período', 'Métrica', 'Base', 'Bronze', 'Prata', 'Ouro']
+      const mh = [
+        'Vendedor',
+        'Nome',
+        'Distrito',
+        'Regional',
+        'Área',
+        'Período',
+        'Métrica',
+        'Base',
+        'Bronze',
+        'Prata',
+        'Ouro',
+      ]
       setHeaders(mh)
       setData([
         {
           Vendedor: user?.email || '',
+          Nome: user?.name || 'Admin',
+          Distrito: 'BR Sudeste',
+          Regional: 'RJ',
           Área: 'RJ - Interior',
           Período: '2026-08',
           Métrica: 'Faturamento',
@@ -170,14 +203,18 @@ export default function Importacao() {
       const sellerValue = r[mapping.seller]
       const seller = sellers.find((s) => s.code === sellerValue)
       const uid = seller?.user_id || users.find((u) => u.email === sellerValue)?.id
-      const err = !uid
-        ? `Vendedor '${sellerValue}' não encontrado`
-        : !hasAccess(uid)
-          ? `Sem permissão para alterar metas deste vendedor`
-          : null
+      let err = null
+      if (uid && !hasAccess(uid)) {
+        err = `Sem permissão para alterar metas deste vendedor`
+      }
       return {
         row: r,
         map: {
+          seller_value: sellerValue,
+          seller_name: mapping.seller_name ? r[mapping.seller_name] : null,
+          district_name: mapping.district ? r[mapping.district] : null,
+          regional_name: mapping.regional ? r[mapping.regional] : null,
+          area_name: mapping.area ? r[mapping.area] : null,
           seller_id: uid,
           period: r[mapping.period],
           metric: r[mapping.metric],
@@ -185,7 +222,6 @@ export default function Importacao() {
           target_bronze: pNum(r[mapping.target_bronze]),
           target_prata: pNum(r[mapping.target_prata]),
           target_ouro: pNum(r[mapping.target_ouro]),
-          area_name: mapping.area ? r[mapping.area] : null,
         },
         err,
         i: i + 1,
@@ -200,7 +236,8 @@ export default function Importacao() {
     setProgress(0)
     let u = 0,
       c = 0,
-      e = 0
+      e = 0,
+      entCreated = 0
     const errList = []
 
     for (let idx = 0; idx < validatedData.length; idx++) {
@@ -213,18 +250,112 @@ export default function Importacao() {
         continue
       }
 
-      if (r.map.area_name) {
+      let distId = null
+      if (r.map.district_name) {
         try {
-          await pb.collection('areas').getFirstListItem(`name="${r.map.area_name}"`)
+          distId = (
+            await pb.collection('districts').getFirstListItem(`name="${r.map.district_name}"`)
+          ).id
         } catch {
-          await pb
-            .collection('areas')
-            .create({ name: r.map.area_name, is_active: true })
-            .catch(() => {})
+          try {
+            distId = (
+              await pb
+                .collection('districts')
+                .create({ name: r.map.district_name, is_active: true })
+            ).id
+            entCreated++
+          } catch {
+            /* ignore */
+          }
+        }
+      } else {
+        const dists = await pb.collection('districts').getFullList({ limit: 1 })
+        if (dists.length > 0) distId = dists[0].id
+      }
+
+      let regId = null
+      if (r.map.regional_name) {
+        try {
+          regId = (
+            await pb.collection('regionals').getFirstListItem(`name="${r.map.regional_name}"`)
+          ).id
+        } catch {
+          if (distId) {
+            try {
+              regId = (
+                await pb
+                  .collection('regionals')
+                  .create({ name: r.map.regional_name, is_active: true, district_id: distId })
+              ).id
+              entCreated++
+            } catch {
+              /* ignore */
+            }
+          }
         }
       }
 
-      const goalData = { ...r.map }
+      let areaId = null
+      if (r.map.area_name) {
+        try {
+          areaId = (await pb.collection('areas').getFirstListItem(`name="${r.map.area_name}"`)).id
+        } catch {
+          try {
+            areaId = (
+              await pb
+                .collection('areas')
+                .create({
+                  name: r.map.area_name,
+                  is_active: true,
+                  regional_id: regId,
+                  district_id: distId,
+                })
+            ).id
+            entCreated++
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+
+      let finalSellerId = r.map.seller_id
+      if (!finalSellerId) {
+        try {
+          const fakeEmail = `${r.map.seller_value.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()}_${Date.now()}@tesla.com`
+          const newU = await pb.collection('users').create({
+            name: r.map.seller_name || r.map.seller_value,
+            email: fakeEmail,
+            password: 'Skip@Password123',
+            passwordConfirm: 'Skip@Password123',
+            role: 'Seller',
+            area_id: areaId,
+            regional_id: regId,
+            district_id: distId,
+            is_active: true,
+          })
+          entCreated++
+          finalSellerId = newU.id
+
+          await pb.collection('sellers').create({
+            name: r.map.seller_name || r.map.seller_value,
+            code: r.map.seller_value,
+            area_id: areaId,
+            user_id: newU.id,
+            is_active: true,
+          })
+          entCreated++
+        } catch (error: any) {
+          e++
+          errList.push({ line: r.i, error: `Falha ao criar vendedor: ${error?.message}` })
+          continue
+        }
+      }
+
+      const goalData = { ...r.map, seller_id: finalSellerId }
+      delete goalData.seller_value
+      delete goalData.seller_name
+      delete goalData.district_name
+      delete goalData.regional_name
       delete goalData.area_name
 
       try {
@@ -254,12 +385,12 @@ export default function Importacao() {
         user_id: user?.id,
         source: source === 'excel' ? 'Excel' : 'Google Sheets',
         file_name: fileName,
-        stats: { updated: u, created: c, errors: e },
+        stats: { updated: u, created: c, errors: e, entities_created: entCreated },
         status: e === 0 ? 'Success' : c + u > 0 ? 'Partial' : 'Failed',
       })
       .catch(() => {})
 
-    setStats({ updated: u, created: c, errors: e })
+    setStats({ updated: u, created: c, errors: e, entities_created: entCreated })
     setErrorDetails(errList)
     setStep(5)
     setLoading(false)
@@ -271,7 +402,9 @@ export default function Importacao() {
         <h1 className="text-3xl font-bold tracking-tight text-primary flex items-center gap-2">
           Importar Planilha
         </h1>
-        <p className="text-muted-foreground">Importação guiada de metas e acompanhamentos.</p>
+        <p className="text-muted-foreground">
+          Importação guiada de metas e criação automática de hierarquia.
+        </p>
       </div>
 
       {step === 1 && (
@@ -362,6 +495,7 @@ export default function Importacao() {
                     <SelectValue placeholder="Selecione a coluna correspondente" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
                     {headers.map((h) => (
                       <SelectItem key={h} value={h}>
                         {h}
@@ -376,7 +510,10 @@ export default function Importacao() {
             <Button variant="outline" onClick={() => setStep(2)}>
               Voltar
             </Button>
-            <Button onClick={validate} disabled={REQ_FIELDS.some((f) => f.req && !mapping[f.k])}>
+            <Button
+              onClick={validate}
+              disabled={REQ_FIELDS.some((f) => f.req && (!mapping[f.k] || mapping[f.k] === 'none'))}
+            >
               Validar Mapeamento
             </Button>
           </CardFooter>
@@ -444,7 +581,8 @@ export default function Importacao() {
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
               <h2 className="text-2xl font-bold">Importação Concluída</h2>
               <p className="text-muted-foreground mt-2">
-                Criados: {stats.created} | Atualizados: {stats.updated} | Erros: {stats.errors}
+                Metas Criadas: {stats.created} | Atualizadas: {stats.updated} | Novas Entidades:{' '}
+                {stats.entities_created} | Erros: {stats.errors}
               </p>
               <Button
                 className="mt-6"

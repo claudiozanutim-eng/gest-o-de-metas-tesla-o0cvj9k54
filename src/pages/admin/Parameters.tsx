@@ -25,6 +25,8 @@ export default function Parameters() {
   const [families, setFamilies] = useState<any[]>([])
   const { toast } = useToast()
   const [paramsId, setParamsId] = useState('')
+  const [taxRateId, setTaxRateId] = useState('')
+  const [taxRate, setTaxRate] = useState(0.32)
   const [rules, setRules] = useState({
     base_threshold: 80,
     base_multiplier: 0,
@@ -48,11 +50,19 @@ export default function Parameters() {
     try {
       const records = await pb
         .collection('system_parameters')
-        .getFullList({ filter: 'key = "commission_rules"' })
-      if (records.length > 0) {
-        setParamsId(records[0].id)
-        setRules(records[0].value)
+        .getFullList({ filter: 'key = "commission_rules" || key = "tax_rate"' })
+
+      const cr = records.find((r) => r.key === 'commission_rules')
+      if (cr) {
+        setParamsId(cr.id)
+        setRules(cr.value)
       }
+      const tr = records.find((r) => r.key === 'tax_rate')
+      if (tr) {
+        setTaxRateId(tr.id)
+        setTaxRate(tr.value)
+      }
+
       setFamilies(await pb.collection('product_families').getFullList())
     } catch (e) {
       console.error(e)
@@ -72,6 +82,19 @@ export default function Parameters() {
           .create({ key: 'commission_rules', value: rules })
         setParamsId(res.id)
       }
+
+      if (taxRateId) await pb.collection('system_parameters').update(taxRateId, { value: taxRate })
+      else {
+        const res = await pb
+          .collection('system_parameters')
+          .create({
+            key: 'tax_rate',
+            value: taxRate,
+            description: 'Tax deduction for net commission value',
+          })
+        setTaxRateId(res.id)
+      }
+
       toast({ title: 'Parâmetros atualizados' })
     } catch (e) {
       toast({ title: 'Erro ao salvar', variant: 'destructive' })
@@ -137,6 +160,16 @@ export default function Parameters() {
                 />
               </div>
             ))}
+            <div className="space-y-2">
+              <Label>Taxa / Imposto (%)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={taxRate}
+                onChange={(e) => setTaxRate(Number(e.target.value))}
+              />
+              <p className="text-xs text-muted-foreground">Ex: 0.32 para 32%</p>
+            </div>
           </div>
           <Button onClick={saveParams}>Salvar Parâmetros</Button>
         </CardContent>

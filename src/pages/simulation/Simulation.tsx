@@ -11,6 +11,7 @@ export default function Simulation() {
   const [baseSalary, setBaseSalary] = useState(3000)
   const [goal, setGoal] = useState(200000)
   const [achievementPercent, setAchievementPercent] = useState([85])
+  const [taxRate, setTaxRate] = useState(0.32)
 
   const [rules, setRules] = useState({
     base_threshold: 80,
@@ -24,9 +25,12 @@ export default function Simulation() {
 
   useEffect(() => {
     pb.collection('system_parameters')
-      .getFullList({ filter: 'key = "commission_rules"' })
+      .getFullList({ filter: 'key = "commission_rules" || key = "tax_rate"' })
       .then((records) => {
-        if (records.length > 0) setRules(records[0].value)
+        const cr = records.find((r) => r.key === 'commission_rules')
+        if (cr) setRules(cr.value)
+        const tr = records.find((r) => r.key === 'tax_rate')
+        if (tr) setTaxRate(Number(tr.value))
       })
       .catch(console.error)
   }, [])
@@ -48,8 +52,9 @@ export default function Simulation() {
   }
 
   const percent = achievementPercent[0]
-  const realRevenue = goal * (percent / 100)
-  const commission = realRevenue * getMultiplier(percent)
+  const grossRevenue = goal * (percent / 100)
+  const liquidRevenue = grossRevenue * (1 - taxRate)
+  const commission = liquidRevenue * getMultiplier(percent)
   const totalEarnings = baseSalary + commission
   const category = getCategory(percent)
 
@@ -129,12 +134,23 @@ export default function Simulation() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="bg-background rounded-lg p-4 border shadow-sm">
                 <p className="text-sm text-muted-foreground mb-1 flex items-center gap-1">
-                  <TrendingUp className="w-4 h-4" /> Faturamento Simulado
+                  <TrendingUp className="w-4 h-4" /> Faturamento Bruto
                 </p>
-                <p className="text-xl font-mono font-semibold">{formatCurrency(realRevenue)}</p>
+                <p className="text-xl font-mono font-semibold">{formatCurrency(grossRevenue)}</p>
+              </div>
+              <div className="bg-background rounded-lg p-4 border shadow-sm">
+                <p className="text-sm text-muted-foreground mb-1 flex items-center gap-1">
+                  <DollarSign className="w-4 h-4" /> Faturamento Líquido
+                </p>
+                <p className="text-xl font-mono font-semibold text-primary">
+                  {formatCurrency(liquidRevenue)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Dedução de {(taxRate * 100).toFixed(0)}%
+                </p>
               </div>
               <div className="bg-background rounded-lg p-4 border shadow-sm">
                 <p className="text-sm text-muted-foreground mb-1 flex items-center gap-1">
