@@ -62,11 +62,11 @@ export default function Users() {
 
   const loadData = async () => {
     try {
-      const u = await pb.collection('users').getFullList()
+      const u = await pb.collection('users').getFullList({ sort: '-created' })
       setUsers(u)
-      const d = await pb.collection('districts').getFullList()
+      const d = await pb.collection('districts').getFullList({ sort: 'name' })
       setDistricts(d)
-      const a = await pb.collection('areas').getFullList()
+      const a = await pb.collection('areas').getFullList({ sort: 'name' })
       setAreas(a)
     } catch (error) {
       console.error(error)
@@ -77,8 +77,17 @@ export default function Users() {
     loadData()
   }, [])
 
-  useRealtime('users', () => {
-    loadData()
+  useRealtime('users', (e) => {
+    if (e.action === 'create') {
+      setUsers((prev) => {
+        if (prev.find((u) => u.id === e.record.id)) return prev
+        return [e.record, ...prev]
+      })
+    } else if (e.action === 'update') {
+      setUsers((prev) => prev.map((u) => (u.id === e.record.id ? e.record : u)))
+    } else if (e.action === 'delete') {
+      setUsers((prev) => prev.filter((u) => u.id !== e.record.id))
+    }
   })
 
   const handleSave = async () => {
@@ -119,7 +128,7 @@ export default function Users() {
 
       toast({ title: 'Usuário salvo com sucesso' })
       setIsOpen(false)
-      loadData()
+      await loadData()
     } catch (e: any) {
       toast({
         title: 'Erro ao salvar usuário',
