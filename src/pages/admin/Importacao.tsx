@@ -25,23 +25,60 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
-import { CheckCircle, FileSpreadsheet, HardDrive, AlertTriangle, History } from 'lucide-react'
+import {
+  CheckCircle,
+  FileSpreadsheet,
+  HardDrive,
+  AlertTriangle,
+  History,
+  Download,
+  Link as LinkIcon,
+} from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { Progress } from '@/components/ui/progress'
+import { Label } from '@/components/ui/label'
 
 const REQ_FIELDS = [
-  { k: 'seller', l: 'Vendedor (E-mail ou Cód.)', req: true },
-  { k: 'seller_name', l: 'Nome do Vendedor (Opcional)', req: false },
-  { k: 'district', l: 'Distrito (Opcional)', req: false },
-  { k: 'regional', l: 'Regional (Opcional)', req: false },
-  { k: 'area', l: 'Área (Opcional)', req: false },
-  { k: 'period', l: 'Período', req: true },
-  { k: 'metric', l: 'Métrica', req: true },
-  { k: 'target_base', l: 'Base', req: true },
-  { k: 'target_bronze', l: 'Bronze', req: true },
-  { k: 'target_prata', l: 'Prata', req: true },
-  { k: 'target_ouro', l: 'Ouro', req: true },
+  {
+    k: 'seller',
+    l: 'Vendedor (Cód. ou Nome)',
+    req: true,
+    match: ['vendedor', 'cod', 'código', 'seller', 'vendedores', 'nome'],
+  },
+  { k: 'area', l: 'Área', req: true, match: ['area', 'área'] },
+  { k: 'regional', l: 'Regional', req: true, match: ['regional'] },
+  { k: 'district', l: 'Distrito (Opcional)', req: false, match: ['distrito', 'district'] },
+  {
+    k: 'period',
+    l: 'Período',
+    req: true,
+    match: ['periodo', 'período', 'mês', 'mes', 'data', 'ano'],
+  },
+  { k: 'metric', l: 'Métrica', req: true, match: ['métrica', 'metrica', 'indicador', 'kpi'] },
+  { k: 'target_base', l: 'Base', req: true, match: ['base', 'meta base'] },
+  { k: 'target_bronze', l: 'Bronze', req: true, match: ['bronze', 'meta bronze'] },
+  { k: 'target_prata', l: 'Prata', req: true, match: ['prata', 'meta prata', 'silver'] },
+  { k: 'target_ouro', l: 'Ouro', req: true, match: ['ouro', 'meta ouro', 'gold'] },
+  {
+    k: 'mix_family',
+    l: 'Família (Mix - Opcional)',
+    req: false,
+    match: ['familia', 'família', 'mix'],
+  },
+  { k: 'focus_fleet', l: 'Frotas (Opcional)', req: false, match: ['frota', 'frotas', 'fleet'] },
+  {
+    k: 'focus_companies',
+    l: 'CNPJs (Opcional)',
+    req: false,
+    match: ['cnpj', 'cnpjs', 'empresas', 'cobertura'],
+  },
+  {
+    k: 'actual_value',
+    l: 'Realizado (Opcional)',
+    req: false,
+    match: ['realizado', 'atingido', 'resultado', 'venda', 'faturamento real'],
+  },
 ]
 
 export default function Importacao() {
@@ -52,10 +89,17 @@ export default function Importacao() {
   const [data, setData] = useState<any[]>([])
   const [headers, setHeaders] = useState<string[]>([])
   const [fileName, setFileName] = useState('')
+  const [googleUrl, setGoogleUrl] = useState('')
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(0)
+
   const [users, setUsers] = useState<any[]>([])
   const [sellers, setSellers] = useState<any[]>([])
+  const [areas, setAreas] = useState<any[]>([])
+  const [regionals, setRegionals] = useState<any[]>([])
+
   const [validatedData, setValidatedData] = useState<any[]>([])
   const [stats, setStats] = useState({ updated: 0, created: 0, errors: 0, entities_created: 0 })
   const [mapping, setMapping] = useState<Record<string, string>>({})
@@ -77,118 +121,93 @@ export default function Importacao() {
     Promise.all([
       pb.collection('users').getFullList(),
       pb.collection('sellers').getFullList(),
-    ]).then(([u, s]) => {
+      pb.collection('areas').getFullList(),
+      pb.collection('regionals').getFullList(),
+    ]).then(([u, s, a, r]) => {
       setUsers(u)
       setSellers(s)
+      setAreas(a)
+      setRegionals(r)
     })
     loadHistory()
   }, [])
 
   const autoMap = (h: string[]) => {
     const map: Record<string, string> = {}
-    h.forEach((header) => {
-      const hl = header.toLowerCase()
-      REQ_FIELDS.forEach((f) => {
-        if (hl.includes(f.l.toLowerCase().split(' ')[0])) map[f.k] = header
-      })
+    const used = new Set<string>()
+    REQ_FIELDS.forEach((f) => {
+      for (const header of h) {
+        if (used.has(header)) continue
+        const hl = header.toLowerCase()
+        if (f.match.some((m) => hl.includes(m))) {
+          map[f.k] = header
+          used.add(header)
+          break
+        }
+      }
     })
     setMapping(map)
   }
 
-  const parseCsv = (text: string) => {
-    const rows = text.split('\n').filter((r) => r.trim())
-    if (rows.length < 2) return toast({ title: 'Arquivo inválido', variant: 'destructive' })
-    const h = rows[0].split(',').map((s) => s.trim())
-    const d = rows.slice(1).map((r) => {
-      const cols = r.split(',')
-      return h.reduce((acc, curr, i) => ({ ...acc, [curr]: cols[i]?.trim() || '' }), {})
-    })
-    setHeaders(h)
-    setData(d)
-    autoMap(h)
-    setStep(3)
-  }
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     setFileName(file.name)
-    if (file.name.endsWith('.csv')) {
+    setUploadedFile(file)
+    setLoading(true)
+
+    try {
       const reader = new FileReader()
-      reader.onload = (ev) => parseCsv(ev.target?.result as string)
-      reader.readAsText(file)
-    } else {
-      setTimeout(() => {
-        const mh = [
-          'Vendedor',
-          'Nome',
-          'Distrito',
-          'Regional',
-          'Área',
-          'Período',
-          'Métrica',
-          'Base',
-          'Bronze',
-          'Prata',
-          'Ouro',
-        ]
-        setHeaders(mh)
-        setData([
-          {
-            Vendedor: user?.email || '',
-            Nome: user?.name || 'Admin',
-            Distrito: 'BR Sudeste',
-            Regional: 'SP',
-            Área: 'SP - Capital',
-            Período: '2026-08',
-            Métrica: 'Faturamento',
-            Base: '15000',
-            Bronze: '18000',
-            Prata: '20000',
-            Ouro: '25000',
-          },
-        ])
-        autoMap(mh)
-        setStep(3)
-      }, 500)
+      reader.onload = async (ev) => {
+        try {
+          const base64 = (ev.target?.result as string).split(',')[1]
+          const res = await pb.send('/backend/v1/parse-excel', {
+            method: 'POST',
+            body: JSON.stringify({ base64 }),
+          })
+          setData(res.data)
+          setHeaders(res.headers)
+          autoMap(res.headers)
+          setStep(3)
+        } catch (err: any) {
+          toast({
+            title: 'Erro ao processar arquivo',
+            description: err.message,
+            variant: 'destructive',
+          })
+        } finally {
+          setLoading(false)
+        }
+      }
+      reader.readAsDataURL(file)
+    } catch (err) {
+      setLoading(false)
+      toast({ title: 'Erro de leitura', variant: 'destructive' })
     }
   }
 
-  const handleGoogle = () => {
-    setFileName('Metas_Drive_2026.xlsx')
-    setTimeout(() => {
-      const mh = [
-        'Vendedor',
-        'Nome',
-        'Distrito',
-        'Regional',
-        'Área',
-        'Período',
-        'Métrica',
-        'Base',
-        'Bronze',
-        'Prata',
-        'Ouro',
-      ]
-      setHeaders(mh)
-      setData([
-        {
-          Vendedor: user?.email || '',
-          Nome: user?.name || 'Admin',
-          Distrito: 'BR Sudeste',
-          Regional: 'RJ',
-          Área: 'RJ - Interior',
-          Período: '2026-08',
-          Métrica: 'Faturamento',
-          Base: '10000',
-          Bronze: '12000',
-          Prata: '15000',
-          Ouro: '20000',
-        },
-      ])
-      autoMap(mh)
+  const handleGoogleSheet = async () => {
+    if (!googleUrl) return toast({ title: 'Insira a URL', variant: 'destructive' })
+    setLoading(true)
+    try {
+      const res = await pb.send('/backend/v1/parse-google-sheets', {
+        method: 'POST',
+        body: JSON.stringify({ url: googleUrl }),
+      })
+      setFileName('Google Sheets Import')
+      setData(res.data)
+      setHeaders(res.headers)
+      autoMap(res.headers)
       setStep(3)
-    }, 500)
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao conectar no Google Sheets',
+        description: err.message,
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   const hasAccess = (uid: string) => {
@@ -197,12 +216,12 @@ export default function Importacao() {
     const tgt = users.find((u) => u.id === uid)
     if (!tgt) return false
     if (
-      (user?.role === 'District Manager' || user?.role === 'Gerente Distrital') &&
+      ['District Manager', 'Gerente Distrital'].includes(user?.role || '') &&
       tgt.district_id === user?.district_id
     )
       return true
     if (
-      (user?.role === 'Regional Manager' || user?.role === 'Gerente Regional') &&
+      ['Regional Manager', 'Gerente Regional'].includes(user?.role || '') &&
       tgt.regional_id === user?.regional_id
     )
       return true
@@ -213,28 +232,66 @@ export default function Importacao() {
 
   const validate = () => {
     const v = data.map((r, i) => {
-      const sellerValue = r[mapping.seller]
-      const seller = sellers.find((s) => s.code === sellerValue)
-      const uid = seller?.user_id || users.find((u) => u.email === sellerValue)?.id
+      const sellerValue = String(r[mapping.seller] || '').trim()
+      const seller = sellers.find(
+        (s) => s.code === sellerValue || s.name.toLowerCase() === sellerValue.toLowerCase(),
+      )
+      const userMatch = users.find(
+        (u) =>
+          u.email.toLowerCase() === sellerValue.toLowerCase() ||
+          u.name.toLowerCase() === sellerValue.toLowerCase(),
+      )
+
+      const uid = seller?.user_id || userMatch?.id
+
+      const targetBase = pNum(r[mapping.target_base])
+      const targetBronze = pNum(r[mapping.target_bronze])
+      const targetPrata = pNum(r[mapping.target_prata])
+      const targetOuro = pNum(r[mapping.target_ouro])
+
       let err = null
-      if (uid && !hasAccess(uid)) {
-        err = `Sem permissão para alterar metas deste vendedor`
+
+      if (!sellerValue) err = 'Vendedor não identificado'
+      else if (!r[mapping.period]) err = 'Período não identificado'
+      else if (
+        targetBase > targetBronze ||
+        targetBronze > targetPrata ||
+        targetPrata > targetOuro
+      ) {
+        err = 'Inconsistência numérica (Base > Bronze > Prata > Ouro)'
+      } else if (uid && !hasAccess(uid)) {
+        err = 'Sem permissão para alterar metas deste vendedor'
       }
+
+      // Resolve area and regional from map or fallback to existing user's data
+      const mappedArea = r[mapping.area] ? String(r[mapping.area]).trim() : null
+      const mappedRegional = r[mapping.regional] ? String(r[mapping.regional]).trim() : null
+
+      if (!mappedArea && !uid) {
+        if (!err) err = 'Área não mapeada e vendedor não existe'
+      }
+      if (!mappedRegional && !uid) {
+        if (!err) err = 'Regional não mapeada e vendedor não existe'
+      }
+
       return {
         row: r,
         map: {
           seller_value: sellerValue,
-          seller_name: mapping.seller_name ? r[mapping.seller_name] : null,
-          district_name: mapping.district ? r[mapping.district] : null,
-          regional_name: mapping.regional ? r[mapping.regional] : null,
-          area_name: mapping.area ? r[mapping.area] : null,
+          area_name: mappedArea,
+          regional_name: mappedRegional,
+          district_name: mapping.district ? String(r[mapping.district]).trim() : null,
           seller_id: uid,
-          period: r[mapping.period],
-          metric: r[mapping.metric],
-          target_base: pNum(r[mapping.target_base]),
-          target_bronze: pNum(r[mapping.target_bronze]),
-          target_prata: pNum(r[mapping.target_prata]),
-          target_ouro: pNum(r[mapping.target_ouro]),
+          period: String(r[mapping.period] || '').trim(),
+          metric: String(r[mapping.metric] || '').trim(),
+          target_base: targetBase,
+          target_bronze: targetBronze,
+          target_prata: targetPrata,
+          target_ouro: targetOuro,
+          mix_family: mapping.mix_family ? String(r[mapping.mix_family]).trim() : '',
+          focus_fleet: mapping.focus_fleet ? pNum(r[mapping.focus_fleet]) : 0,
+          focus_companies: mapping.focus_companies ? pNum(r[mapping.focus_companies]) : 0,
+          actual_value: mapping.actual_value ? pNum(r[mapping.actual_value]) : null,
         },
         err,
         i: i + 1,
@@ -278,12 +335,9 @@ export default function Importacao() {
             ).id
             entCreated++
           } catch {
-            /* ignore */
+            /* intentionally ignored */
           }
         }
-      } else {
-        const dists = await pb.collection('districts').getFullList({ limit: 1 })
-        if (dists.length > 0) distId = dists[0].id
       }
 
       let regId = null
@@ -293,17 +347,15 @@ export default function Importacao() {
             await pb.collection('regionals').getFirstListItem(`name="${r.map.regional_name}"`)
           ).id
         } catch {
-          if (distId) {
-            try {
-              regId = (
-                await pb
-                  .collection('regionals')
-                  .create({ name: r.map.regional_name, is_active: true, district_id: distId })
-              ).id
-              entCreated++
-            } catch {
-              /* ignore */
-            }
+          try {
+            regId = (
+              await pb
+                .collection('regionals')
+                .create({ name: r.map.regional_name, is_active: true, district_id: distId })
+            ).id
+            entCreated++
+          } catch {
+            /* intentionally ignored */
           }
         }
       }
@@ -324,7 +376,7 @@ export default function Importacao() {
             ).id
             entCreated++
           } catch {
-            /* ignore */
+            /* intentionally ignored */
           }
         }
       }
@@ -334,7 +386,7 @@ export default function Importacao() {
         try {
           const fakeEmail = `${r.map.seller_value.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()}_${Date.now()}@tesla.com`
           const newU = await pb.collection('users').create({
-            name: r.map.seller_name || r.map.seller_value,
+            name: r.map.seller_value,
             email: fakeEmail,
             password: 'Skip@Password123',
             passwordConfirm: 'Skip@Password123',
@@ -348,7 +400,7 @@ export default function Importacao() {
           finalSellerId = newU.id
 
           await pb.collection('sellers').create({
-            name: r.map.seller_name || r.map.seller_value,
+            name: r.map.seller_value,
             code: r.map.seller_value,
             area_id: areaId,
             user_id: newU.id,
@@ -362,12 +414,20 @@ export default function Importacao() {
         }
       }
 
-      const goalData = { ...r.map, seller_id: finalSellerId }
-      delete goalData.seller_value
-      delete goalData.seller_name
-      delete goalData.district_name
-      delete goalData.regional_name
-      delete goalData.area_name
+      const goalData = {
+        seller_id: finalSellerId,
+        period: r.map.period,
+        metric: r.map.metric,
+        target_base: r.map.target_base,
+        target_bronze: r.map.target_bronze,
+        target_prata: r.map.target_prata,
+        target_ouro: r.map.target_ouro,
+        mix_family: r.map.mix_family,
+        focus_fleet: r.map.focus_fleet,
+        focus_companies: r.map.focus_companies,
+        regional_id: regId,
+        area_id: areaId,
+      }
 
       try {
         const ex = await pb
@@ -383,24 +443,65 @@ export default function Importacao() {
           c++
         } catch (error: any) {
           e++
-          errList.push({ line: r.i, error: `Erro no DB: ${error?.message || 'Falha ao salvar'}` })
+          errList.push({
+            line: r.i,
+            error: `Erro no DB (goals): ${error?.message || 'Falha ao salvar'}`,
+          })
+        }
+      }
+
+      if (r.map.actual_value !== null) {
+        const perfData = {
+          seller_id: finalSellerId,
+          period: r.map.period,
+          metric: r.map.metric,
+          actual_value: r.map.actual_value,
+          mix_family: r.map.mix_family,
+          focus_fleet: r.map.focus_fleet,
+          focus_companies: r.map.focus_companies,
+        }
+        try {
+          const exPerf = await pb
+            .collection('actual_performance')
+            .getFirstListItem(
+              `seller_id="${perfData.seller_id}" && period="${perfData.period}" && metric="${perfData.metric}"`,
+            )
+          await pb.collection('actual_performance').update(exPerf.id, perfData)
+        } catch {
+          try {
+            await pb.collection('actual_performance').create(perfData)
+          } catch (error: any) {
+            e++
+            errList.push({
+              line: r.i,
+              error: `Erro no DB (performance): ${error?.message || 'Falha ao salvar'}`,
+            })
+          }
         }
       }
     }
 
     setProgress(100)
 
-    await pb
-      .collection('import_history')
-      .create({
-        user_id: user?.id,
-        source: source === 'excel' ? 'Excel' : 'Google Sheets',
-        file_name: fileName,
-        stats: { updated: u, created: c, errors: e, entities_created: entCreated },
-        status: e === 0 ? 'Sucesso' : c + u > 0 ? 'Parcial' : 'Falha',
-      })
-      .catch(() => {})
-      .finally(() => loadHistory())
+    try {
+      const form = new FormData()
+      form.append('user_id', user?.id || '')
+      form.append('source', source === 'excel' ? 'Excel' : 'Google Sheets')
+      form.append('file_name', fileName)
+      form.append(
+        'stats',
+        JSON.stringify({ updated: u, created: c, errors: e, entities_created: entCreated }),
+      )
+      form.append('status', e === 0 ? 'Sucesso' : c + u > 0 ? 'Parcial' : 'Falha')
+      if (uploadedFile && source === 'excel') {
+        form.append('file', uploadedFile)
+      }
+      await pb.collection('import_history').create(form)
+    } catch (err) {
+      console.error('History log failed', err)
+    } finally {
+      loadHistory()
+    }
 
     setStats({ updated: u, created: c, errors: e, entities_created: entCreated })
     setErrorDetails(errList)
@@ -412,38 +513,46 @@ export default function Importacao() {
     <div className="space-y-6 max-w-5xl mx-auto">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-primary flex items-center gap-2">
-          Importar Planilha
+          Importação Inteligente
         </h1>
         <p className="text-muted-foreground">
-          Importação guiada de metas e criação automática de hierarquia.
+          Importe metas comerciais mapeando sua planilha para o sistema automaticamente.
         </p>
       </div>
 
       {step === 1 && (
-        <div className="space-y-8">
+        <div className="space-y-8 animate-fade-in">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card
-              className="hover:border-primary cursor-pointer transition-colors"
+              className="hover:border-primary cursor-pointer transition-colors group"
               onClick={() => {
                 setSource('excel')
                 setStep(2)
               }}
             >
               <CardHeader className="text-center py-10">
-                <FileSpreadsheet className="w-12 h-12 mx-auto mb-4 text-green-600" />
-                <CardTitle>Excel / CSV</CardTitle>
+                <div className="mx-auto bg-green-100 dark:bg-green-900/30 p-4 rounded-full mb-4 group-hover:scale-110 transition-transform">
+                  <FileSpreadsheet className="w-8 h-8 text-green-600 dark:text-green-400" />
+                </div>
+                <CardTitle>Upload Excel</CardTitle>
+                <CardDescription className="mt-2">Suporte para .xlsx, .xls, .csv</CardDescription>
               </CardHeader>
             </Card>
             <Card
-              className="hover:border-primary cursor-pointer transition-colors"
+              className="hover:border-primary cursor-pointer transition-colors group"
               onClick={() => {
                 setSource('google')
                 setStep(2)
               }}
             >
               <CardHeader className="text-center py-10">
-                <HardDrive className="w-12 h-12 mx-auto mb-4 text-blue-600" />
+                <div className="mx-auto bg-blue-100 dark:bg-blue-900/30 p-4 rounded-full mb-4 group-hover:scale-110 transition-transform">
+                  <HardDrive className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                </div>
                 <CardTitle>Google Sheets</CardTitle>
+                <CardDescription className="mt-2">
+                  Importe direto por URL compartilhada
+                </CardDescription>
               </CardHeader>
             </Card>
           </div>
@@ -464,11 +573,12 @@ export default function Importacao() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Criado em</TableHead>
-                        <TableHead>Nome do Arquivo</TableHead>
-                        <TableHead>Importado por</TableHead>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Arquivo</TableHead>
+                        <TableHead>Usuário</TableHead>
                         <TableHead>Estatísticas</TableHead>
-                        <TableHead>Situação</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -477,11 +587,21 @@ export default function Importacao() {
                           <TableCell className="whitespace-nowrap">
                             {new Date(h.created).toLocaleString()}
                           </TableCell>
-                          <TableCell>{h.file_name}</TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              {h.source === 'Excel' ? (
+                                <FileSpreadsheet className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <HardDrive className="h-4 w-4 text-blue-500" />
+                              )}
+                              {h.file_name}
+                            </div>
+                          </TableCell>
                           <TableCell>{h.expand?.user_id?.name || '-'}</TableCell>
                           <TableCell className="text-xs">
-                            C: {h.stats?.created || 0} | A: {h.stats?.updated || 0} | E:{' '}
-                            {h.stats?.errors || 0}
+                            <span className="text-green-600">C: {h.stats?.created || 0}</span> |{' '}
+                            <span className="text-blue-600">A: {h.stats?.updated || 0}</span> |{' '}
+                            <span className="text-red-600">E: {h.stats?.errors || 0}</span>
                           </TableCell>
                           <TableCell>
                             <span
@@ -489,6 +609,19 @@ export default function Importacao() {
                             >
                               {h.status}
                             </span>
+                          </TableCell>
+                          <TableCell>
+                            {h.file && (
+                              <a
+                                href={`${pb.baseURL}/api/files/import_history/${h.id}/${h.file}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-muted-foreground hover:text-primary transition-colors inline-flex"
+                                title="Baixar arquivo original"
+                              >
+                                <Download className="h-4 w-4" />
+                              </a>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -502,20 +635,25 @@ export default function Importacao() {
       )}
 
       {step === 2 && source === 'excel' && (
-        <Card>
+        <Card className="animate-fade-in">
           <CardHeader>
-            <CardTitle>Upload do Arquivo</CardTitle>
+            <CardTitle>Upload do Arquivo Excel</CardTitle>
+            <CardDescription>Selecione um arquivo .xlsx, .xls ou .csv</CardDescription>
           </CardHeader>
-          <CardContent className="flex justify-center py-10">
+          <CardContent className="flex flex-col items-center justify-center py-10 gap-4">
             <Input
               type="file"
               accept=".csv,.xlsx,.xls"
               onChange={handleFileUpload}
               className="max-w-sm"
+              disabled={loading}
             />
+            {loading && (
+              <p className="text-sm text-muted-foreground animate-pulse">Processando arquivo...</p>
+            )}
           </CardContent>
           <CardFooter>
-            <Button variant="ghost" onClick={() => setStep(1)}>
+            <Button variant="ghost" onClick={() => setStep(1)} disabled={loading}>
               Voltar
             </Button>
           </CardFooter>
@@ -523,20 +661,36 @@ export default function Importacao() {
       )}
 
       {step === 2 && source === 'google' && (
-        <Card>
+        <Card className="animate-fade-in">
           <CardHeader>
-            <CardTitle>Google Drive (Integração)</CardTitle>
+            <CardTitle>Google Sheets (Integração via Link)</CardTitle>
+            <CardDescription>
+              Cole o link da sua planilha do Google Sheets. Certifique-se de que o acesso está como
+              "Qualquer pessoa com o link".
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between p-4 border rounded hover:bg-muted/50 transition-colors">
-              <span className="flex items-center">
-                <FileSpreadsheet className="w-5 h-5 mr-3 text-green-600" /> Metas_Drive_2026.xlsx
-              </span>
-              <Button onClick={handleGoogle}>Selecionar</Button>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>URL da Planilha</Label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <LinkIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="https://docs.google.com/spreadsheets/d/..."
+                    className="pl-9"
+                    value={googleUrl}
+                    onChange={(e) => setGoogleUrl(e.target.value)}
+                    disabled={loading}
+                  />
+                </div>
+                <Button onClick={handleGoogleSheet} disabled={loading || !googleUrl}>
+                  {loading ? 'Buscando...' : 'Carregar'}
+                </Button>
+              </div>
             </div>
           </CardContent>
           <CardFooter>
-            <Button variant="ghost" onClick={() => setStep(1)}>
+            <Button variant="ghost" onClick={() => setStep(1)} disabled={loading}>
               Voltar
             </Button>
           </CardFooter>
@@ -544,23 +698,30 @@ export default function Importacao() {
       )}
 
       {step === 3 && (
-        <Card>
+        <Card className="animate-fade-in">
           <CardHeader>
             <CardTitle>Mapeamento de Colunas</CardTitle>
+            <CardDescription>
+              O sistema identificou os cabeçalhos automaticamente. Confirme se os campos abaixo
+              correspondem às colunas da sua planilha.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4">
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
             {REQ_FIELDS.map((f) => (
-              <div key={f.k}>
-                <label className="text-sm font-medium">{f.l}</label>
+              <div key={f.k} className="space-y-1">
+                <label className="text-sm font-medium flex items-center justify-between">
+                  {f.l}
+                  {f.req && <span className="text-red-500 text-xs">*Obrigatório</span>}
+                </label>
                 <Select
-                  value={mapping[f.k]}
-                  onValueChange={(v) => setMapping((p) => ({ ...p, [f.k]: v }))}
+                  value={mapping[f.k] || 'none'}
+                  onValueChange={(v) => setMapping((p) => ({ ...p, [f.k]: v === 'none' ? '' : v }))}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a coluna correspondente" />
+                  <SelectTrigger className={!mapping[f.k] && f.req ? 'border-red-500' : ''}>
+                    <SelectValue placeholder="Selecione a coluna" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Nenhum</SelectItem>
+                    <SelectItem value="none">-- Ignorar / Não mapeado --</SelectItem>
                     {headers.map((h) => (
                       <SelectItem key={h} value={h}>
                         {h}
@@ -571,55 +732,75 @@ export default function Importacao() {
               </div>
             ))}
           </CardContent>
-          <CardFooter className="flex justify-between border-t p-4">
+          <CardFooter className="flex justify-between border-t p-4 bg-muted/20">
             <Button variant="outline" onClick={() => setStep(2)}>
               Voltar
             </Button>
-            <Button
-              onClick={validate}
-              disabled={REQ_FIELDS.some((f) => f.req && (!mapping[f.k] || mapping[f.k] === 'none'))}
-            >
-              Validar Mapeamento
+            <Button onClick={validate} disabled={REQ_FIELDS.some((f) => f.req && !mapping[f.k])}>
+              Validar Dados
             </Button>
           </CardFooter>
         </Card>
       )}
 
       {step === 4 && (
-        <Card>
+        <Card className="animate-fade-in">
           <CardHeader>
-            <CardTitle>Revisão de Dados</CardTitle>
-            <CardDescription>{validatedData.length} registros para importação.</CardDescription>
+            <CardTitle>Revisão e Validação</CardTitle>
+            <CardDescription>
+              Foram identificados {validatedData.length} registros. Revise os alertas antes de
+              confirmar a importação.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {loading && (
-              <div className="mb-6 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Sincronizando registros...</span>
+              <div className="mb-6 space-y-2 p-4 border rounded bg-muted/50">
+                <div className="flex justify-between text-sm font-medium">
+                  <span>Aplicando metas no sistema...</span>
                   <span>{progress}%</span>
                 </div>
-                <Progress value={progress} />
+                <Progress value={progress} className="h-2" />
               </div>
             )}
-            <div className="max-h-[350px] overflow-auto border rounded">
+            <div className="max-h-[400px] overflow-auto border rounded-md">
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-muted sticky top-0 z-10 shadow-sm">
                   <TableRow>
-                    <TableHead>Linha</TableHead>
-                    <TableHead>Vendedor</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead className="w-16">Linha</TableHead>
+                    <TableHead>Vendedor Identificado</TableHead>
+                    <TableHead>Período / Métrica</TableHead>
+                    <TableHead>Metas (Base - Ouro)</TableHead>
+                    <TableHead>Status da Validação</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {validatedData.map((r) => (
-                    <TableRow key={r.i}>
-                      <TableCell>{r.i}</TableCell>
-                      <TableCell>{r.row[mapping.seller]}</TableCell>
+                    <TableRow key={r.i} className={r.err ? 'bg-red-50/50 dark:bg-red-950/10' : ''}>
+                      <TableCell className="font-mono text-muted-foreground">{r.i}</TableCell>
+                      <TableCell className="font-medium">
+                        {r.map.seller_value}
+                        {!r.map.seller_id && (
+                          <span className="block text-xs text-blue-600">Será criado novo</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <span className="block font-medium">{r.map.period}</span>
+                        <span className="text-xs text-muted-foreground">{r.map.metric}</span>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        B: {r.map.target_base} | Br: {r.map.target_bronze}
+                        <br />
+                        P: {r.map.target_prata} | O: {r.map.target_ouro}
+                      </TableCell>
                       <TableCell>
                         {r.err ? (
-                          <span className="text-red-500 font-medium">{r.err}</span>
+                          <span className="text-red-500 font-medium text-sm flex items-center gap-1">
+                            <AlertTriangle className="h-4 w-4" /> {r.err}
+                          </span>
                         ) : (
-                          <span className="text-green-600 font-medium">Pronto</span>
+                          <span className="text-green-600 font-medium text-sm flex items-center gap-1">
+                            <CheckCircle className="h-4 w-4" /> Pronto
+                          </span>
                         )}
                       </TableCell>
                     </TableRow>
@@ -632,33 +813,70 @@ export default function Importacao() {
             <Button variant="outline" onClick={() => setStep(3)} disabled={loading}>
               Voltar
             </Button>
-            <Button onClick={sync} disabled={loading || !validatedData.some((r) => !r.err)}>
-              {loading ? 'Processando...' : 'Sincronizar'}
+            <Button
+              onClick={sync}
+              disabled={loading || !validatedData.some((r) => !r.err)}
+              className="gap-2"
+            >
+              {loading ? 'Processando...' : 'Lançar Metas Automaticamente'}
             </Button>
           </CardFooter>
         </Card>
       )}
 
       {step === 5 && (
-        <div className="space-y-4">
+        <div className="space-y-4 animate-fade-in-up">
           <Card>
             <CardContent className="py-12 text-center">
-              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+              <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircle className="w-10 h-10 text-green-500" />
+              </div>
               <h2 className="text-2xl font-bold">Importação Concluída</h2>
-              <p className="text-muted-foreground mt-2">
-                Metas Criadas: {stats.created} | Atualizadas: {stats.updated} | Novas Entidades:{' '}
-                {stats.entities_created} | Erros: {stats.errors}
+              <p className="text-muted-foreground mt-2 max-w-md mx-auto">
+                As metas foram lançadas no sistema e já estão refletindo no Dashboard e Relatórios.
               </p>
-              <Button
-                className="mt-6"
-                onClick={() => {
-                  setStep(1)
-                  setData([])
-                  setValidatedData([])
-                }}
-              >
-                Nova Importação
-              </Button>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 max-w-2xl mx-auto">
+                <div className="bg-muted rounded p-3 text-center">
+                  <div className="text-2xl font-bold text-green-600">{stats.created}</div>
+                  <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">
+                    Novas
+                  </div>
+                </div>
+                <div className="bg-muted rounded p-3 text-center">
+                  <div className="text-2xl font-bold text-blue-600">{stats.updated}</div>
+                  <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">
+                    Atualizadas
+                  </div>
+                </div>
+                <div className="bg-muted rounded p-3 text-center">
+                  <div className="text-2xl font-bold text-purple-600">{stats.entities_created}</div>
+                  <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">
+                    Entidades Criadas
+                  </div>
+                </div>
+                <div className="bg-muted rounded p-3 text-center">
+                  <div className="text-2xl font-bold text-red-600">{stats.errors}</div>
+                  <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">
+                    Erros
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 space-x-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setStep(1)
+                    setData([])
+                    setValidatedData([])
+                    setUploadedFile(null)
+                    setGoogleUrl('')
+                  }}
+                >
+                  Nova Importação
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
@@ -666,9 +884,11 @@ export default function Importacao() {
             <Card className="border-red-200 bg-red-50/50 dark:bg-red-950/20">
               <CardHeader>
                 <CardTitle className="text-red-600 dark:text-red-400 flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5" /> Detalhes dos Erros
+                  <AlertTriangle className="h-5 w-5" /> Registros não importados
                 </CardTitle>
-                <CardDescription>As seguintes linhas não puderam ser importadas:</CardDescription>
+                <CardDescription>
+                  As seguintes linhas da planilha apresentaram falhas durante a importação:
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="max-h-64 overflow-y-auto rounded-md border border-red-100 dark:border-red-900 bg-background">
@@ -676,14 +896,14 @@ export default function Importacao() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-24">Linha</TableHead>
-                        <TableHead>Motivo</TableHead>
+                        <TableHead>Motivo da Falha</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {errorDetails.map((e, idx) => (
                         <TableRow key={idx}>
                           <TableCell className="font-mono">{e.line}</TableCell>
-                          <TableCell className="text-red-600 dark:text-red-400">
+                          <TableCell className="text-red-600 dark:text-red-400 font-medium text-sm">
                             {e.error}
                           </TableCell>
                         </TableRow>
