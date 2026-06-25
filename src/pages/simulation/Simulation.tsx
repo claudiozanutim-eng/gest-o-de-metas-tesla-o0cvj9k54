@@ -145,7 +145,8 @@ export default function Simulation() {
                 <Slider
                   value={achievements.revenue}
                   onValueChange={(v) => setAchievements({ ...achievements, revenue: v })}
-                  max={150}
+                  min={80}
+                  max={190}
                   step={1}
                 />
               </div>
@@ -162,7 +163,8 @@ export default function Simulation() {
                 <Slider
                   value={achievements.mix}
                   onValueChange={(v) => setAchievements({ ...achievements, mix: v })}
-                  max={150}
+                  min={80}
+                  max={190}
                   step={1}
                 />
               </div>
@@ -179,7 +181,8 @@ export default function Simulation() {
                 <Slider
                   value={achievements.coverage}
                   onValueChange={(v) => setAchievements({ ...achievements, coverage: v })}
-                  max={150}
+                  min={80}
+                  max={190}
                   step={1}
                 />
               </div>
