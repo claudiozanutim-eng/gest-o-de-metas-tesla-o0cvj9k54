@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-25T14:16:39.007Z",
+  "generatedAt": "2026-06-25T14:23:43.473Z",
   "collections": [
     {
       "name": "users",
@@ -49,7 +49,11 @@
             "District Manager",
             "Regional Manager",
             "Seller",
-            "Sales Assistant"
+            "Sales Assistant",
+            "Gerente Nacional",
+            "Gerente Distrital Geral",
+            "Gerente Distrital",
+            "Gerente Regional"
           ]
         },
         {
