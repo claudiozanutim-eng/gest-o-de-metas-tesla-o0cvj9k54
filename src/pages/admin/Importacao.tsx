@@ -25,9 +25,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
-import { CheckCircle, FileSpreadsheet, HardDrive } from 'lucide-react'
+import { CheckCircle, FileSpreadsheet, HardDrive, AlertTriangle } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
+import { Progress } from '@/components/ui/progress'
 
 const REQ_FIELDS = [
   { k: 'seller', l: 'Vendedor (E-mail ou Cód.)', req: true },
@@ -49,11 +50,13 @@ export default function Importacao() {
   const [headers, setHeaders] = useState<string[]>([])
   const [fileName, setFileName] = useState('')
   const [loading, setLoading] = useState(false)
+  const [progress, setProgress] = useState(0)
   const [users, setUsers] = useState<any[]>([])
   const [sellers, setSellers] = useState<any[]>([])
   const [validatedData, setValidatedData] = useState<any[]>([])
   const [stats, setStats] = useState({ updated: 0, created: 0, errors: 0 })
   const [mapping, setMapping] = useState<Record<string, string>>({})
+  const [errorDetails, setErrorDetails] = useState<any[]>([])
 
   useEffect(() => {
     Promise.all([
@@ -143,11 +146,20 @@ export default function Importacao() {
   }
 
   const hasAccess = (uid: string) => {
-    if (['Administrator', 'National Manager'].includes(user?.role || '')) return true
+    if (['Administrator', 'National Manager', 'Gerente Nacional'].includes(user?.role || ''))
+      return true
     const tgt = users.find((u) => u.id === uid)
     if (!tgt) return false
-    if (user?.role === 'District Manager' && tgt.district_id === user?.district_id) return true
-    if (user?.role === 'Regional Manager' && tgt.regional_id === user?.regional_id) return true
+    if (
+      (user?.role === 'District Manager' || user?.role === 'Gerente Distrital') &&
+      tgt.district_id === user?.district_id
+    )
+      return true
+    if (
+      (user?.role === 'Regional Manager' || user?.role === 'Gerente Regional') &&
+      tgt.regional_id === user?.regional_id
+    )
+      return true
     return false
   }
 
@@ -155,9 +167,14 @@ export default function Importacao() {
 
   const validate = () => {
     const v = data.map((r, i) => {
-      const seller = sellers.find((s) => s.code === r[mapping.seller])
-      const uid = seller?.user_id || users.find((u) => u.email === r[mapping.seller])?.id
-      const err = !uid ? 'Vendedor não encontrado' : !hasAccess(uid) ? 'Sem permissão' : null
+      const sellerValue = r[mapping.seller]
+      const seller = sellers.find((s) => s.code === sellerValue)
+      const uid = seller?.user_id || users.find((u) => u.email === sellerValue)?.id
+      const err = !uid
+        ? `Vendedor '${sellerValue}' não encontrado`
+        : !hasAccess(uid)
+          ? `Sem permissão para alterar metas deste vendedor`
+          : null
       return {
         row: r,
         map: {
@@ -180,12 +197,19 @@ export default function Importacao() {
 
   const sync = async () => {
     setLoading(true)
+    setProgress(0)
     let u = 0,
       c = 0,
       e = 0
-    for (const r of validatedData) {
+    const errList = []
+
+    for (let idx = 0; idx < validatedData.length; idx++) {
+      const r = validatedData[idx]
+      setProgress(Math.round((idx / validatedData.length) * 100))
+
       if (r.err) {
         e++
+        errList.push({ line: r.i, error: r.err })
         continue
       }
 
@@ -215,11 +239,15 @@ export default function Importacao() {
         try {
           await pb.collection('goals').create(goalData)
           c++
-        } catch {
+        } catch (error: any) {
           e++
+          errList.push({ line: r.i, error: `Erro no DB: ${error?.message || 'Falha ao salvar'}` })
         }
       }
     }
+
+    setProgress(100)
+
     await pb
       .collection('import_history')
       .create({
@@ -230,7 +258,9 @@ export default function Importacao() {
         status: e === 0 ? 'Success' : c + u > 0 ? 'Partial' : 'Failed',
       })
       .catch(() => {})
+
     setStats({ updated: u, created: c, errors: e })
+    setErrorDetails(errList)
     setStep(5)
     setLoading(false)
   }
@@ -241,7 +271,7 @@ export default function Importacao() {
         <h1 className="text-3xl font-bold tracking-tight text-primary flex items-center gap-2">
           Importar Planilha
         </h1>
-        <p className="text-muted-foreground">Importação guiada de metas.</p>
+        <p className="text-muted-foreground">Importação guiada de metas e acompanhamentos.</p>
       </div>
 
       {step === 1 && (
@@ -360,6 +390,15 @@ export default function Importacao() {
             <CardDescription>{validatedData.length} registros para importação.</CardDescription>
           </CardHeader>
           <CardContent>
+            {loading && (
+              <div className="mb-6 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Sincronizando registros...</span>
+                  <span>{progress}%</span>
+                </div>
+                <Progress value={progress} />
+              </div>
+            )}
             <div className="max-h-[350px] overflow-auto border rounded">
               <Table>
                 <TableHeader>
@@ -388,7 +427,7 @@ export default function Importacao() {
             </div>
           </CardContent>
           <CardFooter className="flex justify-between border-t p-4">
-            <Button variant="outline" onClick={() => setStep(3)}>
+            <Button variant="outline" onClick={() => setStep(3)} disabled={loading}>
               Voltar
             </Button>
             <Button onClick={sync} disabled={loading || !validatedData.some((r) => !r.err)}>
@@ -399,25 +438,60 @@ export default function Importacao() {
       )}
 
       {step === 5 && (
-        <Card>
-          <CardContent className="py-16 text-center">
-            <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold">Importação Concluída</h2>
-            <p className="text-muted-foreground mt-2">
-              Criados: {stats.created} | Atualizados: {stats.updated} | Erros: {stats.errors}
-            </p>
-            <Button
-              className="mt-6"
-              onClick={() => {
-                setStep(1)
-                setData([])
-                setValidatedData([])
-              }}
-            >
-              Nova Importação
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <Card>
+            <CardContent className="py-12 text-center">
+              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold">Importação Concluída</h2>
+              <p className="text-muted-foreground mt-2">
+                Criados: {stats.created} | Atualizados: {stats.updated} | Erros: {stats.errors}
+              </p>
+              <Button
+                className="mt-6"
+                onClick={() => {
+                  setStep(1)
+                  setData([])
+                  setValidatedData([])
+                }}
+              >
+                Nova Importação
+              </Button>
+            </CardContent>
+          </Card>
+
+          {errorDetails.length > 0 && (
+            <Card className="border-red-200 bg-red-50/50 dark:bg-red-950/20">
+              <CardHeader>
+                <CardTitle className="text-red-600 dark:text-red-400 flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5" /> Detalhes dos Erros
+                </CardTitle>
+                <CardDescription>As seguintes linhas não puderam ser importadas:</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="max-h-64 overflow-y-auto rounded-md border border-red-100 dark:border-red-900 bg-background">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-24">Linha</TableHead>
+                        <TableHead>Motivo</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {errorDetails.map((e, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell className="font-mono">{e.line}</TableCell>
+                          <TableCell className="text-red-600 dark:text-red-400">
+                            {e.error}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
     </div>
   )

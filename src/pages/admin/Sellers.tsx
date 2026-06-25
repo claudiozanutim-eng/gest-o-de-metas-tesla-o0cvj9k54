@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   Table,
@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Users } from 'lucide-react'
+import { Plus, Users, Search, Target } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -30,6 +30,9 @@ import {
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
+import { useRealtime } from '@/hooks/use-realtime'
+import { useLocalStorage } from '@/hooks/use-local-storage'
+import { EmptyState } from '@/components/ui/empty-state'
 
 export default function Sellers() {
   const [sellers, setSellers] = useState<any[]>([])
@@ -44,16 +47,34 @@ export default function Sellers() {
     area_id: '',
     user_id: '',
   })
+
+  const [filters, setFilters] = useLocalStorage('sellers-filters', { search: '', area: 'all' })
+  const [searchTerm, setSearchTerm] = useState(filters.search)
+
   const { toast } = useToast()
 
   const loadData = async () => {
-    setSellers(await pb.collection('sellers').getFullList({ expand: 'area_id,user_id' }))
-    setAreas(await pb.collection('areas').getFullList())
-    setUsers(await pb.collection('users').getFullList())
+    setSellers(
+      await pb.collection('sellers').getFullList({ expand: 'area_id,user_id', sort: '-created' }),
+    )
+    setAreas(await pb.collection('areas').getFullList({ sort: 'name' }))
+    setUsers(await pb.collection('users').getFullList({ sort: 'name' }))
   }
+
   useEffect(() => {
     loadData()
   }, [])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFilters((p) => ({ ...p, search: searchTerm }))
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm, setFilters])
+
+  useRealtime('sellers', () => {
+    loadData()
+  })
 
   const handleSave = async () => {
     try {
@@ -81,9 +102,19 @@ export default function Sellers() {
     setIsOpen(true)
   }
 
+  const filteredSellers = useMemo(() => {
+    return sellers.filter((s) => {
+      const matchSearch =
+        s.name?.toLowerCase().includes(filters.search.toLowerCase()) ||
+        s.code?.toLowerCase().includes(filters.search.toLowerCase())
+      const matchArea = filters.area === 'all' || s.area_id === filters.area
+      return matchSearch && matchArea
+    })
+  }, [sellers, filters])
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <Users className="w-8 h-8" /> Vendedores
         </h1>
@@ -91,42 +122,86 @@ export default function Sellers() {
           <Plus className="w-4 h-4 mr-2" /> Novo Vendedor
         </Button>
       </div>
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-6">Código</TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead>Área</TableHead>
-                <TableHead>Usuário</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sellers.map((s) => (
-                <TableRow key={s.id}>
-                  <TableCell className="pl-6 font-mono">{s.code}</TableCell>
-                  <TableCell>{s.name}</TableCell>
-                  <TableCell>{s.expand?.area_id?.name || '-'}</TableCell>
-                  <TableCell>{s.expand?.user_id?.name || '-'}</TableCell>
-                  <TableCell>
-                    <Badge variant={s.is_active ? 'default' : 'secondary'}>
-                      {s.is_active ? 'Ativo' : 'Inativo'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="sm" onClick={() => openEdit(s)}>
-                      Editar
-                    </Button>
-                  </TableCell>
-                </TableRow>
+
+      <Card className="bg-muted/30">
+        <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome ou código..."
+              className="pl-9 bg-background"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <Select
+            value={filters.area}
+            onValueChange={(v) => setFilters((p) => ({ ...p, area: v }))}
+          >
+            <SelectTrigger className="bg-background">
+              <SelectValue placeholder="Filtrar por Área" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as Áreas</SelectItem>
+              {areas.map((a) => (
+                <SelectItem key={a.id} value={a.id}>
+                  {a.name}
+                </SelectItem>
               ))}
-            </TableBody>
-          </Table>
+            </SelectContent>
+          </Select>
         </CardContent>
       </Card>
+
+      {filteredSellers.length === 0 ? (
+        <EmptyState
+          icon={Target}
+          title="Nenhum vendedor encontrado"
+          description="Os filtros aplicados não retornaram nenhum resultado."
+          actionLabel="Limpar Filtros"
+          onAction={() => {
+            setSearchTerm('')
+            setFilters({ search: '', area: 'all' })
+          }}
+        />
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="pl-6">Código</TableHead>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Área</TableHead>
+                  <TableHead>Usuário</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredSellers.map((s) => (
+                  <TableRow key={s.id}>
+                    <TableCell className="pl-6 font-mono">{s.code}</TableCell>
+                    <TableCell>{s.name}</TableCell>
+                    <TableCell>{s.expand?.area_id?.name || '-'}</TableCell>
+                    <TableCell>{s.expand?.user_id?.name || '-'}</TableCell>
+                    <TableCell>
+                      <Badge variant={s.is_active ? 'default' : 'secondary'}>
+                        {s.is_active ? 'Ativo' : 'Inativo'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(s)}>
+                        Editar
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>
@@ -185,7 +260,7 @@ export default function Sellers() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mt-2">
               <Switch
                 checked={formData.is_active}
                 onCheckedChange={(c) => setFormData({ ...formData, is_active: c })}

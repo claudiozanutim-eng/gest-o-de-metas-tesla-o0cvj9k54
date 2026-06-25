@@ -3,6 +3,7 @@ import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
+import { ThemeProvider } from './components/theme-provider'
 import Layout from './components/Layout'
 import Index from './pages/Index'
 import NotFound from './pages/NotFound'
@@ -33,36 +34,38 @@ const ProtectedRoute = () => {
 const App = () => (
   <BrowserRouter>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route element={<ProtectedRoute />}>
-            <Route element={<Layout />}>
-              <Route path="/" element={<Index />} />
-              <Route path="/metas" element={<GoalEntry />} />
-              <Route path="/acompanhamento" element={<Tracking />} />
-              <Route path="/simulacao" element={<Simulation />} />
-              <Route path="/assistente" element={<Assistant />} />
-              <Route path="/relatorios" element={<Reports />} />
+      <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<Layout />}>
+                <Route path="/" element={<Index />} />
+                <Route path="/metas" element={<GoalEntry />} />
+                <Route path="/acompanhamento" element={<Tracking />} />
+                <Route path="/simulacao" element={<Simulation />} />
+                <Route path="/assistente" element={<Assistant />} />
+                <Route path="/relatorios" element={<Reports />} />
 
-              <Route path="/admin">
-                <Route path="usuarios" element={<Users />} />
-                <Route path="estrutura" element={<Structure />} />
-                <Route path="distritos" element={<Districts />} />
-                <Route path="regionais" element={<Regionals />} />
-                <Route path="areas" element={<Areas />} />
-                <Route path="vendedores" element={<Sellers />} />
-                <Route path="importacao" element={<Importacao />} />
-                <Route path="parametros" element={<Parameters />} />
-                <Route path="auditoria" element={<Auditoria />} />
+                <Route path="/admin">
+                  <Route path="usuarios" element={<Users />} />
+                  <Route path="estrutura" element={<Structure />} />
+                  <Route path="distritos" element={<Districts />} />
+                  <Route path="regionais" element={<Regionals />} />
+                  <Route path="areas" element={<Areas />} />
+                  <Route path="vendedores" element={<Sellers />} />
+                  <Route path="importacao" element={<Importacao />} />
+                  <Route path="parametros" element={<Parameters />} />
+                  <Route path="auditoria" element={<Auditoria />} />
+                </Route>
               </Route>
             </Route>
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </TooltipProvider>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </TooltipProvider>
+      </ThemeProvider>
     </AuthProvider>
   </BrowserRouter>
 )

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   Table,
@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, UserCog } from 'lucide-react'
+import { Plus, UserCog, Search, Users as UsersIcon } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -32,6 +32,8 @@ import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { useRealtime } from '@/hooks/use-realtime'
+import { useLocalStorage } from '@/hooks/use-local-storage'
+import { EmptyState } from '@/components/ui/empty-state'
 
 const roles = [
   'Administrator',
@@ -39,7 +41,7 @@ const roles = [
   'Gerente Distrital Geral',
   'Gerente Distrital',
   'Gerente Regional',
-  'Seller',
+  'Vendedor',
   'Sales Assistant',
 ]
 
@@ -58,11 +60,21 @@ export default function Users() {
     district_id: 'none',
     area_id: 'none',
   })
+
+  const [filters, setFilters] = useLocalStorage('users-filters', {
+    search: '',
+    role: 'all',
+    district: 'all',
+  })
+  const [searchTerm, setSearchTerm] = useState(filters.search)
+
   const { toast } = useToast()
 
   const loadData = async () => {
     try {
-      const u = await pb.collection('users').getFullList({ sort: '-created' })
+      const u = await pb
+        .collection('users')
+        .getFullList({ sort: '-created', expand: 'district_id,area_id' })
       setUsers(u)
       const d = await pb.collection('districts').getFullList({ sort: 'name' })
       setDistricts(d)
@@ -77,17 +89,15 @@ export default function Users() {
     loadData()
   }, [])
 
-  useRealtime('users', (e) => {
-    if (e.action === 'create') {
-      setUsers((prev) => {
-        if (prev.find((u) => u.id === e.record.id)) return prev
-        return [e.record, ...prev]
-      })
-    } else if (e.action === 'update') {
-      setUsers((prev) => prev.map((u) => (u.id === e.record.id ? e.record : u)))
-    } else if (e.action === 'delete') {
-      setUsers((prev) => prev.filter((u) => u.id !== e.record.id))
-    }
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFilters((prev) => ({ ...prev, search: searchTerm }))
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm, setFilters])
+
+  useRealtime('users', () => {
+    loadData()
   })
 
   const handleSave = async () => {
@@ -99,22 +109,16 @@ export default function Users() {
       })
       return
     }
-
     try {
       const data = { ...formData, emailVisibility: true }
-
-      if (!data.password) {
-        delete data.password
-      } else {
-        data.passwordConfirm = data.password
-      }
-
+      if (!data.password) delete data.password
+      else data.passwordConfirm = data.password
       data.district_id = data.district_id === 'none' ? '' : data.district_id
       data.area_id = data.area_id === 'none' ? '' : data.area_id
+      data.role = data.role === 'Vendedor' ? 'Seller' : data.role
 
-      if (data.id) {
-        await pb.collection('users').update(data.id, data)
-      } else {
+      if (data.id) await pb.collection('users').update(data.id, data)
+      else {
         if (!data.password) {
           toast({
             title: 'Erro de validação',
@@ -125,7 +129,6 @@ export default function Users() {
         }
         await pb.collection('users').create(data)
       }
-
       toast({ title: 'Usuário salvo com sucesso' })
       setIsOpen(false)
       await loadData()
@@ -143,7 +146,7 @@ export default function Users() {
       id: u.id || '',
       name: u.name || '',
       email: u.email || '',
-      role: u.role || '',
+      role: u.role === 'Seller' ? 'Vendedor' : u.role || '',
       is_active: u.is_active ?? true,
       district_id: u.district_id || 'none',
       area_id: u.area_id || 'none',
@@ -152,9 +155,23 @@ export default function Users() {
     setIsOpen(true)
   }
 
+  const filteredUsers = useMemo(() => {
+    return users.filter((u) => {
+      const matchSearch =
+        u.name?.toLowerCase().includes(filters.search.toLowerCase()) ||
+        u.email?.toLowerCase().includes(filters.search.toLowerCase())
+      const matchRole =
+        filters.role === 'all' ||
+        u.role === filters.role ||
+        (filters.role === 'Vendedor' && u.role === 'Seller')
+      const matchDistrict = filters.district === 'all' || u.district_id === filters.district
+      return matchSearch && matchRole && matchDistrict
+    })
+  }, [users, filters])
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <UserCog className="w-8 h-8" /> Usuários
         </h1>
@@ -162,42 +179,104 @@ export default function Users() {
           <Plus className="w-4 h-4 mr-2" /> Novo Usuário
         </Button>
       </div>
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-6">Nome</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Cargo</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((u) => (
-                <TableRow key={u.id}>
-                  <TableCell className="pl-6 font-medium">{u.name}</TableCell>
-                  <TableCell>{u.email}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{u.role}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={u.is_active ? 'default' : 'secondary'}>
-                      {u.is_active ? 'Ativo' : 'Inativo'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" onClick={() => openEdit(u)}>
-                      Editar
-                    </Button>
-                  </TableCell>
-                </TableRow>
+
+      <Card className="bg-muted/30">
+        <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome ou email..."
+              className="pl-9 bg-background"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <Select
+            value={filters.role}
+            onValueChange={(v) => setFilters((p) => ({ ...p, role: v }))}
+          >
+            <SelectTrigger className="bg-background">
+              <SelectValue placeholder="Filtrar por Cargo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os Cargos</SelectItem>
+              {roles.map((r) => (
+                <SelectItem key={r} value={r}>
+                  {r}
+                </SelectItem>
               ))}
-            </TableBody>
-          </Table>
+            </SelectContent>
+          </Select>
+          <Select
+            value={filters.district}
+            onValueChange={(v) => setFilters((p) => ({ ...p, district: v }))}
+          >
+            <SelectTrigger className="bg-background">
+              <SelectValue placeholder="Filtrar por Distrito" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os Distritos</SelectItem>
+              {districts.map((d) => (
+                <SelectItem key={d.id} value={d.id}>
+                  {d.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </CardContent>
       </Card>
+
+      {filteredUsers.length === 0 ? (
+        <EmptyState
+          icon={UsersIcon}
+          title="Nenhum usuário encontrado"
+          description="Os filtros aplicados não retornaram nenhum resultado."
+          actionLabel="Limpar Filtros"
+          onAction={() => {
+            setSearchTerm('')
+            setFilters({ search: '', role: 'all', district: 'all' })
+          }}
+        />
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="pl-6">Nome</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Cargo</TableHead>
+                  <TableHead>Distrito</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredUsers.map((u) => (
+                  <TableRow key={u.id}>
+                    <TableCell className="pl-6 font-medium">{u.name}</TableCell>
+                    <TableCell>{u.email}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{u.role === 'Seller' ? 'Vendedor' : u.role}</Badge>
+                    </TableCell>
+                    <TableCell>{u.expand?.district_id?.name || '-'}</TableCell>
+                    <TableCell>
+                      <Badge variant={u.is_active ? 'default' : 'secondary'}>
+                        {u.is_active ? 'Ativo' : 'Inativo'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(u)}>
+                        Editar
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>
