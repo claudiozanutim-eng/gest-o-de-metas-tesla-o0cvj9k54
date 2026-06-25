@@ -101,13 +101,11 @@ export default function Parameters() {
       }
       if (taxRateId) await pb.collection('system_parameters').update(taxRateId, { value: taxRate })
       else {
-        const res = await pb
-          .collection('system_parameters')
-          .create({
-            key: 'tax_rate',
-            value: taxRate,
-            description: 'Tax deduction for net commission value',
-          })
+        const res = await pb.collection('system_parameters').create({
+          key: 'tax_rate',
+          value: taxRate,
+          description: 'Tax deduction for net commission value',
+        })
         setTaxRateId(res.id)
       }
       toast({ title: 'Parâmetro salvo com sucesso' })
@@ -279,17 +277,29 @@ export default function Parameters() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {Object.entries(rules).map(([k, v]) => (
-                  <div key={k} className="space-y-2">
-                    <Label className="capitalize">{k.replace('_', ' ')}</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={v}
-                      onChange={(e) => setRules({ ...rules, [k]: Number(e.target.value) })}
-                    />
-                  </div>
-                ))}
+                {Object.entries(rules).map(([k, v]) => {
+                  const ruleLabels: Record<string, string> = {
+                    base_threshold: 'Limite Base',
+                    base_multiplier: 'Multiplicador Base',
+                    bronze_threshold: 'Limite Bronze',
+                    bronze_multiplier: 'Multiplicador Bronze',
+                    prata_threshold: 'Limite Prata',
+                    prata_multiplier: 'Multiplicador Prata',
+                    ouro_threshold: 'Limite Ouro',
+                    ouro_multiplier: 'Multiplicador Ouro',
+                  }
+                  return (
+                    <div key={k} className="space-y-2">
+                      <Label>{ruleLabels[k] || k.replace('_', ' ')}</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={v}
+                        onChange={(e) => setRules({ ...rules, [k]: Number(e.target.value) })}
+                      />
+                    </div>
+                  )
+                })}
                 <div className="space-y-2">
                   <Label>Taxa / Imposto (%)</Label>
                   <Input
