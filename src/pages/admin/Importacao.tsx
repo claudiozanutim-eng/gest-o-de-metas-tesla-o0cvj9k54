@@ -149,6 +149,54 @@ export default function Importacao() {
     setMapping(map)
   }
 
+  const parseCSV = (text: string) => {
+    const lines = []
+    let currentLine = []
+    let currentCell = ''
+    let insideQuotes = false
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i]
+      const nextChar = text[i + 1]
+
+      if (char === '"' && insideQuotes && nextChar === '"') {
+        currentCell += '"'
+        i++
+      } else if (char === '"') {
+        insideQuotes = !insideQuotes
+      } else if (char === ',' && !insideQuotes) {
+        currentLine.push(currentCell)
+        currentCell = ''
+      } else if ((char === '\n' || (char === '\r' && nextChar === '\n')) && !insideQuotes) {
+        if (char === '\r') i++
+        currentLine.push(currentCell)
+        lines.push(currentLine)
+        currentLine = []
+        currentCell = ''
+      } else {
+        currentCell += char
+      }
+    }
+    if (currentCell || currentLine.length > 0) {
+      currentLine.push(currentCell)
+      lines.push(currentLine)
+    }
+
+    const validLines = lines.filter((l) => l.some((cell) => cell.trim().length > 0))
+    if (validLines.length < 2) throw new Error('Arquivo vazio ou sem dados')
+
+    const headers = validLines[0].map((h) => h.trim())
+    const data = validLines.slice(1).map((line) => {
+      const row: any = {}
+      headers.forEach((h, idx) => {
+        row[h] = line[idx] !== undefined ? line[idx].trim() : ''
+      })
+      return row
+    })
+
+    return { headers, data }
+  }
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -160,14 +208,14 @@ export default function Importacao() {
       const reader = new FileReader()
       reader.onload = async (ev) => {
         try {
-          const base64 = (ev.target?.result as string).split(',')[1]
-          const res = await pb.send('/backend/v1/parse-excel', {
-            method: 'POST',
-            body: JSON.stringify({ base64 }),
-          })
-          setData(res.data)
-          setHeaders(res.headers)
-          autoMap(res.headers)
+          const resultStr = ev.target?.result as string | undefined
+          if (!resultStr) throw new Error('Falha ao ler arquivo')
+
+          const { headers: parsedHeaders, data: parsedData } = parseCSV(resultStr)
+
+          setData(parsedData)
+          setHeaders(parsedHeaders)
+          autoMap(parsedHeaders)
           setStep(3)
         } catch (err: any) {
           toast({
@@ -179,7 +227,7 @@ export default function Importacao() {
           setLoading(false)
         }
       }
-      reader.readAsDataURL(file)
+      reader.readAsText(file)
     } catch (err) {
       setLoading(false)
       toast({ title: 'Erro de leitura', variant: 'destructive' })
@@ -486,7 +534,7 @@ export default function Importacao() {
     try {
       const form = new FormData()
       form.append('user_id', user?.id || '')
-      form.append('source', source === 'excel' ? 'Excel' : 'Google Sheets')
+      form.append('source', source === 'excel' ? 'CSV' : 'Google Sheets')
       form.append('file_name', fileName)
       form.append(
         'stats',
@@ -534,8 +582,8 @@ export default function Importacao() {
                 <div className="mx-auto bg-green-100 dark:bg-green-900/30 p-4 rounded-full mb-4 group-hover:scale-110 transition-transform">
                   <FileSpreadsheet className="w-8 h-8 text-green-600 dark:text-green-400" />
                 </div>
-                <CardTitle>Upload Excel</CardTitle>
-                <CardDescription className="mt-2">Suporte para .xlsx, .xls, .csv</CardDescription>
+                <CardTitle>Upload CSV</CardTitle>
+                <CardDescription className="mt-2">Suporte para arquivos .csv</CardDescription>
               </CardHeader>
             </Card>
             <Card
@@ -589,7 +637,7 @@ export default function Importacao() {
                           </TableCell>
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
-                              {h.source === 'Excel' ? (
+                              {h.source === 'CSV' || h.source === 'Excel' ? (
                                 <FileSpreadsheet className="h-4 w-4 text-green-500" />
                               ) : (
                                 <HardDrive className="h-4 w-4 text-blue-500" />
@@ -637,13 +685,13 @@ export default function Importacao() {
       {step === 2 && source === 'excel' && (
         <Card className="animate-fade-in">
           <CardHeader>
-            <CardTitle>Upload do Arquivo Excel</CardTitle>
-            <CardDescription>Selecione um arquivo .xlsx, .xls ou .csv</CardDescription>
+            <CardTitle>Upload do Arquivo CSV</CardTitle>
+            <CardDescription>Selecione um arquivo .csv</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center justify-center py-10 gap-4">
             <Input
               type="file"
-              accept=".csv,.xlsx,.xls"
+              accept=".csv"
               onChange={handleFileUpload}
               className="max-w-sm"
               disabled={loading}
