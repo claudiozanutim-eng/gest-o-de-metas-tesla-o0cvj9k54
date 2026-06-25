@@ -63,9 +63,7 @@ export default function Structure() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-primary">Estrutura Hierárquica</h1>
-          <p className="text-muted-foreground">
-            Gerencie Distritos, Regionais, Áreas e Vendedores.
-          </p>
+          <p className="text-muted-foreground">Gerencie Regionais, Áreas e Vendedores.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={handleLoadStructure} disabled={loadingStruct}>

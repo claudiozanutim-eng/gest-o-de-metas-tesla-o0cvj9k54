@@ -126,7 +126,9 @@ export default function Users() {
                   <TableCell className="pl-6 font-medium">{u.name}</TableCell>
                   <TableCell>{u.email}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{u.role}</Badge>
+                    <Badge variant="outline">
+                      {u.role === 'District Manager' ? 'Regional Manager' : u.role}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant={u.is_active ? 'default' : 'secondary'}>
@@ -188,20 +190,20 @@ export default function Users() {
                 <SelectContent>
                   {roles.map((r) => (
                     <SelectItem key={r} value={r}>
-                      {r}
+                      {r === 'District Manager' ? 'Regional Manager' : r}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>Distrito (Opcional)</Label>
+              <Label>Regional (Opcional)</Label>
               <Select
                 value={formData.district_id}
                 onValueChange={(v) => setFormData({ ...formData, district_id: v })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Nenhum" />
+                  <SelectValue placeholder="Nenhuma" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Nenhum</SelectItem>

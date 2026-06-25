@@ -93,7 +93,7 @@ export default function Regionals() {
             <TableHeader>
               <TableRow>
                 <TableHead className="pl-6">Nome</TableHead>
-                <TableHead>Distrito</TableHead>
+                <TableHead>Regional</TableHead>
                 <TableHead>Cor</TableHead>
                 <TableHead>Abrangência</TableHead>
                 <TableHead>Status</TableHead>
@@ -157,13 +157,13 @@ export default function Regionals() {
               />
             </div>
             <div className="grid gap-2">
-              <Label>Distrito</Label>
+              <Label>Regional</Label>
               <Select
                 value={formData.district_id}
                 onValueChange={(v) => setFormData({ ...formData, district_id: v })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione um distrito" />
+                  <SelectValue placeholder="Selecione uma regional" />
                 </SelectTrigger>
                 <SelectContent>
                   {districts.map((d) => (

@@ -64,7 +64,7 @@ export default function Districts() {
             setIsOpen(true)
           }}
         >
-          <Plus className="w-4 h-4 mr-2" /> Novo Distrito
+          <Plus className="w-4 h-4 mr-2" /> Nova Regional
         </Button>
       </div>
       <Card>
@@ -107,7 +107,7 @@ export default function Districts() {
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{formData.id ? 'Editar' : 'Novo'} Distrito</DialogTitle>
+            <DialogTitle>{formData.id ? 'Editar' : 'Nova'} Regional</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>

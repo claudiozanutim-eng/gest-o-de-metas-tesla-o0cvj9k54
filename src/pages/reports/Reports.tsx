@@ -64,7 +64,7 @@ export default function Reports() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Visão Nacional (Todos)</SelectItem>
-                  <SelectItem value="d1">Somente Distrito Sul</SelectItem>
+                  <SelectItem value="d1">Somente Regional Sul</SelectItem>
                   <SelectItem value="r1">Somente Regional Paraná</SelectItem>
                 </SelectContent>
               </Select>

@@ -1,7 +1,7 @@
 export const mockHierarchy = {
   distritos: [
-    { id: 'd1', name: 'Distrito Sul' },
-    { id: 'd2', name: 'Distrito Sudeste' },
+    { id: 'd1', name: 'Regional Sul' },
+    { id: 'd2', name: 'Regional Sudeste' },
   ],
   regionais: [
     { id: 'r1', distritoId: 'd1', name: 'Regional Paraná' },

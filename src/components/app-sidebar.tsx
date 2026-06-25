@@ -127,7 +127,9 @@ export function AppSidebar() {
           />
           <div className="flex flex-col truncate">
             <span className="text-sm font-medium">{user?.name}</span>
-            <span className="text-xs text-muted-foreground">{user?.role}</span>
+            <span className="text-xs text-muted-foreground">
+              {user?.role === 'District Manager' ? 'Regional Manager' : user?.role}
+            </span>
           </div>
         </div>
       </SidebarFooter>
