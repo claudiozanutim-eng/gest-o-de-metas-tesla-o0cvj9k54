@@ -186,6 +186,9 @@ routerAdd(
                 bronze: r.bronze1,
                 prata: r.prata1,
                 ouro: r.ouro1,
+                mix_family: '',
+                focus_fleet: 0,
+                focus_companies: 0,
               },
               {
                 metrica: metrica2,
@@ -193,6 +196,9 @@ routerAdd(
                 bronze: r.bronze2,
                 prata: r.prata2,
                 ouro: r.ouro2,
+                mix_family: String(r.familia || '').trim(),
+                focus_fleet: pNum(r.frotas),
+                focus_companies: pNum(r.cnpjs),
               },
             ]
 
@@ -213,7 +219,7 @@ routerAdd(
                     seller_id,
                     period: String(periodo).trim(),
                     metric: String(m.metrica).trim(),
-                    mix_family,
+                    mix_family: m.mix_family,
                   },
                 )
               } catch (_) {}
@@ -223,8 +229,8 @@ routerAdd(
                 existing.set('target_bronze', target_bronze)
                 existing.set('target_prata', target_prata)
                 existing.set('target_ouro', target_ouro)
-                existing.set('focus_fleet', focus_fleet)
-                existing.set('focus_companies', focus_companies)
+                existing.set('focus_fleet', m.focus_fleet)
+                existing.set('focus_companies', m.focus_companies)
                 existing.set('regional_id', regional_id)
                 existing.set('area_id', area_id)
                 txApp.save(existing)
@@ -234,13 +240,13 @@ routerAdd(
                 newGoal.set('seller_id', seller_id)
                 newGoal.set('period', String(periodo).trim())
                 newGoal.set('metric', String(m.metrica).trim())
-                newGoal.set('mix_family', mix_family)
+                newGoal.set('mix_family', m.mix_family)
                 newGoal.set('target_base', target_base)
                 newGoal.set('target_bronze', target_bronze)
                 newGoal.set('target_prata', target_prata)
                 newGoal.set('target_ouro', target_ouro)
-                newGoal.set('focus_fleet', focus_fleet)
-                newGoal.set('focus_companies', focus_companies)
+                newGoal.set('focus_fleet', m.focus_fleet)
+                newGoal.set('focus_companies', m.focus_companies)
                 newGoal.set('regional_id', regional_id)
                 newGoal.set('area_id', area_id)
                 txApp.save(newGoal)

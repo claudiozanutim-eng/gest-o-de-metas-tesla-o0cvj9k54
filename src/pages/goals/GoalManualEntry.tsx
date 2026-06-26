@@ -112,12 +112,11 @@ export default function GoalManualEntry() {
     try {
       const perfs = await pb.collection('actual_performance').getFullList({
         filter: `seller_id="${seller.user_id}" && metric="${metric}"`,
-        sort: '-period',
+        sort: '-created',
         expand: 'seller_id',
       })
       const goals = await pb.collection('goals').getFullList({
         filter: `seller_id="${seller.user_id}" && metric="${metric}"`,
-        sort: '-period',
       })
       setHistory(
         perfs.map((p) => ({
@@ -206,7 +205,12 @@ export default function GoalManualEntry() {
 
   const MetricCard = ({ title, act, tgt }: any) => {
     const pct = tgt > 0 ? (act / tgt) * 100 : 0
-    const color = pct >= 100 ? 'text-green-600' : pct >= 80 ? 'text-yellow-500' : 'text-red-500'
+    let color = 'text-red-500'
+    if (pct >= 100) color = 'text-green-600'
+    else if (pct >= 80) color = 'text-yellow-500'
+
+    const tierName = title.split(' ')[1]
+
     return (
       <Card>
         <CardHeader className="p-4 pb-2">
@@ -214,7 +218,9 @@ export default function GoalManualEntry() {
         </CardHeader>
         <CardContent className="p-4 pt-0">
           <div className={cn('text-2xl font-bold', color)}>{pct.toFixed(1)}%</div>
-          <div className="text-xs text-muted-foreground mt-1">Meta: {formatVal(tgt)}</div>
+          <div className="text-xs text-muted-foreground mt-1">
+            % Atingimento {tierName}: {pct.toFixed(1)}%
+          </div>
         </CardContent>
       </Card>
     )
@@ -379,7 +385,9 @@ export default function GoalManualEntry() {
                 const pct = h.target > 0 ? ((h.actual_value / h.target) * 100).toFixed(1) : 0
                 return (
                   <TableRow key={h.id}>
-                    <TableCell className="font-medium">{h.period}</TableCell>
+                    <TableCell className="font-medium">
+                      {new Date(h.created).toLocaleDateString('pt-BR')}
+                    </TableCell>
                     <TableCell>
                       {isCurrency ? maskMoney(h.actual_value * 100) : h.actual_value}
                     </TableCell>
@@ -404,6 +412,12 @@ export default function GoalManualEntry() {
                         size="sm"
                         onClick={() => {
                           setPeriod(h.period)
+                          setAtual(
+                            isCurrency
+                              ? maskMoney(h.actual_value * 100)
+                              : h.actual_value.toString(),
+                          )
+                          setPerfId(h.id)
                         }}
                       >
                         Editar

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
-import { CheckCircle2, UploadCloud, FileSpreadsheet } from 'lucide-react'
+import { CheckCircle2, UploadCloud, Download, ExternalLink } from 'lucide-react'
 
 const expected = [
   'Vendedor',
@@ -25,14 +25,28 @@ const expected = [
   'Meta Bronze Família',
   'Meta Prata Família',
   'Meta Ouro Família',
-  'Métrica Cobertura',
-  'Meta Base Cobertura Mensal',
-  'Meta Bronze Cobertura Mensal',
-  'Meta Prata Cobertura Mensal',
-  'Meta Ouro Cobertura Mensal',
 ]
 
-const templateCsv = encodeURI('data:text/csv;charset=utf-8,' + expected.join(';') + '\n')
+const sampleRow = [
+  'João Silva',
+  'Minas Gerais',
+  'Regional Sudeste',
+  'Distrito 1',
+  '2026-06',
+  'Faturamento Geral',
+  'R$ 100.000,00',
+  'R$ 90.000,00',
+  'R$ 110.000,00',
+  'R$ 120.000,00',
+  'F1',
+  '10',
+  '5',
+  'Família',
+  'R$ 50.000,00',
+  'R$ 45.000,00',
+  'R$ 55.000,00',
+  'R$ 60.000,00',
+]
 
 const parseCsvLine = (line: string, delim: string) => {
   const result = []
@@ -50,7 +64,12 @@ const parseCsvLine = (line: string, delim: string) => {
   return result.map((s) => s.replace(/^"|"$/g, '').trim())
 }
 
-const parseNum = (v: string) => Number(v.replace(/\./g, '').replace(',', '.'))
+const parseNum = (v: string) => {
+  if (!v) return 0
+  const str = v.replace('R$', '').trim()
+  const parsed = Number(str.replace(/\./g, '').replace(',', '.'))
+  return isNaN(parsed) ? 0 : parsed
+}
 
 export default function BatchImportGoals({ user }: { user: any }) {
   const { toast } = useToast()
@@ -71,6 +90,53 @@ export default function BatchImportGoals({ user }: { user: any }) {
     ]).then(([s, r, a, d]) => setLookups({ sellers: s, regionals: r, areas: a, districts: d }))
   }, [user])
 
+  const downloadExcel = () => {
+    const date = new Date().toISOString().split('T')[0]
+    const filename = `Modelo_Metas_${date}.xls`
+    const xml = `<?xml version="1.0"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+  <Worksheet ss:Name="Metas">
+    <Table>
+      <Row>${expected.map((h) => `<Cell><Data ss:Type="String">${h}</Data></Cell>`).join('')}</Row>
+      <Row>${sampleRow.map((v) => `<Cell><Data ss:Type="String">${v}</Data></Cell>`).join('')}</Row>
+    </Table>
+  </Worksheet>
+  <Worksheet ss:Name="Instruções">
+    <Table>
+      <Row><Cell><Data ss:Type="String">Instruções de Preenchimento</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">1. As colunas de faturamento (7 a 10) devem estar no formato R$ X.XXX,XX.</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">2. A coluna Família só aceita "F1", "F2" ou "Outros".</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">3. A ordem das 18 colunas não pode ser alterada.</Data></Cell></Row>
+    </Table>
+  </Worksheet>
+</Workbook>`
+
+    const blob = new Blob([xml], { type: 'application/vnd.ms-excel' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const downloadCsv = () => {
+    const date = new Date().toISOString().split('T')[0]
+    const filename = `Modelo_Metas_${date}.csv`
+    const csv = expected.join(';') + '\n' + sampleRow.join(';')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const openGoogleSheets = () => {
+    window.open('https://docs.google.com/spreadsheets/create', '_blank')
+  }
+
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0]
     if (!selected) return
@@ -84,23 +150,24 @@ export default function BatchImportGoals({ user }: { user: any }) {
       const delimiter = lines[0].includes(';') ? ';' : ','
       const headers = parseCsvLine(lines[0], delimiter)
 
-      if (headers.length !== 23 || !expected.every((h, i) => headers[i] === h)) {
+      if (headers.length !== 18 || !expected.every((h, i) => headers[i] === h)) {
         throw new Error(
-          `Erro: Planilha inválida. Esperado 23 colunas com nomes EXATOS. Sua planilha tem ${headers.length} colunas com nomes: [${headers.join(', ')}].`,
+          `Erro: Planilha inválida. Esperado 18 colunas com nomes EXATOS. Sua planilha tem ${headers.length} colunas.`,
         )
       }
 
       const errs: string[] = []
       const data: any[] = []
       const keys = new Set<string>()
+      const currRegex = /^R\$\s\d{1,3}(\.\d{3})*,\d{2}$/
 
       for (let i = 1; i < lines.length; i++) {
         const row = parseCsvLine(lines[i], delimiter)
 
-        while (row.length < 23) row.push('')
+        while (row.length < 18) row.push('')
 
         if (row.some((c) => !c)) {
-          errs.push(`Erro na linha ${i + 1}: Todos os 23 campos são obrigatórios.`)
+          errs.push(`Erro na linha ${i + 1}: Todos os 18 campos são obrigatórios.`)
           continue
         }
 
@@ -123,12 +190,22 @@ export default function BatchImportGoals({ user }: { user: any }) {
           broFam,
           praFam,
           ouroFam,
-          metricaCob,
-          baseCob,
-          broCob,
-          praCob,
-          ouroCob,
         ] = row
+
+        if (
+          !currRegex.test(baseFat) ||
+          !currRegex.test(broFat) ||
+          !currRegex.test(praFat) ||
+          !currRegex.test(ouroFat)
+        ) {
+          errs.push(`Erro na linha ${i + 1}: Colunas 7 a 10 devem estar no formato R$ X.XXX,XX.`)
+          continue
+        }
+
+        if (!['F1', 'F2', 'Outros'].includes(familia)) {
+          errs.push(`Erro na linha ${i + 1}: Família deve ser 'F1', 'F2' ou 'Outros'.`)
+          continue
+        }
 
         const nBaseFat = parseNum(baseFat),
           nBroFat = parseNum(broFat),
@@ -138,10 +215,6 @@ export default function BatchImportGoals({ user }: { user: any }) {
           nBroFam = parseNum(broFam),
           nPraFam = parseNum(praFam),
           nOuroFam = parseNum(ouroFam)
-        const nBaseCob = parseNum(baseCob),
-          nBroCob = parseNum(broCob),
-          nPraCob = parseNum(praCob),
-          nOuroCob = parseNum(ouroCob)
         const nFrota = parseNum(frota),
           nEmp = parseNum(emp)
 
@@ -155,10 +228,6 @@ export default function BatchImportGoals({ user }: { user: any }) {
             nBroFam,
             nPraFam,
             nOuroFam,
-            nBaseCob,
-            nBroCob,
-            nPraCob,
-            nOuroCob,
             nFrota,
             nEmp,
           ].some(isNaN)
@@ -171,10 +240,8 @@ export default function BatchImportGoals({ user }: { user: any }) {
           errs.push(`Erro na linha ${i + 1}: Metas de Faturamento devem ser maiores que 0.`)
         if (nBaseFam <= 0 || nBroFam <= 0 || nPraFam <= 0 || nOuroFam <= 0)
           errs.push(`Erro na linha ${i + 1}: Metas de Família devem ser maiores que 0.`)
-
-        if ([nBaseCob, nBroCob, nPraCob, nOuroCob].some((v) => v < 0 || v > 100)) {
-          errs.push(`Erro na linha ${i + 1}: Metas de Cobertura devem estar entre 0 e 100.`)
-        }
+        if (nFrota < 0 || nEmp < 0)
+          errs.push(`Erro na linha ${i + 1}: Frotas e Empresas foco devem ser >= 0.`)
 
         if (!(nBroFat < nPraFat && nPraFat < nOuroFat))
           errs.push(
@@ -184,14 +251,10 @@ export default function BatchImportGoals({ user }: { user: any }) {
           errs.push(
             `Erro na linha ${i + 1}: Lógica de metas de família inválida (Bronze < Prata < Ouro).`,
           )
-        if (!(nBroCob < nPraCob && nPraCob < nOuroCob))
-          errs.push(
-            `Erro na linha ${i + 1}: Lógica de metas de cobertura inválida (Bronze < Prata < Ouro).`,
-          )
 
-        if (metricaFat === metricaFam || metricaFat === metricaCob || metricaFam === metricaCob) {
+        if (metricaFat === metricaFam) {
           errs.push(
-            `Erro na linha ${i + 1}: Os nomes das métricas (Faturamento, Família, Cobertura) devem ser diferentes entre si.`,
+            `Erro na linha ${i + 1}: Os nomes das métricas (Faturamento e Família) devem ser diferentes entre si.`,
           )
         }
 
@@ -219,54 +282,26 @@ export default function BatchImportGoals({ user }: { user: any }) {
           )
           continue
         }
-        if (!sObj.user_id) {
-          errs.push(
-            `Erro na linha ${i + 1}: Vendedor '${vendedor}' não possui um usuário vinculado no sistema.`,
-          )
-          continue
-        }
-
-        const baseRecord = {
-          seller_id: sObj.user_id,
-          regional_id: rObj.id,
-          area_id: aObj.id,
-          period: periodo,
-        }
 
         data.push({
-          record1: {
-            ...baseRecord,
-            metric: metricaFat,
-            target_base: nBaseFat,
-            target_bronze: nBroFat,
-            target_prata: nPraFat,
-            target_ouro: nOuroFat,
-            mix_family: '',
-            focus_fleet: 0,
-            focus_companies: 0,
-          },
-          record2: {
-            ...baseRecord,
-            metric: metricaFam,
-            target_base: nBaseFam,
-            target_bronze: nBroFam,
-            target_prata: nPraFam,
-            target_ouro: nOuroFam,
-            mix_family: familia,
-            focus_fleet: nFrota,
-            focus_companies: nEmp,
-          },
-          record3: {
-            ...baseRecord,
-            metric: metricaCob,
-            target_base: nBaseCob,
-            target_bronze: nBroCob,
-            target_prata: nPraCob,
-            target_ouro: nOuroCob,
-            mix_family: '',
-            focus_fleet: 0,
-            focus_companies: 0,
-          },
+          vendedor,
+          area,
+          regional: reg,
+          distrito: dist,
+          periodo,
+          metricaFat,
+          baseFat: nBaseFat,
+          broFat: nBroFat,
+          praFat: nPraFat,
+          ouroFat: nOuroFat,
+          metricaFam,
+          baseFam: nBaseFam,
+          broFam: nBroFam,
+          praFam: nPraFam,
+          ouroFam: nOuroFam,
+          familia,
+          frota: nFrota,
+          emp: nEmp,
         })
       }
 
@@ -282,29 +317,39 @@ export default function BatchImportGoals({ user }: { user: any }) {
   const confirmImport = async () => {
     setIsSubmitting(true)
     try {
-      const goalsToCreate = preview.flatMap((p: any) => [p.record1, p.record2, p.record3])
+      const payloadRows = preview.map((p: any) => ({
+        vendedor: p.vendedor,
+        area: p.area,
+        regional: p.regional,
+        distrito: p.distrito,
+        periodo: p.periodo,
+        metrica1: p.metricaFat,
+        base1: p.baseFat,
+        bronze1: p.broFat,
+        prata1: p.praFat,
+        ouro1: p.ouroFat,
+        metrica2: p.metricaFam,
+        base2: p.baseFam,
+        bronze2: p.broFam,
+        prata2: p.praFam,
+        ouro2: p.ouroFam,
+        familia: p.familia,
+        frotas: p.frota,
+        cnpjs: p.emp,
+      }))
 
-      const chunkSize = 90
-      for (let i = 0; i < goalsToCreate.length; i += chunkSize) {
-        const chunk = goalsToCreate.slice(i, i + chunkSize)
-        const batch = pb.createBatch()
-        chunk.forEach((record) => {
-          batch.collection('goals').create(record)
-        })
-        await batch.send()
-      }
-
-      await pb.collection('import_history').create({
-        user_id: user.id,
-        source: 'CSV',
-        file_name: file?.name || 'upload.csv',
-        status: 'Concluído',
-        stats: { total: preview.length, records: goalsToCreate.length },
+      const res = await pb.send('/backend/v1/import-goals', {
+        method: 'POST',
+        body: JSON.stringify({
+          rows: payloadRows,
+          fileName: file?.name,
+          source: 'Lote (18 Colunas)',
+        }),
       })
 
       toast({
         title: 'Sucesso',
-        description: `${goalsToCreate.length} metas importadas com sucesso para ${preview.length} linhas de contexto.`,
+        description: `${res.created + res.updated} metas importadas/atualizadas com sucesso para ${preview.length} linhas de contexto.`,
       })
       setStep(1)
       setFile(null)
@@ -334,42 +379,33 @@ export default function BatchImportGoals({ user }: { user: any }) {
 
   return (
     <div className="bg-card rounded-xl p-6 shadow-sm border space-y-6">
-      <h2 className="text-xl font-semibold mb-4">Importar Metas (23 Colunas)</h2>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <h2 className="text-xl font-semibold">Importar Metas (18 Colunas)</h2>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={downloadExcel} className="gap-2">
+            <Download className="w-4 h-4" /> Baixar em Excel
+          </Button>
+          <Button variant="outline" size="sm" onClick={downloadCsv} className="gap-2">
+            <Download className="w-4 h-4" /> Baixar em CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={openGoogleSheets} className="gap-2">
+            <ExternalLink className="w-4 h-4" /> Abrir Google Sheets
+          </Button>
+        </div>
+      </div>
+
       {step === 1 && (
         <div className="space-y-4">
           <Input type="file" accept=".csv" onChange={handleFile} />
-
-          <div className="flex gap-6 mt-4">
-            <a
-              href={templateCsv}
-              download="template_metas.csv"
-              className="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
-            >
-              <FileSpreadsheet className="w-4 h-4" /> Template CSV
-            </a>
-            <a
-              href={templateCsv}
-              download="template_metas.xlsx"
-              className="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
-            >
-              <FileSpreadsheet className="w-4 h-4" /> Template Excel
-            </a>
-            <a
-              href={templateCsv}
-              download="template_metas.tsv"
-              className="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
-            >
-              <FileSpreadsheet className="w-4 h-4" /> Template Google Sheets
-            </a>
-          </div>
-
           <p className="text-sm text-muted-foreground mt-4">
-            A planilha deve conter exatas 23 colunas, conforme o template acima. Cada linha gerará
-            automaticamente 3 registros de meta (Faturamento, Família, e Cobertura).
+            A planilha deve conter exatas 18 colunas, conforme o template acima. Cada linha gerará
+            automaticamente 2 registros de meta (Faturamento Geral e Família).
           </p>
         </div>
       )}
+
       {step === 2 && <p className="text-muted-foreground animate-pulse">Analisando arquivo...</p>}
+
       {step === 3 && (
         <div className="space-y-4">
           {errors.length > 0 ? (
@@ -389,8 +425,8 @@ export default function BatchImportGoals({ user }: { user: any }) {
                 <CheckCircle2 className="h-4 w-4 !text-green-600" />
                 <AlertTitle>Arquivo Válido</AlertTitle>
                 <AlertDescription>
-                  {preview.length} linhas analisadas prontas para gerar {preview.length * 3}{' '}
-                  registros de meta.
+                  {preview.length} linhas analisadas prontas para gerar/atualizar{' '}
+                  {preview.length * 2} registros de meta.
                 </AlertDescription>
               </Alert>
               <div className="flex justify-end gap-2">
