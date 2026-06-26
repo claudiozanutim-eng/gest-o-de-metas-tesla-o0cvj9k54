@@ -34,26 +34,45 @@ const unmaskMoney = (v: any) => parseInt(String(v).replace(/\D/g, '') || '0') / 
 
 export default function GoalManualEntry() {
   const { toast } = useToast()
-  const [data, setData] = useState<any>({ sellers: [], regionals: [], areas: [] })
-  const [sellerId, setSellerId] = useState('')
+  const [data, setData] = useState<any>({ sellers: [], regionals: [], areas: [], districts: [] })
+  const [distId, setDistId] = useState('')
   const [regId, setRegId] = useState('')
   const [areaId, setAreaId] = useState('')
+  const [sellerId, setSellerId] = useState('')
   const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7))
-  const [metric, setMetric] = useState('Métrica F1')
+  const [metric, setMetric] = useState('')
+  const [metricsList, setMetricsList] = useState<string[]>([])
 
   const [loadedGoal, setLoadedGoal] = useState<any>(null)
   const [perfId, setPerfId] = useState<string | null>(null)
   const [atual, setAtual] = useState('')
-  const [cobAtual, setCobAtual] = useState('')
   const [history, setHistory] = useState<any[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const isCurrency =
+    metric.toLowerCase().includes('faturamento') || metric.toLowerCase().includes('f')
+  const formatVal = (v: number) => (isCurrency ? maskMoney(v * 100) : v.toString())
+  const parseVal = (v: string) => (isCurrency ? unmaskMoney(v) : Number(v.replace(',', '.')))
 
   useEffect(() => {
     Promise.all([
       pb.collection('sellers').getFullList({ filter: 'is_active = true', sort: 'name' }),
       pb.collection('regionals').getFullList({ filter: 'is_active = true', sort: 'name' }),
       pb.collection('areas').getFullList({ filter: 'is_active = true', sort: 'name' }),
-    ]).then(([s, r, a]) => setData({ sellers: s, regionals: r, areas: a }))
+      pb.collection('districts').getFullList({ filter: 'is_active = true', sort: 'name' }),
+      pb.collection('goals').getFullList({ fields: 'metric' }),
+    ]).then(([s, r, a, d, g]) => {
+      setData({ sellers: s, regionals: r, areas: a, districts: d })
+      const uniqueMetrics = Array.from(new Set(g.map((x) => x.metric))).filter(Boolean)
+      if (uniqueMetrics.length > 0) {
+        setMetricsList(uniqueMetrics)
+        if (!metric) setMetric(uniqueMetrics[0])
+      } else {
+        const fallbacks = ['Métrica Faturamento', 'Métrica Família', 'Métrica Cobertura']
+        setMetricsList(fallbacks)
+        if (!metric) setMetric(fallbacks[0])
+      }
+    })
   }, [])
 
   const loadData = async () => {
@@ -62,10 +81,10 @@ export default function GoalManualEntry() {
       setLoadedGoal(null)
       setPerfId(null)
       setAtual('')
-      setCobAtual('')
       setHistory([])
       return
     }
+
     try {
       const g = await pb
         .collection('goals')
@@ -84,25 +103,21 @@ export default function GoalManualEntry() {
           `seller_id="${seller.user_id}" && period="${period}" && metric="${metric}"`,
         )
       setPerfId(p.id)
-      setAtual(maskMoney(p.actual_value * 100))
-      setCobAtual(p.actual_coverage?.toString() || '')
+      setAtual(isCurrency ? maskMoney(p.actual_value * 100) : p.actual_value.toString())
     } catch {
       setPerfId(null)
       setAtual('')
-      setCobAtual('')
     }
 
     try {
       const perfs = await pb.collection('actual_performance').getFullList({
         filter: `seller_id="${seller.user_id}" && metric="${metric}"`,
         sort: '-period',
-        limit: 3,
-        expand: 'seller_id,seller_id.regional_id,seller_id.area_id',
+        expand: 'seller_id',
       })
       const goals = await pb.collection('goals').getFullList({
         filter: `seller_id="${seller.user_id}" && metric="${metric}"`,
         sort: '-period',
-        limit: 3,
       })
       setHistory(
         perfs.map((p) => ({
@@ -121,29 +136,40 @@ export default function GoalManualEntry() {
 
   const savePerf = async () => {
     const seller = data.sellers.find((s: any) => s.id === sellerId)
-    if (!seller?.user_id || !period || !metric || !atual || !regId || !areaId || !cobAtual) {
+    if (!seller?.user_id || !period || !metric || !atual || !regId || !areaId || !distId) {
       return toast({
         title: 'Atenção',
-        description: 'Preencha todos os seletores obrigatórios, Meta Atual e Cobertura Atual.',
+        description: 'Preencha todos os seletores e a Meta Atual.',
         variant: 'destructive',
       })
     }
-    const val = unmaskMoney(atual)
-    const cVal = Number(cobAtual) || 0
-    if (val <= 0)
+
+    const val = parseVal(atual)
+
+    if (val < 0) {
       return toast({
         title: 'Atenção',
-        description: 'Meta Atual deve ser positivo.',
+        description: 'Meta Atual deve ser positiva.',
         variant: 'destructive',
       })
-    if (loadedGoal && val > loadedGoal.target_ouro)
-      toast({ title: 'Aviso', description: 'Meta Atual excede Meta Ouro.' })
-    if (cVal < 0 || cVal > 100)
+    }
+
+    const isCoverage = metric.toLowerCase().includes('cobertura')
+    if (isCoverage && val > 100) {
       return toast({
         title: 'Atenção',
         description: 'Cobertura Atual deve estar entre 0 e 100.',
         variant: 'destructive',
       })
+    }
+
+    if (loadedGoal && val > loadedGoal.target_ouro) {
+      toast({
+        title: 'Aviso',
+        description: 'Aviso: Meta Atual excede Meta Ouro.',
+        variant: 'default',
+      })
+    }
 
     setIsSubmitting(true)
     try {
@@ -152,7 +178,6 @@ export default function GoalManualEntry() {
         period,
         metric,
         actual_value: val,
-        actual_coverage: cVal,
       }
       if (perfId) await pb.collection('actual_performance').update(perfId, payload)
       else await pb.collection('actual_performance').create(payload)
@@ -163,24 +188,6 @@ export default function GoalManualEntry() {
     } finally {
       setIsSubmitting(false)
     }
-  }
-
-  const MetricCard = ({ title, act, tgt, isMoney = false }: any) => {
-    const pct = tgt > 0 ? (act / tgt) * 100 : 0
-    const color = pct >= 100 ? 'text-green-600' : pct >= 80 ? 'text-yellow-500' : 'text-red-500'
-    return (
-      <Card>
-        <CardHeader className="p-4 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 pt-0">
-          <div className={cn('text-2xl font-bold', color)}>{pct.toFixed(1)}%</div>
-          <div className="text-xs text-muted-foreground mt-1">
-            Meta: {isMoney ? maskMoney(tgt * 100) : `${tgt}%`}
-          </div>
-        </CardContent>
-      </Card>
-    )
   }
 
   const handleDeletePerf = async (id: string) => {
@@ -197,26 +204,51 @@ export default function GoalManualEntry() {
     }
   }
 
-  const aVal = unmaskMoney(atual)
-  const cVal = Number(cobAtual) || 0
-  const metricsList = [
-    'Faturamento Geral',
-    ...Array.from({ length: 10 }, (_, i) => `Métrica F${i + 1}`),
-  ]
+  const MetricCard = ({ title, act, tgt }: any) => {
+    const pct = tgt > 0 ? (act / tgt) * 100 : 0
+    const color = pct >= 100 ? 'text-green-600' : pct >= 80 ? 'text-yellow-500' : 'text-red-500'
+    return (
+      <Card>
+        <CardHeader className="p-4 pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 pt-0">
+          <div className={cn('text-2xl font-bold', color)}>{pct.toFixed(1)}%</div>
+          <div className="text-xs text-muted-foreground mt-1">Meta: {formatVal(tgt)}</div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const aVal = parseVal(atual) || 0
 
   return (
     <div className="bg-card rounded-xl p-6 shadow-sm border space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <Select value={distId} onValueChange={setDistId}>
+          <SelectTrigger>
+            <SelectValue placeholder="Distrito" />
+          </SelectTrigger>
+          <SelectContent>
+            {data.districts.map((d: any) => (
+              <SelectItem key={d.id} value={d.id}>
+                {d.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={regId} onValueChange={setRegId}>
           <SelectTrigger>
             <SelectValue placeholder="Regional" />
           </SelectTrigger>
           <SelectContent>
-            {data.regionals.map((r: any) => (
-              <SelectItem key={r.id} value={r.id}>
-                {r.name}
-              </SelectItem>
-            ))}
+            {data.regionals
+              .filter((r: any) => !distId || r.district_id === distId)
+              .map((r: any) => (
+                <SelectItem key={r.id} value={r.id}>
+                  {r.name}
+                </SelectItem>
+              ))}
           </SelectContent>
         </Select>
         <Select value={areaId} onValueChange={setAreaId}>
@@ -225,7 +257,7 @@ export default function GoalManualEntry() {
           </SelectTrigger>
           <SelectContent>
             {data.areas
-              .filter((a: any) => a.regional_id === regId)
+              .filter((a: any) => !regId || a.regional_id === regId)
               .map((a: any) => (
                 <SelectItem key={a.id} value={a.id}>
                   {a.name}
@@ -239,7 +271,7 @@ export default function GoalManualEntry() {
           </SelectTrigger>
           <SelectContent>
             {data.sellers
-              .filter((s: any) => s.area_id === areaId)
+              .filter((s: any) => !areaId || s.area_id === areaId)
               .map((s: any) => (
                 <SelectItem key={s.id} value={s.id}>
                   {s.name}
@@ -271,122 +303,55 @@ export default function GoalManualEntry() {
       ) : (
         <>
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Metas de Volume</h3>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Meta Base</TableHead>
-                  <TableHead>Meta Bronze</TableHead>
-                  <TableHead>Meta Prata</TableHead>
-                  <TableHead>Meta Ouro</TableHead>
-                  <TableHead>Meta Atual</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow>
-                  <TableCell className="bg-muted/50">
-                    {maskMoney(loadedGoal.target_base * 100)}
-                  </TableCell>
-                  <TableCell className="bg-muted/50">
-                    {maskMoney(loadedGoal.target_bronze * 100)}
-                  </TableCell>
-                  <TableCell className="bg-muted/50">
-                    {maskMoney(loadedGoal.target_prata * 100)}
-                  </TableCell>
-                  <TableCell className="bg-muted/50">
-                    {maskMoney(loadedGoal.target_ouro * 100)}
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      value={atual}
-                      onChange={(e) => setAtual(maskMoney(e.target.value))}
-                      placeholder="R$ 0,00"
-                    />
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <MetricCard
-                title="Atingimento Base"
-                act={aVal}
-                tgt={loadedGoal.target_base}
-                isMoney
-              />
-              <MetricCard
-                title="Atingimento Bronze"
-                act={aVal}
-                tgt={loadedGoal.target_bronze}
-                isMoney
-              />
-              <MetricCard
-                title="Atingimento Prata"
-                act={aVal}
-                tgt={loadedGoal.target_prata}
-                isMoney
-              />
-              <MetricCard
-                title="Atingimento Ouro"
-                act={aVal}
-                tgt={loadedGoal.target_ouro}
-                isMoney
-              />
+            <h3 className="text-lg font-semibold">Metas Comparativas</h3>
+            <div className="border rounded-md">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Meta Base</TableHead>
+                    <TableHead>Meta Bronze</TableHead>
+                    <TableHead>Meta Prata</TableHead>
+                    <TableHead>Meta Ouro</TableHead>
+                    <TableHead>Meta Atual</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell className="bg-muted/50 font-medium">
+                      {formatVal(loadedGoal.target_base)}
+                    </TableCell>
+                    <TableCell className="bg-muted/50 font-medium text-amber-700">
+                      {formatVal(loadedGoal.target_bronze)}
+                    </TableCell>
+                    <TableCell className="bg-muted/50 font-medium text-slate-500">
+                      {formatVal(loadedGoal.target_prata)}
+                    </TableCell>
+                    <TableCell className="bg-muted/50 font-medium text-yellow-600">
+                      {formatVal(loadedGoal.target_ouro)}
+                    </TableCell>
+                    <TableCell className="bg-background">
+                      <Input
+                        value={atual}
+                        onChange={(e) => {
+                          if (isCurrency) setAtual(maskMoney(e.target.value))
+                          else setAtual(e.target.value)
+                        }}
+                        placeholder={isCurrency ? 'R$ 0,00' : '0'}
+                      />
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+              <MetricCard title="Atingimento Base" act={aVal} tgt={loadedGoal.target_base} />
+              <MetricCard title="Atingimento Bronze" act={aVal} tgt={loadedGoal.target_bronze} />
+              <MetricCard title="Atingimento Prata" act={aVal} tgt={loadedGoal.target_prata} />
+              <MetricCard title="Atingimento Ouro" act={aVal} tgt={loadedGoal.target_ouro} />
             </div>
           </div>
 
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Metas de Cobertura</h3>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Meta Cobertura Diária</TableHead>
-                  <TableHead>Meta Cobertura Semanal</TableHead>
-                  <TableHead>Meta Cobertura Mensal</TableHead>
-                  <TableHead>Cobertura Atual (%)</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow>
-                  <TableCell className="bg-muted/50">
-                    {loadedGoal.target_daily_coverage || 0}%
-                  </TableCell>
-                  <TableCell className="bg-muted/50">
-                    {loadedGoal.target_weekly_coverage || 0}%
-                  </TableCell>
-                  <TableCell className="bg-muted/50">
-                    {loadedGoal.target_monthly_coverage || 0}%
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={cobAtual}
-                      onChange={(e) => setCobAtual(e.target.value)}
-                      placeholder="%"
-                    />
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <MetricCard
-                title="Atingimento Cobertura Diária"
-                act={cVal}
-                tgt={loadedGoal.target_daily_coverage || 0}
-              />
-              <MetricCard
-                title="Atingimento Cobertura Semanal"
-                act={cVal}
-                tgt={loadedGoal.target_weekly_coverage || 0}
-              />
-              <MetricCard
-                title="Atingimento Cobertura Mensal"
-                act={cVal}
-                tgt={loadedGoal.target_monthly_coverage || 0}
-              />
-            </div>
-          </div>
           <div className="flex justify-end">
             <Button onClick={savePerf} disabled={isSubmitting}>
               Salvar Desempenho
@@ -397,35 +362,50 @@ export default function GoalManualEntry() {
 
       {history.length > 0 && (
         <div className="space-y-4 pt-6 border-t">
-          <h3 className="text-lg font-semibold">Histórico Recente (Últimos 3 Meses)</h3>
+          <h3 className="text-lg font-semibold">Histórico de Lançamentos de Desempenho</h3>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Data</TableHead>
-                <TableHead>Vendedor</TableHead>
-                <TableHead>Regional</TableHead>
-                <TableHead>Área</TableHead>
-                <TableHead>Meta Atual</TableHead>
+                <TableHead>Valor</TableHead>
                 <TableHead>% Atingimento (Base)</TableHead>
-                <TableHead className="text-right">Ação</TableHead>
+                <TableHead>Usuário</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {history.map((h: any) => {
                 const sellerName = h.expand?.seller_id?.name || '-'
-                const regionalName = h.expand?.seller_id?.expand?.regional_id?.name || '-'
-                const areaName = h.expand?.seller_id?.expand?.area_id?.name || '-'
                 const pct = h.target > 0 ? ((h.actual_value / h.target) * 100).toFixed(1) : 0
                 return (
                   <TableRow key={h.id}>
-                    <TableCell>{h.period}</TableCell>
+                    <TableCell className="font-medium">{h.period}</TableCell>
+                    <TableCell>
+                      {isCurrency ? maskMoney(h.actual_value * 100) : h.actual_value}
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={cn(
+                          'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold',
+                          Number(pct) >= 100
+                            ? 'bg-green-100 text-green-800'
+                            : Number(pct) >= 80
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-red-100 text-red-800',
+                        )}
+                      >
+                        {pct}%
+                      </span>
+                    </TableCell>
                     <TableCell>{sellerName}</TableCell>
-                    <TableCell>{regionalName}</TableCell>
-                    <TableCell>{areaName}</TableCell>
-                    <TableCell>{maskMoney(h.actual_value * 100)}</TableCell>
-                    <TableCell>{pct}%</TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => setPeriod(h.period)}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setPeriod(h.period)
+                        }}
+                      >
                         Editar
                       </Button>
                       <Button
