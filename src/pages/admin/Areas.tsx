@@ -45,14 +45,14 @@ import {
 
 export default function Areas() {
   const [areas, setAreas] = useState<any[]>([])
-  const [districts, setDistricts] = useState<any[]>([])
+  const [regionals, setRegionals] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [formData, setFormData] = useState<any>({
     id: '',
     name: '',
     is_active: true,
-    district_id: '',
+    regional_id: '',
     responsible_id: '',
   })
   const [deleteDialog, setDeleteDialog] = useState(false)
@@ -64,9 +64,9 @@ export default function Areas() {
   )
 
   const loadData = async () => {
-    const a = await pb.collection('areas').getFullList({ expand: 'district_id,responsible_id' })
+    const a = await pb.collection('areas').getFullList({ expand: 'regional_id,responsible_id' })
     setAreas(a)
-    setDistricts(await pb.collection('districts').getFullList())
+    setRegionals(await pb.collection('regionals').getFullList())
 
     const [sellerUsers, sellerRecords] = await Promise.all([
       pb.collection('users').getFullList({ filter: "role = 'Seller'", sort: 'name' }),
@@ -123,14 +123,14 @@ export default function Areas() {
       if (!data.responsible_id || data.responsible_id === 'none') {
         data.responsible_id = null
       }
-      if (!data.district_id) {
+      if (!data.regional_id) {
         throw new Error('A Regional é obrigatória.')
       }
 
       if (data.id) {
         await pb.collection('areas').update(data.id, data)
       } else {
-        await pb.collection('areas').create({ ...data, regional_id: '' })
+        await pb.collection('areas').create({ ...data, district_id: '' })
       }
 
       toast({ title: 'Área salva com sucesso' })
@@ -146,7 +146,7 @@ export default function Areas() {
       id: a.id,
       name: a.name,
       is_active: a.is_active,
-      district_id: a.district_id || '',
+      regional_id: a.regional_id || '',
       responsible_id: a.responsible_id || 'none',
     })
     setIsOpen(true)
@@ -187,7 +187,7 @@ export default function Areas() {
                 {areas.map((a) => (
                   <TableRow key={a.id}>
                     <TableCell className="pl-6 font-medium">{a.name}</TableCell>
-                    <TableCell>{a.expand?.district_id?.name || '-'}</TableCell>
+                    <TableCell>{a.expand?.regional_id?.name || '-'}</TableCell>
                     <TableCell>{a.expand?.responsible_id?.name || '-'}</TableCell>
                     <TableCell>
                       <Badge variant={a.is_active ? 'default' : 'secondary'}>
@@ -252,14 +252,14 @@ export default function Areas() {
             <div className="grid gap-2">
               <Label>Regional</Label>
               <Select
-                value={formData.district_id}
-                onValueChange={(v) => setFormData({ ...formData, district_id: v })}
+                value={formData.regional_id}
+                onValueChange={(v) => setFormData({ ...formData, regional_id: v })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione uma regional" />
                 </SelectTrigger>
                 <SelectContent>
-                  {districts.map((r) => (
+                  {regionals.map((r) => (
                     <SelectItem key={r.id} value={r.id}>
                       {r.name}
                     </SelectItem>
