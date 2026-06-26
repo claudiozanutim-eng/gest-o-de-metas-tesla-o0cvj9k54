@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, UserCog, Search, Users as UsersIcon, Trash2 } from 'lucide-react'
+import { Plus, UserCog, Search, Users as UsersIcon, Trash2, KeyRound } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -90,6 +90,9 @@ export default function Users() {
 
   const [deleteDialog, setDeleteDialog] = useState(false)
   const [userToDelete, setUserToDelete] = useState<any>(null)
+
+  const [resetDialog, setResetDialog] = useState(false)
+  const [userToReset, setUserToReset] = useState<any>(null)
 
   const [filters, setFilters] = useLocalStorage('users-filters', {
     search: '',
@@ -184,8 +187,6 @@ export default function Users() {
     }
     try {
       const data = { ...formData, emailVisibility: true }
-      if (!data.password) delete data.password
-      else data.passwordConfirm = data.password
 
       if (data.role === 'District Manager' && data.district_id === 'none') {
         toast({
@@ -240,24 +241,49 @@ export default function Users() {
       data.regional_id = data.regional_id === 'none' ? '' : data.regional_id
       data.area_id = data.area_id === 'none' ? '' : data.area_id
 
-      if (data.id) await pb.collection('users').update(data.id, data)
-      else {
-        if (!data.password) {
-          toast({
-            title: 'Erro de validação',
-            description: 'Este campo é obrigatório.',
-            variant: 'destructive',
-          })
-          return
-        }
+      if (data.id) {
+        await pb.collection('users').update(data.id, data)
+        toast({ title: 'Sucesso', description: 'Dados salvos com sucesso' })
+      } else {
+        data.password = 'Tesla@2026!'
+        data.passwordConfirm = 'Tesla@2026!'
+        data.force_password_change = true
         await pb.collection('users').create(data)
+        toast({
+          title: 'Sucesso',
+          description:
+            'Usuário criado com sucesso. Senha padrão definida e troca obrigatória habilitada.',
+        })
       }
-      toast({ title: 'Sucesso', description: 'Dados salvos com sucesso' })
       setIsOpen(false)
       await loadData()
     } catch (e: any) {
       toast({
         title: 'Ocorreu um erro',
+        description: getErrorMessage(e),
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleResetPassword = async () => {
+    if (!userToReset) return
+    try {
+      await pb.collection('users').update(userToReset.id, {
+        password: 'Tesla@2026!',
+        passwordConfirm: 'Tesla@2026!',
+        force_password_change: true,
+      })
+      toast({
+        title: 'Sucesso',
+        description:
+          'Senha redefinida para o padrão Tesla@2026!. O usuário será solicitado a trocá-la no próximo login.',
+      })
+      setResetDialog(false)
+      loadData()
+    } catch (e: any) {
+      toast({
+        title: 'Erro ao redefinir senha',
         description: getErrorMessage(e),
         variant: 'destructive',
       })
@@ -274,7 +300,6 @@ export default function Users() {
       district_id: u.district_id || 'none',
       regional_id: u.regional_id || 'none',
       area_id: u.area_id || 'none',
-      password: '',
     })
     setIsOpen(true)
   }
@@ -397,6 +422,18 @@ export default function Users() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Redefinir Senha"
+                          onClick={() => {
+                            setUserToReset(u)
+                            setResetDialog(true)
+                          }}
+                          disabled={!isAllowedToDelete}
+                        >
+                          <KeyRound className="w-4 h-4 text-amber-500" />
+                        </Button>
                         <Button variant="ghost" size="sm" onClick={() => openEdit(u)}>
                           Editar
                         </Button>
@@ -437,6 +474,22 @@ export default function Users() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog open={resetDialog} onOpenChange={setResetDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Redefinir senha?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A senha do usuário será redefinida para o padrão <strong>Tesla@2026!</strong> e ele
+              será forçado a trocá-la no próximo acesso.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResetPassword}>Redefinir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>
           <DialogHeader>
@@ -461,14 +514,11 @@ export default function Users() {
               />
             </div>
             {!formData.id && (
-              <div className="grid gap-2">
-                <Label>Senha</Label>
-                <Input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  placeholder="Senha"
-                />
+              <div className="col-span-full">
+                <div className="p-3 bg-blue-50 text-blue-800 text-sm rounded-md border border-blue-200">
+                  A senha inicial padrão (<strong>Tesla@2026!</strong>) será aplicada
+                  automaticamente. O usuário deverá alterá-la no primeiro acesso.
+                </div>
               </div>
             )}
             <div className="grid gap-2">

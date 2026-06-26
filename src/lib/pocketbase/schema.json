@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-26T10:56:22.299Z",
+  "generatedAt": "2026-06-26T11:27:08.151Z",
   "collections": [
     {
       "name": "users",
@@ -79,6 +79,12 @@
         },
         {
           "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "force_password_change",
           "type": "bool",
           "required": false,
           "system": false

@@ -15,6 +15,7 @@ interface User {
   district_id?: string
   regional_id?: string
   area_id?: string
+  force_password_change?: boolean
 }
 
 interface AuthContextType {

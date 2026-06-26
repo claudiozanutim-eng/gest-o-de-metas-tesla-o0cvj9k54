@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -22,12 +22,24 @@ import Auditoria from './pages/admin/Auditoria'
 import Parameters from './pages/admin/Parameters'
 import Reports from './pages/reports/Reports'
 import Login from './pages/auth/Login'
+import ForcePasswordChange from './pages/auth/ForcePasswordChange'
 import { AuthProvider, useAuth } from './hooks/use-auth'
 
 const ProtectedRoute = () => {
-  const { isAuthenticated, loading } = useAuth()
+  const { isAuthenticated, user, loading } = useAuth()
+  const location = useLocation()
+
   if (loading) return null
   if (!isAuthenticated) return <Navigate to="/login" replace />
+
+  if (user?.force_password_change && location.pathname !== '/change-password') {
+    return <Navigate to="/change-password" replace />
+  }
+
+  if (!user?.force_password_change && location.pathname === '/change-password') {
+    return <Navigate to="/" replace />
+  }
+
   return <Outlet />
 }
 
@@ -68,6 +80,7 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route element={<ProtectedRoute />}>
+              <Route path="/change-password" element={<ForcePasswordChange />} />
               <Route element={<Layout />}>
                 <Route path="/" element={<Index />} />
                 <Route path="/metas" element={<GoalEntry />} />
