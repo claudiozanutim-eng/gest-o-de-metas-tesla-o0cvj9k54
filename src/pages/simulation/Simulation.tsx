@@ -151,7 +151,7 @@ export default function Simulation() {
                   value={achievements.revenue}
                   onValueChange={(v) => setAchievements({ ...achievements, revenue: v })}
                   min={0}
-                  max={190}
+                  max={500}
                   step={1}
                 />
               </div>
@@ -169,7 +169,7 @@ export default function Simulation() {
                   value={achievements.mix}
                   onValueChange={(v) => setAchievements({ ...achievements, mix: v })}
                   min={0}
-                  max={190}
+                  max={500}
                   step={1}
                 />
               </div>
@@ -187,7 +187,7 @@ export default function Simulation() {
                   value={achievements.coverage}
                   onValueChange={(v) => setAchievements({ ...achievements, coverage: v })}
                   min={0}
-                  max={190}
+                  max={500}
                   step={1}
                 />
               </div>
