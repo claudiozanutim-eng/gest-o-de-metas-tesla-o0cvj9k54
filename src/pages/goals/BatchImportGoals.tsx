@@ -35,136 +35,148 @@ export default function BatchImportGoals({ user }: { user: any }) {
       const lines = text.split(/\r?\n/).filter((l) => l.trim())
       if (lines.length < 2) throw new Error('Arquivo vazio ou sem dados.')
       const expected = [
+        'Vendedor',
+        'Area',
         'Regional',
         'Distrito',
-        'Área',
-        'Família',
-        'Frota',
-        'Empresa',
-        'Meta Base',
-        'Meta Bronze',
-        'Meta Prata',
-        'Meta Ouro',
-        'Meta Cobertura Diária',
-        'Meta Cobertura Semanal',
-        'Meta Cobertura Mensal',
-        'Observações',
+        'periodo',
+        'Métrica',
+        'Base',
+        'Bronze',
+        'Prata',
+        'Ouro',
+        'familia',
+        'Frota Foco da Área',
+        'Empresas Foco da Área',
+        'Métrica',
+        'Base',
+        'Bronze',
+        'Prata',
+        'Ouro',
       ]
+
       const headers = lines[0].split(/[;,]/).map((h) => h.trim().replace(/^"|"$/g, ''))
-      if (headers.length !== 14 || !expected.every((h, i) => headers[i] === h)) {
+
+      if (headers.length !== 18 || !expected.every((h, i) => headers[i] === h)) {
         throw new Error(
-          'Erro: Planilha inválida. Esperado 14 colunas com nomes EXATOS: Regional, Distrito, Área, Família, Frota, Empresa, Meta Base, Meta Bronze, Meta Prata, Meta Ouro, Meta Cobertura Diária, Meta Cobertura Semanal, Meta Cobertura Mensal, Observações.',
+          'Erro: Planilha inválida. Esperado 18 colunas com nomes exatos: Vendedor, Area, Regional, Distrito, periodo, Métrica, Base, Bronze, Prata, Ouro, familia, Frota Foco da Área, Empresas Foco da Área, Métrica, Base, Bronze, Prata, Ouro.',
         )
       }
 
       const errs: string[] = []
       const data: any[] = []
-      const unique = new Set()
+
       for (let i = 1; i < lines.length; i++) {
         const rawRow = lines[i].split(/[;,]/).map((c) => c.trim().replace(/^"|"$/g, ''))
-        // Fill missing cols with empty string if row is short
-        const row = Array.from({ length: 14 }, (_, idx) => rawRow[idx] || '')
-        const [reg, dist, area, fam, frota, emp, base, bronze, prata, ouro, cDia, cSem, cMen, obs] =
-          row
+        const row = Array.from({ length: 18 }, (_, idx) => rawRow[idx] || '')
+
+        const [
+          vendedor,
+          area,
+          reg,
+          dist,
+          periodo,
+          metrica1,
+          base1,
+          bronze1,
+          prata1,
+          ouro1,
+          familia,
+          frota,
+          emp,
+          metrica2,
+          base2,
+          bronze2,
+          prata2,
+          ouro2,
+        ] = row
 
         let hasEmpty = false
-        for (let col = 0; col < 13; col++) {
+        for (let col = 0; col < 18; col++) {
           if (!row[col]) {
-            errs.push(`Erro na linha ${i + 1}: Campo '${expected[col]}' está vazio.`)
+            errs.push(
+              `Erro na linha ${i + 1}: Campo '${expected[col]}' (coluna ${col + 1}) está vazio.`,
+            )
             hasEmpty = true
           }
         }
         if (hasEmpty) continue
 
-        const famRegex = /^F([1-9]|10)$/i
-        if (!famRegex.test(fam)) {
-          errs.push(
-            `Erro na linha ${i + 1}: Família '${fam}' é inválida. Use apenas: F1, F2, F3, F4, F5, F6, F7, F8, F9, F10.`,
-          )
-          continue
-        }
-
-        const nBase = Number(base),
-          nBro = Number(bronze),
-          nPra = Number(prata),
-          nOuro = Number(ouro)
-        const isInt = (n: number) => Number.isInteger(n)
+        const nBase1 = Number(base1),
+          nBro1 = Number(bronze1),
+          nPra1 = Number(prata1),
+          nOuro1 = Number(ouro1)
+        const nBase2 = Number(base2),
+          nBro2 = Number(bronze2),
+          nPra2 = Number(prata2),
+          nOuro2 = Number(ouro2)
 
         if (
-          !isInt(nBase) ||
-          !isInt(nBro) ||
-          !isInt(nPra) ||
-          !isInt(nOuro) ||
-          nBase <= 0 ||
-          nBro <= 0 ||
-          nPra <= 0 ||
-          nOuro <= 0
+          isNaN(nBase1) ||
+          isNaN(nBro1) ||
+          isNaN(nPra1) ||
+          isNaN(nOuro1) ||
+          isNaN(nBase2) ||
+          isNaN(nBro2) ||
+          isNaN(nPra2) ||
+          isNaN(nOuro2) ||
+          nBase1 < 0 ||
+          nBro1 < 0 ||
+          nPra1 < 0 ||
+          nOuro1 < 0 ||
+          nBase2 < 0 ||
+          nBro2 < 0 ||
+          nPra2 < 0 ||
+          nOuro2 < 0
         ) {
           errs.push(
-            `Erro na linha ${i + 1}: Valores de meta (Base, Bronze, Prata, Ouro) devem ser números inteiros positivos.`,
-          )
-          continue
-        } else if (!(nBro < nPra && nPra < nOuro && nBase < nOuro)) {
-          errs.push(
-            `Erro na linha ${i + 1}: Lógica de metas inválida. Regras: Bronze < Prata < Ouro e Base < Ouro.`,
+            `Erro na linha ${i + 1}: Valores de meta (Base, Bronze, Prata, Ouro) devem ser números positivos.`,
           )
           continue
         }
 
-        const nCDia = Number(cDia),
-          nCSem = Number(cSem),
-          nCMen = Number(cMen)
-        if (
-          !isInt(nCDia) ||
-          !isInt(nCSem) ||
-          !isInt(nCMen) ||
-          nCDia < 0 ||
-          nCDia > 100 ||
-          nCSem < 0 ||
-          nCSem > 100 ||
-          nCMen < 0 ||
-          nCMen > 100
-        ) {
+        if (!(nBro1 < nPra1 && nPra1 < nOuro1) || !(nBro2 < nPra2 && nPra2 < nOuro2)) {
           errs.push(
-            `Erro na linha ${i + 1}: Valores de cobertura devem ser inteiros entre 0 e 100.`,
+            `Erro na linha ${i + 1}: Lógica de metas inválida. Regra: Bronze < Prata < Ouro.`,
           )
           continue
         }
-        const rObj = lookups.regionals.find((x: any) => x.name.toLowerCase() === reg.toLowerCase())
-        const dObj = lookups.districts.find((x: any) => x.name.toLowerCase() === dist.toLowerCase())
-        const aObj = lookups.areas.find((x: any) => x.name.toLowerCase() === area.toLowerCase())
+
+        const rObj = lookups.regionals?.find((x: any) => x.name.toLowerCase() === reg.toLowerCase())
+        const dObj = lookups.districts?.find(
+          (x: any) => x.name.toLowerCase() === dist.toLowerCase(),
+        )
+        const aObj = lookups.areas?.find((x: any) => x.name.toLowerCase() === area.toLowerCase())
         if (!rObj || !dObj || !aObj) {
           errs.push(
-            `Erro na linha ${i + 1}: Regional, Distrito ou Área não encontrados no sistema. Verifique a grafia e tente novamente.`,
+            `Erro na linha ${i + 1}: Regional, Distrito ou Área não encontrados no sistema. Verifique a grafia.`,
           )
           continue
         }
 
-        const key = `${reg}-${dist}-${area}-${fam}`.toLowerCase()
-        if (unique.has(key)) {
-          errs.push(
-            `Erro na linha ${i + 1}: Combinação duplicada de Regional, Distrito, Área e Família.`,
-          )
-          continue
-        }
-        unique.add(key)
         data.push({
           rowNum: i + 1,
-          reg: rObj.id,
-          area: aObj.id,
-          fam: fam.toUpperCase(),
-          frota,
-          emp,
-          base: nBase,
-          bronze: nBro,
-          prata: nPra,
-          ouro: nOuro,
-          cDia: nCDia,
-          cSem: nCSem,
-          cMen: nCMen,
-          obs,
+          vendedor,
+          area,
+          regional: reg,
+          distrito: dist,
+          periodo,
+          metrica1,
+          base1: nBase1,
+          bronze1: nBro1,
+          prata1: nPra1,
+          ouro1: nOuro1,
+          familia,
+          frotas: frota,
+          cnpjs: emp,
+          metrica2,
+          base2: nBase2,
+          bronze2: nBro2,
+          prata2: nPra2,
+          ouro2: nOuro2,
         })
       }
+
       setErrors(errs)
       setPreview(errs.length ? [] : data)
       setStep(3)
@@ -177,60 +189,38 @@ export default function BatchImportGoals({ user }: { user: any }) {
   const confirmImport = async () => {
     setIsSubmitting(true)
     try {
-      const currentMonth = new Date().toISOString().slice(0, 7)
-      // First, gather all operations without executing them
-      const operations = []
-      for (const row of preview) {
-        const seller = lookups.sellers.find((s: any) => s.area_id === row.area)
-        if (!seller?.user_id)
-          throw new Error(`Vendedor não encontrado para a Área na linha ${row.rowNum}.`)
-        const metric = `Métrica ${row.fam}`
-        const goalData = {
-          seller_id: seller.user_id,
-          period: currentMonth,
-          metric,
-          target_base: row.base,
-          target_bronze: row.bronze,
-          target_prata: row.prata,
-          target_ouro: row.ouro,
-          target_daily_coverage: row.cDia,
-          target_weekly_coverage: row.cSem,
-          target_monthly_coverage: row.cMen,
-          regional_id: row.reg,
-          area_id: row.area,
-          focus_fleet: Number(row.frota),
-          focus_companies: Number(row.emp),
-        }
-
-        try {
-          const ex = await pb
-            .collection('goals')
-            .getFirstListItem(
-              `seller_id="${seller.user_id}" && period="${currentMonth}" && metric="${metric}"`,
-            )
-          operations.push(() => pb.collection('goals').update(ex.id, goalData))
-        } catch {
-          operations.push(() => pb.collection('goals').create(goalData))
-        }
-      }
-
-      // Execute sequentially to avoid overwhelming the server,
-      // although true rollback would require a backend hook.
-      // The upfront validation minimizes DB-level failures.
-      for (const op of operations) {
-        await op()
-      }
-      toast({
-        title: 'Sucesso',
-        description: `${preview.length} metas importadas com sucesso para o período de ${currentMonth}.`,
+      const res = await pb.send('/backend/v1/import-goals', {
+        method: 'POST',
+        body: JSON.stringify({
+          rows: preview,
+          fileName: file?.name || 'upload.csv',
+          source: 'CSV',
+        }),
       })
-      setStep(1)
-      setFile(null)
-      setPreview([])
+
+      if (res.errors > 0) {
+        const errorMessages = res.errorDetails.map((e: any) => `Linha ${e.line}: ${e.error}`)
+        setErrors(errorMessages)
+        setStep(3)
+        toast({
+          title: 'Erro na importação',
+          description: 'Foram encontrados erros durante a importação. Nenhuma meta foi salva.',
+          variant: 'destructive',
+        })
+      } else {
+        const periodoStr = preview.length > 0 ? preview[0].periodo : 'selecionado'
+        toast({
+          title: 'Sucesso',
+          description: `${preview.length} metas importadas com sucesso para o período de ${periodoStr}.`,
+        })
+        setStep(1)
+        setFile(null)
+        setPreview([])
+      }
     } catch (e: any) {
       toast({
         title: 'Erro ao importar',
-        description: `Erro ao importar. Nenhuma meta foi salva. Motivo: ${e.message}. Tente novamente.`,
+        description: `Erro ao processar arquivo: ${e.message}`,
         variant: 'destructive',
       })
     } finally {
@@ -257,9 +247,9 @@ export default function BatchImportGoals({ user }: { user: any }) {
         <div className="space-y-4">
           <Input type="file" accept=".csv" onChange={handleFile} />
           <p className="text-sm text-muted-foreground">
-            A planilha deve conter 14 colunas: Regional, Distrito, Área, Família, Frota, Empresa,
-            Meta Base, Meta Bronze, Meta Prata, Meta Ouro, Meta Cobertura Diária, Meta Cobertura
-            Semanal, Meta Cobertura Mensal, Observações.
+            A planilha deve conter 18 colunas: Vendedor, Area, Regional, Distrito, periodo, Métrica,
+            Base, Bronze, Prata, Ouro, familia, Frota Foco da Área, Empresas Foco da Área, Métrica,
+            Base, Bronze, Prata, Ouro.
           </p>
         </div>
       )}
@@ -282,7 +272,9 @@ export default function BatchImportGoals({ user }: { user: any }) {
               <Alert className="bg-green-50 text-green-900 border-green-200">
                 <CheckCircle2 className="h-4 w-4 !text-green-600" />
                 <AlertTitle>Arquivo Válido</AlertTitle>
-                <AlertDescription>{preview.length} metas prontas para importação.</AlertDescription>
+                <AlertDescription>
+                  {preview.length} linhas prontas para importação.
+                </AlertDescription>
               </Alert>
               <div className="flex justify-end gap-2">
                 <Button
