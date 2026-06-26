@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-26T22:10:12.334Z",
+  "generatedAt": "2026-06-26T22:35:03.890Z",
   "collections": [
     {
       "name": "users",
@@ -448,6 +448,24 @@
           "required": false,
           "system": false,
           "collectionRef": "areas"
+        },
+        {
+          "name": "target_daily_coverage",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "target_weekly_coverage",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "target_monthly_coverage",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -518,6 +536,12 @@
         },
         {
           "name": "focus_companies",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "actual_coverage",
           "type": "number",
           "required": false,
           "system": false
