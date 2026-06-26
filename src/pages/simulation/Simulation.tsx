@@ -119,7 +119,7 @@ export default function Simulation() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Meta de Faturamento (R$)</Label>
+                <Label>insira sua meta base aqui</Label>
                 <Input
                   type="number"
                   value={goal}
