@@ -1,15 +1,15 @@
 {
-  "generatedAt": "2026-06-26T13:02:39.690Z",
+  "generatedAt": "2026-06-26T13:07:48.199Z",
   "collections": [
     {
       "name": "users",
       "type": "auth",
       "apiRules": {
-        "list": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager' || @request.auth.role = 'Sales Assistant' || id = @request.auth.id || (@request.auth.role = 'District Manager' && district_id = @request.auth.district_id) || (@request.auth.role = 'Regional Manager' && regional_id = @request.auth.regional_id) || (@request.auth.role = 'Seller' && id = @request.auth.id)",
-        "view": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager' || @request.auth.role = 'Sales Assistant' || id = @request.auth.id || (@request.auth.role = 'District Manager' && district_id = @request.auth.district_id) || (@request.auth.role = 'Regional Manager' && regional_id = @request.auth.regional_id) || (@request.auth.role = 'Seller' && id = @request.auth.id)",
+        "list": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas' || id = @request.auth.id || (@request.auth.role = 'Gerente Distrital' && district_id = @request.auth.district_id) || (@request.auth.role = 'Gerente Regional' && regional_id = @request.auth.regional_id) || (@request.auth.role = 'Vendedor' && id = @request.auth.id)",
+        "view": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas' || id = @request.auth.id || (@request.auth.role = 'Gerente Distrital' && district_id = @request.auth.district_id) || (@request.auth.role = 'Gerente Regional' && regional_id = @request.auth.regional_id) || (@request.auth.role = 'Vendedor' && id = @request.auth.id)",
         "create": "",
-        "update": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager' || @request.auth.role = 'Gerente Nacional' || id = @request.auth.id",
-        "delete": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager' || @request.auth.role = 'Gerente Nacional' || id = @request.auth.id"
+        "update": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas' || id = @request.auth.id",
+        "delete": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas' || id = @request.auth.id"
       },
       "fields": [
         {
@@ -44,16 +44,12 @@
           "required": false,
           "system": false,
           "selectValues": [
-            "Administrator",
-            "National Manager",
-            "District Manager",
-            "Regional Manager",
-            "Seller",
-            "Sales Assistant",
-            "Gerente Nacional",
-            "Gerente Distrital Geral",
+            "Administrador",
+            "Gestor da Empresa",
+            "Gerente Nacional de Vendas",
             "Gerente Distrital",
-            "Gerente Regional"
+            "Gerente Regional",
+            "Vendedor"
           ]
         },
         {
@@ -99,11 +95,11 @@
       "name": "districts",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager' || @request.auth.role = 'Sales Assistant' || (@request.auth.role = 'District Manager' && id = @request.auth.district_id) || (@request.auth.role = 'Regional Manager' && id = @request.auth.regional_id.district_id) || (@request.auth.role = 'Seller' && id = @request.auth.district_id)",
-        "view": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager' || @request.auth.role = 'Sales Assistant' || (@request.auth.role = 'District Manager' && id = @request.auth.district_id) || (@request.auth.role = 'Regional Manager' && id = @request.auth.regional_id.district_id) || (@request.auth.role = 'Seller' && id = @request.auth.district_id)",
-        "create": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager'",
-        "update": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager'",
-        "delete": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager'"
+        "list": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas' || (@request.auth.role = 'Gerente Distrital' && id = @request.auth.district_id) || (@request.auth.role = 'Gerente Regional' && id = @request.auth.regional_id.district_id) || (@request.auth.role = 'Vendedor' && id = @request.auth.district_id)",
+        "view": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas' || (@request.auth.role = 'Gerente Distrital' && id = @request.auth.district_id) || (@request.auth.role = 'Gerente Regional' && id = @request.auth.regional_id.district_id) || (@request.auth.role = 'Vendedor' && id = @request.auth.district_id)",
+        "create": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas'",
+        "update": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas'",
+        "delete": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas'"
       },
       "fields": [
         {
@@ -139,11 +135,11 @@
       "name": "regionals",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager' || @request.auth.role = 'Sales Assistant' || (@request.auth.role = 'District Manager' && district_id = @request.auth.district_id) || (@request.auth.role = 'Regional Manager' && id = @request.auth.regional_id) || (@request.auth.role = 'Seller' && id = @request.auth.regional_id)",
-        "view": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager' || @request.auth.role = 'Sales Assistant' || (@request.auth.role = 'District Manager' && district_id = @request.auth.district_id) || (@request.auth.role = 'Regional Manager' && id = @request.auth.regional_id) || (@request.auth.role = 'Seller' && id = @request.auth.regional_id)",
-        "create": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager'",
-        "update": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager'",
-        "delete": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager'"
+        "list": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas' || (@request.auth.role = 'Gerente Distrital' && district_id = @request.auth.district_id) || (@request.auth.role = 'Gerente Regional' && id = @request.auth.regional_id) || (@request.auth.role = 'Vendedor' && id = @request.auth.regional_id)",
+        "view": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas' || (@request.auth.role = 'Gerente Distrital' && district_id = @request.auth.district_id) || (@request.auth.role = 'Gerente Regional' && id = @request.auth.regional_id) || (@request.auth.role = 'Vendedor' && id = @request.auth.regional_id)",
+        "create": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas'",
+        "update": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas'",
+        "delete": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas'"
       },
       "fields": [
         {
@@ -198,11 +194,11 @@
       "name": "areas",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager' || @request.auth.role = 'Sales Assistant' || (@request.auth.role = 'District Manager' && (regional_id.district_id = @request.auth.district_id || district_id = @request.auth.district_id)) || (@request.auth.role = 'Regional Manager' && regional_id = @request.auth.regional_id) || (@request.auth.role = 'Seller' && id = @request.auth.area_id) || responsible_id = @request.auth.id",
-        "view": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager' || @request.auth.role = 'Sales Assistant' || (@request.auth.role = 'District Manager' && (regional_id.district_id = @request.auth.district_id || district_id = @request.auth.district_id)) || (@request.auth.role = 'Regional Manager' && regional_id = @request.auth.regional_id) || (@request.auth.role = 'Seller' && id = @request.auth.area_id) || responsible_id = @request.auth.id",
-        "create": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager'",
-        "update": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager'",
-        "delete": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager'"
+        "list": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas' || (@request.auth.role = 'Gerente Distrital' && (regional_id.district_id = @request.auth.district_id || district_id = @request.auth.district_id)) || (@request.auth.role = 'Gerente Regional' && regional_id = @request.auth.regional_id) || (@request.auth.role = 'Vendedor' && id = @request.auth.area_id) || responsible_id = @request.auth.id",
+        "view": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas' || (@request.auth.role = 'Gerente Distrital' && (regional_id.district_id = @request.auth.district_id || district_id = @request.auth.district_id)) || (@request.auth.role = 'Gerente Regional' && regional_id = @request.auth.regional_id) || (@request.auth.role = 'Vendedor' && id = @request.auth.area_id) || responsible_id = @request.auth.id",
+        "create": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas'",
+        "update": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas'",
+        "delete": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas'"
       },
       "fields": [
         {
@@ -261,9 +257,9 @@
       "apiRules": {
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
-        "create": "@request.auth.role = 'Administrator'",
-        "update": "@request.auth.role = 'Administrator'",
-        "delete": "@request.auth.role = 'Administrator'"
+        "create": "@request.auth.role = 'Administrador'",
+        "update": "@request.auth.role = 'Administrador'",
+        "delete": "@request.auth.role = 'Administrador'"
       },
       "fields": [
         {
@@ -307,9 +303,9 @@
       "apiRules": {
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
-        "create": "@request.auth.role = 'Administrator'",
-        "update": "@request.auth.role = 'Administrator'",
-        "delete": "@request.auth.role = 'Administrator'"
+        "create": "@request.auth.role = 'Administrador'",
+        "update": "@request.auth.role = 'Administrador'",
+        "delete": "@request.auth.role = 'Administrador'"
       },
       "fields": [
         {
@@ -357,11 +353,11 @@
       "name": "goals",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager' || @request.auth.role = 'Sales Assistant' || (@request.auth.role = 'District Manager' && seller_id.district_id = @request.auth.district_id) || (@request.auth.role = 'Regional Manager' && seller_id.regional_id = @request.auth.regional_id) || seller_id = @request.auth.id",
-        "view": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager' || @request.auth.role = 'Sales Assistant' || (@request.auth.role = 'District Manager' && seller_id.district_id = @request.auth.district_id) || (@request.auth.role = 'Regional Manager' && seller_id.regional_id = @request.auth.regional_id) || seller_id = @request.auth.id",
-        "create": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager' || @request.auth.role = 'Sales Assistant' || (@request.auth.role = 'District Manager' && seller_id.district_id = @request.auth.district_id) || (@request.auth.role = 'Regional Manager' && seller_id.regional_id = @request.auth.regional_id) || seller_id = @request.auth.id",
-        "update": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager' || @request.auth.role = 'Sales Assistant' || (@request.auth.role = 'District Manager' && seller_id.district_id = @request.auth.district_id) || (@request.auth.role = 'Regional Manager' && seller_id.regional_id = @request.auth.regional_id) || seller_id = @request.auth.id",
-        "delete": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager' || @request.auth.role = 'Gerente Nacional' || @request.auth.role = 'Sales Assistant'"
+        "list": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas' || (@request.auth.role = 'Gerente Distrital' && seller_id.district_id = @request.auth.district_id) || (@request.auth.role = 'Gerente Regional' && seller_id.regional_id = @request.auth.regional_id) || seller_id = @request.auth.id",
+        "view": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas' || (@request.auth.role = 'Gerente Distrital' && seller_id.district_id = @request.auth.district_id) || (@request.auth.role = 'Gerente Regional' && seller_id.regional_id = @request.auth.regional_id) || seller_id = @request.auth.id",
+        "create": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas' || (@request.auth.role = 'Gerente Distrital' && seller_id.district_id = @request.auth.district_id) || (@request.auth.role = 'Gerente Regional' && seller_id.regional_id = @request.auth.regional_id) || seller_id = @request.auth.id",
+        "update": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas' || (@request.auth.role = 'Gerente Distrital' && seller_id.district_id = @request.auth.district_id) || (@request.auth.role = 'Gerente Regional' && seller_id.regional_id = @request.auth.regional_id) || seller_id = @request.auth.id",
+        "delete": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas'"
       },
       "fields": [
         {
@@ -460,11 +456,11 @@
       "name": "actual_performance",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager' || @request.auth.role = 'Sales Assistant' || (@request.auth.role = 'District Manager' && seller_id.district_id = @request.auth.district_id) || (@request.auth.role = 'Regional Manager' && seller_id.regional_id = @request.auth.regional_id) || seller_id = @request.auth.id",
-        "view": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager' || @request.auth.role = 'Sales Assistant' || (@request.auth.role = 'District Manager' && seller_id.district_id = @request.auth.district_id) || (@request.auth.role = 'Regional Manager' && seller_id.regional_id = @request.auth.regional_id) || seller_id = @request.auth.id",
-        "create": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager' || @request.auth.role = 'Sales Assistant' || (@request.auth.role = 'District Manager' && seller_id.district_id = @request.auth.district_id) || (@request.auth.role = 'Regional Manager' && seller_id.regional_id = @request.auth.regional_id) || seller_id = @request.auth.id",
-        "update": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager' || @request.auth.role = 'Sales Assistant' || (@request.auth.role = 'District Manager' && seller_id.district_id = @request.auth.district_id) || (@request.auth.role = 'Regional Manager' && seller_id.regional_id = @request.auth.regional_id) || seller_id = @request.auth.id",
-        "delete": "@request.auth.role = 'Administrator'"
+        "list": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas' || (@request.auth.role = 'Gerente Distrital' && seller_id.district_id = @request.auth.district_id) || (@request.auth.role = 'Gerente Regional' && seller_id.regional_id = @request.auth.regional_id) || seller_id = @request.auth.id",
+        "view": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas' || (@request.auth.role = 'Gerente Distrital' && seller_id.district_id = @request.auth.district_id) || (@request.auth.role = 'Gerente Regional' && seller_id.regional_id = @request.auth.regional_id) || seller_id = @request.auth.id",
+        "create": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas' || (@request.auth.role = 'Gerente Distrital' && seller_id.district_id = @request.auth.district_id) || (@request.auth.role = 'Gerente Regional' && seller_id.regional_id = @request.auth.regional_id) || seller_id = @request.auth.id",
+        "update": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas' || (@request.auth.role = 'Gerente Distrital' && seller_id.district_id = @request.auth.district_id) || (@request.auth.role = 'Gerente Regional' && seller_id.regional_id = @request.auth.regional_id) || seller_id = @request.auth.id",
+        "delete": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa'"
       },
       "fields": [
         {
@@ -533,11 +529,11 @@
       "name": "sellers",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager' || @request.auth.role = 'Sales Assistant' || (@request.auth.role = 'District Manager' && user_id.district_id = @request.auth.district_id) || (@request.auth.role = 'Regional Manager' && user_id.regional_id = @request.auth.regional_id) || user_id = @request.auth.id",
-        "view": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager' || @request.auth.role = 'Sales Assistant' || (@request.auth.role = 'District Manager' && user_id.district_id = @request.auth.district_id) || (@request.auth.role = 'Regional Manager' && user_id.regional_id = @request.auth.regional_id) || user_id = @request.auth.id",
-        "create": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager'",
-        "update": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager'",
-        "delete": "@request.auth.role = 'Administrator' || @request.auth.role = 'National Manager' || @request.auth.role = 'Gerente Nacional'"
+        "list": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas' || (@request.auth.role = 'Gerente Distrital' && user_id.district_id = @request.auth.district_id) || (@request.auth.role = 'Gerente Regional' && user_id.regional_id = @request.auth.regional_id) || user_id = @request.auth.id",
+        "view": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas' || (@request.auth.role = 'Gerente Distrital' && user_id.district_id = @request.auth.district_id) || (@request.auth.role = 'Gerente Regional' && user_id.regional_id = @request.auth.regional_id) || user_id = @request.auth.id",
+        "create": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas'",
+        "update": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas'",
+        "delete": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gestor da Empresa' || @request.auth.role = 'Gerente Nacional de Vendas'"
       },
       "fields": [
         {
@@ -660,9 +656,9 @@
       "apiRules": {
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
-        "create": "@request.auth.role = 'Administrator'",
-        "update": "@request.auth.role = 'Administrator'",
-        "delete": "@request.auth.role = 'Administrator'"
+        "create": "@request.auth.role = 'Administrador'",
+        "update": "@request.auth.role = 'Administrador'",
+        "delete": "@request.auth.role = 'Administrador'"
       },
       "fields": [
         {
