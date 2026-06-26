@@ -47,27 +47,21 @@ import {
 } from '@/components/ui/alert-dialog'
 
 const roleDisplayMap: Record<string, string> = {
-  Administrator: 'Administrador',
-  'National Manager': 'Gerente Nacional',
-  'District Manager': 'Gerente Distrital',
-  'Regional Manager': 'Gerente Regional',
-  Seller: 'Vendedor',
-  'Sales Assistant': 'Assistente de Vendas',
-  'Gerente Nacional': 'Gerente Nacional',
-  'Gerente Distrital Geral': 'Gerente Distrital Geral',
+  Administrador: 'Administrador',
+  'Gestor da Empresa': 'Gestor da Empresa',
+  'Gerente Nacional de Vendas': 'Gerente Nacional de Vendas',
   'Gerente Distrital': 'Gerente Distrital',
   'Gerente Regional': 'Gerente Regional',
   Vendedor: 'Vendedor',
 }
 
 const roles = [
-  'Administrator',
-  'Gerente Nacional',
-  'Gerente Distrital Geral',
+  'Administrador',
+  'Gestor da Empresa',
+  'Gerente Nacional de Vendas',
   'Gerente Distrital',
   'Gerente Regional',
   'Vendedor',
-  'Sales Assistant',
 ]
 
 export default function Users() {
@@ -103,9 +97,11 @@ export default function Users() {
 
   const { toast } = useToast()
   const { user } = useAuth()
-  const isAllowedToDelete = ['Administrator', 'National Manager', 'Gerente Nacional'].includes(
-    user?.role || '',
-  )
+  const isAllowedToDelete = [
+    'Administrador',
+    'Gestor da Empresa',
+    'Gerente Nacional de Vendas',
+  ].includes(user?.role || '')
 
   const loadData = async () => {
     try {
@@ -188,7 +184,7 @@ export default function Users() {
     try {
       const data = { ...formData, emailVisibility: true }
 
-      if (data.role === 'District Manager' && data.district_id === 'none') {
+      if (data.role === 'Gerente Distrital' && data.district_id === 'none') {
         toast({
           title: 'Erro de validação',
           description: 'Selecione o Distrito.',
@@ -196,7 +192,7 @@ export default function Users() {
         })
         return
       }
-      if (data.role === 'Regional Manager' && data.regional_id === 'none') {
+      if (data.role === 'Gerente Regional' && data.regional_id === 'none') {
         toast({
           title: 'Erro de validação',
           description: 'Selecione a Regional.',
@@ -204,7 +200,7 @@ export default function Users() {
         })
         return
       }
-      if (data.role === 'Seller' && data.area_id === 'none') {
+      if (data.role === 'Vendedor' && data.area_id === 'none') {
         toast({
           title: 'Erro de validação',
           description: 'Selecione a Área.',
@@ -214,7 +210,7 @@ export default function Users() {
       }
 
       // Auto-fill higher levels
-      if (data.role === 'Seller' && data.area_id !== 'none') {
+      if (data.role === 'Vendedor' && data.area_id !== 'none') {
         const area = areas.find((a) => a.id === data.area_id)
         if (area?.regional_id) {
           data.regional_id = area.regional_id
@@ -222,16 +218,18 @@ export default function Users() {
           if (regional?.district_id) data.district_id = regional.district_id
         }
       }
-      if (data.role === 'Regional Manager' && data.regional_id !== 'none') {
+      if (data.role === 'Gerente Regional' && data.regional_id !== 'none') {
         const regional = regionals.find((r) => r.id === data.regional_id)
         if (regional?.district_id) data.district_id = regional.district_id
         data.area_id = ''
       }
-      if (data.role === 'District Manager') {
+      if (data.role === 'Gerente Distrital') {
         data.regional_id = ''
         data.area_id = ''
       }
-      if (['Administrator', 'National Manager', 'Sales Assistant'].includes(data.role)) {
+      if (
+        ['Administrador', 'Gestor da Empresa', 'Gerente Nacional de Vendas'].includes(data.role)
+      ) {
         data.district_id = ''
         data.regional_id = ''
         data.area_id = ''
@@ -243,7 +241,7 @@ export default function Users() {
 
       if (data.id) {
         await pb.collection('users').update(data.id, data)
-        toast({ title: 'Sucesso', description: 'Dados salvos com sucesso' })
+        toast({ title: 'Sucesso', description: 'Usuário atualizado com sucesso' })
       } else {
         data.password = 'Tesla@2026!'
         data.passwordConfirm = 'Tesla@2026!'
@@ -258,11 +256,33 @@ export default function Users() {
       setIsOpen(false)
       await loadData()
     } catch (e: any) {
-      toast({
-        title: 'Ocorreu um erro',
-        description: getErrorMessage(e),
-        variant: 'destructive',
-      })
+      const fieldErrors = extractFieldErrors(e)
+      if (Object.keys(fieldErrors).length > 0) {
+        const errorDetails = Object.entries(fieldErrors)
+          .map(([f, m]) => {
+            const fieldLabelMap: Record<string, string> = {
+              name: 'Nome',
+              email: 'Email',
+              role: 'Cargo',
+              district_id: 'Distrito',
+              regional_id: 'Regional',
+              area_id: 'Área',
+            }
+            return `${fieldLabelMap[f] || f}: ${m}`
+          })
+          .join(', ')
+        toast({
+          title: 'Erro de validação',
+          description: `Verifique os campos: ${errorDetails}`,
+          variant: 'destructive',
+        })
+      } else {
+        toast({
+          title: 'Ocorreu um erro',
+          description: getErrorMessage(e),
+          variant: 'destructive',
+        })
+      }
     }
   }
 
@@ -321,11 +341,7 @@ export default function Users() {
       const matchSearch =
         u.name?.toLowerCase().includes(filters.search.toLowerCase()) ||
         u.email?.toLowerCase().includes(filters.search.toLowerCase())
-      const matchRole =
-        filters.role === 'all' ||
-        u.role === filters.role ||
-        (filters.role === 'Vendedor' && u.role === 'Seller') ||
-        u.role === filters.role
+      const matchRole = filters.role === 'all' || u.role === filters.role
       const matchDistrict = filters.district === 'all' || u.district_id === filters.district
       return matchSearch && matchRole && matchDistrict
     })
@@ -534,7 +550,9 @@ export default function Users() {
               </div>
             )}
             <div className="grid gap-2">
-              <Label>Cargo</Label>
+              <Label>
+                Cargo <span className="text-red-500">*</span>
+              </Label>
               <Select
                 value={formData.role}
                 onValueChange={(v) => setFormData({ ...formData, role: v })}
@@ -551,9 +569,9 @@ export default function Users() {
                 </SelectContent>{' '}
               </Select>
             </div>
-            {['District Manager', 'Regional Manager', 'Seller'].includes(formData.role) && (
+            {['Gerente Distrital', 'Gerente Regional', 'Vendedor'].includes(formData.role) && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {formData.role === 'District Manager' && (
+                {formData.role === 'Gerente Distrital' && (
                   <div className="grid gap-2">
                     <Label>
                       Distrito <span className="text-red-500">*</span>
@@ -576,7 +594,7 @@ export default function Users() {
                     </Select>
                   </div>
                 )}
-                {formData.role === 'Regional Manager' && (
+                {formData.role === 'Gerente Regional' && (
                   <div className="grid gap-2">
                     <Label>
                       Regional <span className="text-red-500">*</span>
@@ -599,7 +617,7 @@ export default function Users() {
                     </Select>
                   </div>
                 )}
-                {formData.role === 'Seller' && (
+                {formData.role === 'Vendedor' && (
                   <div className="grid gap-2">
                     <Label>
                       Área <span className="text-red-500">*</span>

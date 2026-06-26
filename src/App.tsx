@@ -46,7 +46,11 @@ const ProtectedRoute = () => {
 const SuperAdminRoute = () => {
   const { user, loading } = useAuth()
   if (loading) return null
-  if (user?.role !== 'Administrator' && user?.role !== 'National Manager') {
+  if (
+    user?.role !== 'Administrador' &&
+    user?.role !== 'Gestor da Empresa' &&
+    user?.role !== 'Gerente Nacional de Vendas'
+  ) {
     return <Navigate to="/" replace />
   }
   return <Outlet />
@@ -55,7 +59,7 @@ const SuperAdminRoute = () => {
 const AdminRoute = () => {
   const { user, loading } = useAuth()
   if (loading) return null
-  if (user?.role === 'Seller' || user?.role === 'Sales Assistant') {
+  if (user?.role === 'Vendedor') {
     return <Navigate to="/" replace />
   }
   return <Outlet />
@@ -64,7 +68,7 @@ const AdminRoute = () => {
 const NonSellerRoute = () => {
   const { user, loading } = useAuth()
   if (loading) return null
-  if (user?.role === 'Seller') {
+  if (user?.role === 'Vendedor') {
     return <Navigate to="/" replace />
   }
   return <Outlet />
