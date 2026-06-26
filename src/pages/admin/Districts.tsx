@@ -47,9 +47,11 @@ export default function Districts() {
   const [districtToDelete, setDistrictToDelete] = useState<any>(null)
   const { toast } = useToast()
   const { user } = useAuth()
-  const isAllowedToDelete = ['Administrator', 'National Manager', 'Gerente Nacional'].includes(
-    user?.role || '',
-  )
+  const isAllowedToDelete = [
+    'Administrador',
+    'Gestor da Empresa',
+    'Gerente Nacional de Vendas',
+  ].includes(user?.role || '')
 
   const loadData = async () => {
     const dists = await pb.collection('districts').getFullList()
@@ -76,20 +78,20 @@ export default function Districts() {
         .getList(1, 1, { filter: `district_id="${districtToDelete.id}"` })
       if (regionals.items.length > 0) {
         toast({
-          title: 'Erro ao excluir item',
+          title: 'Erro ao excluir distrito',
           description:
-            'Não é possível excluir este item pois ele possui vínculos ativos (Regionais).',
+            'Não é possível excluir este distrito pois ele possui vínculos ativos (Regionais).',
           variant: 'destructive',
         })
         setDeleteDialog(false)
         return
       }
       await pb.collection('districts').delete(districtToDelete.id)
-      toast({ title: 'Item excluído com sucesso.' })
+      toast({ title: 'Distrito excluído com sucesso.' })
       setDeleteDialog(false)
       loadData()
     } catch (e: any) {
-      toast({ title: 'Erro ao excluir item', description: e.message, variant: 'destructive' })
+      toast({ title: 'Erro ao excluir distrito', description: e.message, variant: 'destructive' })
     }
   }
 
@@ -206,7 +208,7 @@ export default function Districts() {
       <AlertDialog open={deleteDialog} onOpenChange={setDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Tem certeza que deseja excluir este item?</AlertDialogTitle>
+            <AlertDialogTitle>Tem certeza que deseja excluir este distrito?</AlertDialogTitle>
             <AlertDialogDescription>Essa ação não poderá ser desfeita.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
