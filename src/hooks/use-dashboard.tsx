@@ -46,6 +46,9 @@ export interface DashboardContextType {
   actuals: any[]
   goals: any[]
   productFamilies: any[]
+  regionals: any[]
+  areas: any[]
+  sellers: any[]
   filters: DashboardFilters
   setFilters: (f: Partial<DashboardFilters>) => void
   clearFilters: () => void
@@ -60,10 +63,13 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [actuals, setActuals] = useState<any[]>([])
   const [goals, setGoals] = useState<any[]>([])
   const [productFamilies, setProductFamilies] = useState<any[]>([])
+  const [regionals, setRegionals] = useState<any[]>([])
+  const [areas, setAreas] = useState<any[]>([])
+  const [sellers, setSellers] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   const defaultFilters = {
-    year: 'All',
+    year: '2026',
     period: 'All',
     regional: 'All',
     state: 'All',
@@ -83,16 +89,22 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const loadData = async () => {
     setIsLoading(true)
     try {
-      const [acts, gls, fams] = await Promise.all([
+      const [acts, gls, fams, regs, ars, sels] = await Promise.all([
         pb
           .collection('actual_performance')
           .getFullList({ expand: 'seller_id.regional_id,seller_id.area_id' }),
         pb.collection('goals').getFullList({ expand: 'seller_id.regional_id,seller_id.area_id' }),
         pb.collection('product_families').getFullList(),
+        pb.collection('regionals').getFullList({ filter: 'is_active = true' }),
+        pb.collection('areas').getFullList({ filter: 'is_active = true' }),
+        pb.collection('sellers').getFullList({ filter: 'is_active = true' }),
       ])
       setActuals(acts)
       setGoals(gls)
       setProductFamilies(fams)
+      setRegionals(regs)
+      setAreas(ars)
+      setSellers(sels)
     } catch (e) {
       console.error(e)
     } finally {
@@ -109,8 +121,10 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const filteredActuals = useMemo(() => {
     return actuals.filter((a) => {
-      if (filters.year !== 'All' && !a.period.startsWith(filters.year)) return false
-      if (filters.period !== 'All' && a.period !== filters.period) return false
+      const [aYear, aPer] = a.period ? a.period.split('-') : ['', '']
+      if (filters.year !== 'All' && aYear !== filters.year) return false
+      if (filters.period !== 'All' && aPer !== filters.period && a.period !== filters.period)
+        return false
       if (filters.family !== 'All' && a.mix_family !== filters.family) return false
 
       const seller = a.expand?.seller_id
@@ -131,8 +145,10 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const filteredGoals = useMemo(() => {
     return goals.filter((g) => {
-      if (filters.year !== 'All' && !g.period.startsWith(filters.year)) return false
-      if (filters.period !== 'All' && g.period !== filters.period) return false
+      const [gYear, gPer] = g.period ? g.period.split('-') : ['', '']
+      if (filters.year !== 'All' && gYear !== filters.year) return false
+      if (filters.period !== 'All' && gPer !== filters.period && g.period !== filters.period)
+        return false
       if (filters.family !== 'All' && g.mix_family !== filters.family) return false
 
       const seller = g.expand?.seller_id
@@ -157,6 +173,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         actuals,
         goals,
         productFamilies,
+        regionals,
+        areas,
+        sellers,
         filters,
         setFilters,
         clearFilters,

@@ -64,6 +64,34 @@ export default function GoalEntry() {
   const [targetPrata, setTargetPrata] = useState('')
   const [targetOuro, setTargetOuro] = useState('')
 
+  const maskInteger = (value: string | number) => {
+    const digits = String(value).replace(/\D/g, '')
+    if (!digits) return ''
+    const num = parseInt(digits, 10).toString()
+    return num.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  }
+
+  const unmaskInteger = (value: string | number) => {
+    const digits = String(value).replace(/\D/g, '')
+    if (!digits) return 0
+    return parseInt(digits, 10)
+  }
+
+  const maskCurrency = (value: string | number) => {
+    const digits = String(value).replace(/\D/g, '')
+    if (!digits) return ''
+    const num = (parseInt(digits, 10) / 100).toFixed(2)
+    const parts = num.split('.')
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+    return `R$ ${parts.join(',')}`
+  }
+
+  const unmaskCurrency = (value: string | number) => {
+    const digits = String(value).replace(/\D/g, '')
+    if (!digits) return 0
+    return parseInt(digits, 10) / 100
+  }
+
   const [existingGoalId, setExistingGoalId] = useState<string | null>(null)
 
   const [deleteDialog, setDeleteDialog] = useState(false)
@@ -127,12 +155,20 @@ export default function GoalEntry() {
             `seller_id="${seller.user_id}" && period="${period}" && metric="${metric}"`,
           )
         setExistingGoalId(goal.id)
-        setTargetBase(goal.target_base?.toString() || '')
-        setTargetBronze(goal.target_bronze?.toString() || '')
-        setTargetPrata(goal.target_prata?.toString() || '')
-        setTargetOuro(goal.target_ouro?.toString() || '')
-        setFocusFleet(goal.focus_fleet?.toString() || '')
-        setFocusCompanies(goal.focus_companies?.toString() || '')
+        setTargetBase(
+          goal.target_base != null ? maskCurrency((goal.target_base * 100).toFixed(0)) : '',
+        )
+        setTargetBronze(
+          goal.target_bronze != null ? maskCurrency((goal.target_bronze * 100).toFixed(0)) : '',
+        )
+        setTargetPrata(
+          goal.target_prata != null ? maskCurrency((goal.target_prata * 100).toFixed(0)) : '',
+        )
+        setTargetOuro(
+          goal.target_ouro != null ? maskCurrency((goal.target_ouro * 100).toFixed(0)) : '',
+        )
+        setFocusFleet(goal.focus_fleet != null ? maskInteger(goal.focus_fleet) : '')
+        setFocusCompanies(goal.focus_companies != null ? maskInteger(goal.focus_companies) : '')
         setMixFamily(goal.mix_family || '')
         setSelectedRegionalId(goal.regional_id || defaultRegionalId)
         setSelectedAreaId(goal.area_id || defaultAreaId)
@@ -201,12 +237,12 @@ export default function GoalEntry() {
         area_id: selectedAreaId || null,
         period,
         metric,
-        target_base: Number(targetBase),
-        target_bronze: Number(targetBronze),
-        target_prata: Number(targetPrata),
-        target_ouro: Number(targetOuro),
-        focus_fleet: focusFleet ? Number(focusFleet) : 0,
-        focus_companies: focusCompanies ? Number(focusCompanies) : 0,
+        target_base: unmaskCurrency(targetBase),
+        target_bronze: unmaskCurrency(targetBronze),
+        target_prata: unmaskCurrency(targetPrata),
+        target_ouro: unmaskCurrency(targetOuro),
+        focus_fleet: focusFleet ? unmaskInteger(focusFleet) : 0,
+        focus_companies: focusCompanies ? unmaskInteger(focusCompanies) : 0,
         mix_family: mixFamily,
       }
 
@@ -540,9 +576,9 @@ export default function GoalEntry() {
                       <Label htmlFor="focus_fleet">Frota Foco da Área</Label>
                       <Input
                         id="focus_fleet"
-                        type="number"
+                        type="tel"
                         value={focusFleet}
-                        onChange={(e) => setFocusFleet(e.target.value)}
+                        onChange={(e) => setFocusFleet(maskInteger(e.target.value))}
                         placeholder="0"
                       />
                     </div>
@@ -550,9 +586,9 @@ export default function GoalEntry() {
                       <Label htmlFor="focus_companies">Empresas Foco da Área</Label>
                       <Input
                         id="focus_companies"
-                        type="number"
+                        type="tel"
                         value={focusCompanies}
-                        onChange={(e) => setFocusCompanies(e.target.value)}
+                        onChange={(e) => setFocusCompanies(maskInteger(e.target.value))}
                         placeholder="0"
                       />
                     </div>
@@ -563,10 +599,10 @@ export default function GoalEntry() {
                       <Label htmlFor="target_base">Meta Base</Label>
                       <Input
                         id="target_base"
-                        type="number"
+                        type="tel"
                         value={targetBase}
-                        onChange={(e) => setTargetBase(e.target.value)}
-                        placeholder="0"
+                        onChange={(e) => setTargetBase(maskCurrency(e.target.value))}
+                        placeholder="R$ 0,00"
                         required
                       />
                     </div>
@@ -574,10 +610,10 @@ export default function GoalEntry() {
                       <Label htmlFor="target_bronze">Meta Bronze</Label>
                       <Input
                         id="target_bronze"
-                        type="number"
+                        type="tel"
                         value={targetBronze}
-                        onChange={(e) => setTargetBronze(e.target.value)}
-                        placeholder="0"
+                        onChange={(e) => setTargetBronze(maskCurrency(e.target.value))}
+                        placeholder="R$ 0,00"
                         required
                       />
                     </div>
@@ -585,10 +621,10 @@ export default function GoalEntry() {
                       <Label htmlFor="target_prata">Meta Prata</Label>
                       <Input
                         id="target_prata"
-                        type="number"
+                        type="tel"
                         value={targetPrata}
-                        onChange={(e) => setTargetPrata(e.target.value)}
-                        placeholder="0"
+                        onChange={(e) => setTargetPrata(maskCurrency(e.target.value))}
+                        placeholder="R$ 0,00"
                         required
                       />
                     </div>
@@ -596,10 +632,10 @@ export default function GoalEntry() {
                       <Label htmlFor="target_ouro">Meta Ouro</Label>
                       <Input
                         id="target_ouro"
-                        type="number"
+                        type="tel"
                         value={targetOuro}
-                        onChange={(e) => setTargetOuro(e.target.value)}
-                        placeholder="0"
+                        onChange={(e) => setTargetOuro(maskCurrency(e.target.value))}
+                        placeholder="R$ 0,00"
                         required
                       />
                     </div>

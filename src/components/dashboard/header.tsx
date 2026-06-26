@@ -8,48 +8,91 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { FilterX } from 'lucide-react'
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
+import { useAuth } from '@/hooks/use-auth'
+
+const ALL_YEARS = ['2026', '2027', '2028']
+const ALL_PERIODS = [
+  { id: '01', name: 'Janeiro' },
+  { id: '02', name: 'Fevereiro' },
+  { id: '03', name: 'Março' },
+  { id: '04', name: 'Abril' },
+  { id: '05', name: 'Maio' },
+  { id: '06', name: 'Junho' },
+  { id: '07', name: 'Julho' },
+  { id: '08', name: 'Agosto' },
+  { id: '09', name: 'Setembro' },
+  { id: '10', name: 'Outubro' },
+  { id: '11', name: 'Novembro' },
+  { id: '12', name: 'Dezembro' },
+  { id: 'Q1', name: '1º Trimestre' },
+  { id: 'Q2', name: '2º Trimestre' },
+  { id: 'Q3', name: '3º Trimestre' },
+  { id: 'Q4', name: '4º Trimestre' },
+]
+const ALL_FAMILIES = ['F1', 'F2', 'F3', 'Outros']
 
 export function DashboardHeader() {
-  const { actuals, goals, filters, setFilters, clearFilters } = useDashboard()
+  const { user } = useAuth()
+  const {
+    regionals: dbRegionals,
+    areas: dbAreas,
+    sellers: dbSellers,
+    filters,
+    setFilters,
+    clearFilters,
+  } = useDashboard()
 
-  const { years, periods, regionals, areas, sellers, families } = useMemo(() => {
-    const y = new Set<string>()
-    const p = new Set<string>()
-    const r = new Map<string, string>()
-    const a = new Map<string, string>()
-    const s = new Map<string, string>()
-    const f = new Set<string>()
+  const { regionals, areas, sellers } = useMemo(() => {
+    const availableRegionals = dbRegionals.map((r) => ({ id: r.id, name: r.name }))
 
-    const process = (item: any) => {
-      if (item.period) {
-        p.add(item.period)
-        y.add(item.period.split('-')[0])
-      }
-      if (item.mix_family) f.add(item.mix_family)
-
-      const seller = item.expand?.seller_id
-      if (seller) {
-        s.set(seller.id, seller.name || 'Unknown Seller')
-        const regional = seller.expand?.regional_id
-        if (regional) r.set(regional.id, regional.name)
-        const area = seller.expand?.area_id
-        if (area) a.set(area.id, area.name)
-      }
+    let availableAreas = dbAreas
+    if (filters.regional !== 'All') {
+      availableAreas = availableAreas.filter((a) => a.regional_id === filters.regional)
     }
+    const areasMapped = availableAreas.map((a) => ({ id: a.id, name: a.name }))
 
-    actuals.forEach(process)
-    goals.forEach(process)
-
-    return {
-      years: Array.from(y).sort(),
-      periods: Array.from(p).sort(),
-      regionals: Array.from(r.entries()).map(([id, name]) => ({ id, name })),
-      areas: Array.from(a.entries()).map(([id, name]) => ({ id, name })),
-      sellers: Array.from(s.entries()).map(([id, name]) => ({ id, name })),
-      families: Array.from(f).sort(),
+    let availableSellers = dbSellers
+    if (filters.area !== 'All') {
+      availableSellers = availableSellers.filter((s) => s.area_id === filters.area)
+    } else if (filters.regional !== 'All') {
+      availableSellers = availableSellers.filter((s) => {
+        const area = dbAreas.find((a) => a.id === s.area_id)
+        return area?.regional_id === filters.regional
+      })
     }
-  }, [actuals, goals])
+    const sellersMapped = availableSellers
+      .filter((s) => s.user_id)
+      .map((s) => ({ id: s.user_id, name: s.name }))
+
+    return { regionals: availableRegionals, areas: areasMapped, sellers: sellersMapped }
+  }, [dbRegionals, dbAreas, dbSellers, filters.regional, filters.area])
+
+  const isSellerLocked = user?.role === 'Seller' || sellers.length === 1
+  const isAreaLocked = user?.role === 'Seller' || areas.length === 1
+  const isRegionalLocked =
+    user?.role === 'Seller' || user?.role === 'Regional Manager' || regionals.length === 1
+
+  useEffect(() => {
+    if (isRegionalLocked && regionals.length === 1 && filters.regional === 'All') {
+      setFilters({ regional: regionals[0].id })
+    }
+    if (isAreaLocked && areas.length === 1 && filters.area === 'All') {
+      setFilters({ area: areas[0].id })
+    }
+    if (isSellerLocked && sellers.length === 1 && filters.seller === 'All') {
+      setFilters({ seller: sellers[0].id })
+    }
+  }, [
+    isRegionalLocked,
+    isAreaLocked,
+    isSellerLocked,
+    regionals,
+    areas,
+    sellers,
+    filters,
+    setFilters,
+  ])
 
   return (
     <div className="flex flex-col gap-4 mb-6">
@@ -69,37 +112,40 @@ export function DashboardHeader() {
         <FilterSelect
           label="Ano"
           value={filters.year}
-          options={years.map((y) => ({ id: y, name: y }))}
+          options={ALL_YEARS.map((y) => ({ id: y, name: y }))}
           onChange={(v) => setFilters({ year: v, period: 'All' })}
         />
         <FilterSelect
           label="Período"
           value={filters.period}
-          options={periods.map((p) => ({ id: p, name: p }))}
+          options={ALL_PERIODS}
           onChange={(v) => setFilters({ period: v })}
         />
         <FilterSelect
           label="Regional"
           value={filters.regional}
           options={regionals}
+          disabled={isRegionalLocked}
           onChange={(v) => setFilters({ regional: v, area: 'All', seller: 'All' })}
         />
         <FilterSelect
           label="Área"
           value={filters.area}
           options={areas}
+          disabled={isAreaLocked}
           onChange={(v) => setFilters({ area: v, seller: 'All' })}
         />
         <FilterSelect
           label="Vendedor"
           value={filters.seller}
           options={sellers}
+          disabled={isSellerLocked}
           onChange={(v) => setFilters({ seller: v })}
         />
         <FilterSelect
           label="Família"
           value={filters.family}
-          options={families.map((f) => ({ id: f, name: f }))}
+          options={ALL_FAMILIES.map((f) => ({ id: f, name: f }))}
           onChange={(v) => setFilters({ family: v })}
         />
       </div>
@@ -112,17 +158,19 @@ function FilterSelect({
   value,
   options,
   onChange,
+  disabled = false,
 }: {
   label: string
   value: string
   options: { id: string; name: string }[]
   onChange: (v: string) => void
+  disabled?: boolean
 }) {
   return (
     <div className="flex flex-col gap-1.5">
       <label className="text-xs font-semibold text-muted-foreground uppercase">{label}</label>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="w-full h-8 text-sm">
+      <Select value={value} onValueChange={onChange} disabled={disabled}>
+        <SelectTrigger className="w-full h-8 text-sm bg-white">
           <SelectValue placeholder="Todos" />
         </SelectTrigger>
         <SelectContent>
