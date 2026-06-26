@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, MapPinned } from 'lucide-react'
+import { Plus, MapPinned, Trash2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -30,7 +30,18 @@ import {
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
+import { useAuth } from '@/hooks/use-auth'
 import { EmptyState } from '@/components/ui/empty-state'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 export default function Areas() {
   const [areas, setAreas] = useState<any[]>([])
@@ -44,7 +55,13 @@ export default function Areas() {
     district_id: '',
     responsible_id: '',
   })
+  const [deleteDialog, setDeleteDialog] = useState(false)
+  const [areaToDelete, setAreaToDelete] = useState<any>(null)
   const { toast } = useToast()
+  const { user } = useAuth()
+  const isAllowedToDelete = ['Administrator', 'National Manager', 'Gerente Nacional'].includes(
+    user?.role || '',
+  )
 
   const loadData = async () => {
     const a = await pb.collection('areas').getFullList({ expand: 'district_id,responsible_id' })
@@ -74,6 +91,31 @@ export default function Areas() {
   useEffect(() => {
     loadData()
   }, [])
+
+  const handleDelete = async () => {
+    if (!areaToDelete) return
+    try {
+      const sellers = await pb
+        .collection('sellers')
+        .getList(1, 1, { filter: `area_id="${areaToDelete.id}"` })
+      if (sellers.items.length > 0) {
+        toast({
+          title: 'Erro ao excluir item',
+          description:
+            'Não é possível excluir este item pois ele possui vínculos ativos (Vendedores).',
+          variant: 'destructive',
+        })
+        setDeleteDialog(false)
+        return
+      }
+      await pb.collection('areas').delete(areaToDelete.id)
+      toast({ title: 'Item excluído com sucesso.' })
+      setDeleteDialog(false)
+      loadData()
+    } catch (e: any) {
+      toast({ title: 'Erro ao excluir item', description: e.message, variant: 'destructive' })
+    }
+  }
 
   const handleSave = async () => {
     try {
@@ -152,10 +194,24 @@ export default function Areas() {
                         {a.is_active ? 'Ativo' : 'Inativo'}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(a)}>
-                        Editar
-                      </Button>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(a)}>
+                          Editar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                          onClick={() => {
+                            setAreaToDelete(a)
+                            setDeleteDialog(true)
+                          }}
+                          disabled={!isAllowedToDelete}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -164,6 +220,21 @@ export default function Areas() {
           </CardContent>
         </Card>
       )}
+
+      <AlertDialog open={deleteDialog} onOpenChange={setDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza que deseja excluir este item?</AlertDialogTitle>
+            <AlertDialogDescription>Essa ação não poderá ser desfeita.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-500 hover:bg-red-600">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>

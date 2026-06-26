@@ -12,8 +12,18 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
-import { UploadCloud, CheckCircle2, ArrowRight, Check, ChevronsUpDown } from 'lucide-react'
+import { UploadCloud, CheckCircle2, ArrowRight, Check, ChevronsUpDown, Trash2 } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
 import {
@@ -55,6 +65,8 @@ export default function GoalEntry() {
   const [targetOuro, setTargetOuro] = useState('')
 
   const [existingGoalId, setExistingGoalId] = useState<string | null>(null)
+
+  const [deleteDialog, setDeleteDialog] = useState(false)
 
   // Import States
   const [importStep, setImportStep] = useState(1)
@@ -140,6 +152,27 @@ export default function GoalEntry() {
 
     loadGoal()
   }, [selectedSellerId, period, metric, sellers])
+
+  const handleDeleteGoal = async () => {
+    if (!existingGoalId) return
+    setIsSubmitting(true)
+    try {
+      await pb.collection('goals').delete(existingGoalId)
+      toast({ title: 'Item excluído com sucesso.' })
+      setDeleteDialog(false)
+      setExistingGoalId(null)
+      setTargetBase('')
+      setTargetBronze('')
+      setTargetPrata('')
+      setTargetOuro('')
+      setFocusFleet('')
+      setFocusCompanies('')
+    } catch (e: any) {
+      toast({ title: 'Erro ao excluir item', description: e.message, variant: 'destructive' })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   const handleManualSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -248,6 +281,8 @@ export default function GoalEntry() {
     user?.role === 'Administrator' ||
     user?.role === 'National Manager' ||
     user?.role === 'Sales Assistant'
+
+  const isAllowedToDelete = isAllowedToEdit
 
   const getRegionalColor = (name: string) => {
     if (!name) return 'bg-muted'
@@ -570,18 +605,44 @@ export default function GoalEntry() {
                     </div>
                   </div>
 
-                  <div className="pt-4 flex justify-end">
+                  <div className="pt-4 flex justify-end gap-2">
+                    {existingGoalId && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                        onClick={() => setDeleteDialog(true)}
+                        disabled={isSubmitting || !isAllowedToDelete}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Excluir Meta
+                      </Button>
+                    )}
                     <Button type="submit" disabled={isSubmitting || !selectedSellerId}>
-                      {existingGoalId
-                        ? isSubmitting
-                          ? 'Salvando...'
-                          : 'Salvar'
-                        : isSubmitting
-                          ? 'Salvando...'
-                          : 'Salvar'}
+                      {isSubmitting ? 'Salvando...' : 'Salvar'}
                     </Button>
                   </div>
                 </form>
+
+                <AlertDialog open={deleteDialog} onOpenChange={setDeleteDialog}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Tem certeza que deseja excluir este item?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Essa ação não poderá ser desfeita.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDeleteGoal}
+                        className="bg-red-500 hover:bg-red-600"
+                      >
+                        Excluir
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </CardContent>
             </Card>
           </TabsContent>

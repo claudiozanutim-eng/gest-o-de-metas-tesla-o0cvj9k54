@@ -33,11 +33,22 @@ import {
   History,
   Download,
   Link as LinkIcon,
+  Trash2,
 } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { Progress } from '@/components/ui/progress'
 import { Label } from '@/components/ui/label'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 const REQ_FIELDS = [
   {
@@ -105,6 +116,9 @@ export default function Importacao() {
   const [mapping, setMapping] = useState<Record<string, string>>({})
   const [errorDetails, setErrorDetails] = useState<any[]>([])
   const [importHistory, setImportHistory] = useState<any[]>([])
+
+  const [deleteDialog, setDeleteDialog] = useState(false)
+  const [historyToDelete, setHistoryToDelete] = useState<any>(null)
 
   const loadHistory = async () => {
     try {
@@ -231,6 +245,18 @@ export default function Importacao() {
     } catch (err) {
       setLoading(false)
       toast({ title: 'Erro de leitura', variant: 'destructive' })
+    }
+  }
+
+  const handleDeleteHistory = async () => {
+    if (!historyToDelete) return
+    try {
+      await pb.collection('import_history').delete(historyToDelete.id)
+      toast({ title: 'Item excluído com sucesso.' })
+      setDeleteDialog(false)
+      loadHistory()
+    } catch (e: any) {
+      toast({ title: 'Erro ao excluir item', description: e.message, variant: 'destructive' })
     }
   }
 
@@ -658,18 +684,33 @@ export default function Importacao() {
                               {h.status}
                             </span>
                           </TableCell>
-                          <TableCell>
-                            {h.file && (
-                              <a
-                                href={`${pb.baseURL}/api/files/import_history/${h.id}/${h.file}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-muted-foreground hover:text-primary transition-colors inline-flex"
-                                title="Baixar arquivo original"
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              {h.file && (
+                                <a
+                                  href={`${pb.baseURL}/api/files/import_history/${h.id}/${h.file}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-muted-foreground hover:text-primary transition-colors inline-flex items-center justify-center p-2"
+                                  title="Baixar arquivo original"
+                                >
+                                  <Download className="h-4 w-4" />
+                                </a>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                                onClick={() => {
+                                  setHistoryToDelete(h)
+                                  setDeleteDialog(true)
+                                }}
+                                title="Excluir histórico"
+                                disabled={h.user_id !== user?.id && user?.role !== 'Administrator'}
                               >
-                                <Download className="h-4 w-4" />
-                              </a>
-                            )}
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -681,6 +722,24 @@ export default function Importacao() {
           </Card>
         </div>
       )}
+
+      <AlertDialog open={deleteDialog} onOpenChange={setDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza que deseja excluir este item?</AlertDialogTitle>
+            <AlertDialogDescription>Essa ação não poderá ser desfeita.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteHistory}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {step === 2 && source === 'excel' && (
         <Card className="animate-fade-in">

@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, UserCog, Search, Users as UsersIcon } from 'lucide-react'
+import { Plus, UserCog, Search, Users as UsersIcon, Trash2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -31,9 +31,20 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { EmptyState } from '@/components/ui/empty-state'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 const roleDisplayMap: Record<string, string> = {
   Administrator: 'Administrador',
@@ -75,6 +86,9 @@ export default function Users() {
     area_id: 'none',
   })
 
+  const [deleteDialog, setDeleteDialog] = useState(false)
+  const [userToDelete, setUserToDelete] = useState<any>(null)
+
   const [filters, setFilters] = useLocalStorage('users-filters', {
     search: '',
     role: 'all',
@@ -83,6 +97,10 @@ export default function Users() {
   const [searchTerm, setSearchTerm] = useState(filters.search)
 
   const { toast } = useToast()
+  const { user } = useAuth()
+  const isAllowedToDelete = ['Administrator', 'National Manager', 'Gerente Nacional'].includes(
+    user?.role || '',
+  )
 
   const loadData = async () => {
     try {
@@ -113,6 +131,43 @@ export default function Users() {
   useRealtime('users', () => {
     loadData()
   })
+
+  const handleDelete = async () => {
+    if (!userToDelete) return
+    try {
+      const sellersCount = await pb
+        .collection('sellers')
+        .getList(1, 1, { filter: `user_id="${userToDelete.id}"` })
+      if (sellersCount.items.length > 0) {
+        toast({
+          title: 'Erro ao excluir item',
+          description:
+            'Não é possível excluir este item pois ele possui vínculos ativos (Vendedor).',
+          variant: 'destructive',
+        })
+        setDeleteDialog(false)
+        return
+      }
+      const areasCount = await pb
+        .collection('areas')
+        .getList(1, 1, { filter: `responsible_id="${userToDelete.id}"` })
+      if (areasCount.items.length > 0) {
+        toast({
+          title: 'Erro ao excluir item',
+          description: 'Não é possível excluir este item pois ele possui vínculos ativos (Área).',
+          variant: 'destructive',
+        })
+        setDeleteDialog(false)
+        return
+      }
+      await pb.collection('users').delete(userToDelete.id)
+      toast({ title: 'Item excluído com sucesso.' })
+      setDeleteDialog(false)
+      loadData()
+    } catch (e: any) {
+      toast({ title: 'Erro ao excluir item', description: e.message, variant: 'destructive' })
+    }
+  }
 
   const handleSave = async () => {
     if (!formData.role) {
@@ -281,9 +336,23 @@ export default function Users() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(u)}>
-                        Editar
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(u)}>
+                          Editar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                          onClick={() => {
+                            setUserToDelete(u)
+                            setDeleteDialog(true)
+                          }}
+                          disabled={!isAllowedToDelete}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -292,6 +361,21 @@ export default function Users() {
           </CardContent>
         </Card>
       )}
+
+      <AlertDialog open={deleteDialog} onOpenChange={setDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza que deseja excluir este item?</AlertDialogTitle>
+            <AlertDialogDescription>Essa ação não poderá ser desfeita.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-500 hover:bg-red-600">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>

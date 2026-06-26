@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Map } from 'lucide-react'
+import { Plus, Map, Trash2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -23,17 +23,59 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
+import { useAuth } from '@/hooks/use-auth'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 export default function Districts() {
   const [districts, setDistricts] = useState<any[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [formData, setFormData] = useState({ id: '', name: '', is_active: true })
+  const [deleteDialog, setDeleteDialog] = useState(false)
+  const [districtToDelete, setDistrictToDelete] = useState<any>(null)
   const { toast } = useToast()
+  const { user } = useAuth()
+  const isAllowedToDelete = ['Administrator', 'National Manager', 'Gerente Nacional'].includes(
+    user?.role || '',
+  )
 
   const loadData = () => pb.collection('districts').getFullList().then(setDistricts)
   useEffect(() => {
     loadData()
   }, [])
+
+  const handleDelete = async () => {
+    if (!districtToDelete) return
+    try {
+      const regionals = await pb
+        .collection('regionals')
+        .getList(1, 1, { filter: `district_id="${districtToDelete.id}"` })
+      if (regionals.items.length > 0) {
+        toast({
+          title: 'Erro ao excluir item',
+          description:
+            'Não é possível excluir este item pois ele possui vínculos ativos (Regionais).',
+          variant: 'destructive',
+        })
+        setDeleteDialog(false)
+        return
+      }
+      await pb.collection('districts').delete(districtToDelete.id)
+      toast({ title: 'Item excluído com sucesso.' })
+      setDeleteDialog(false)
+      loadData()
+    } catch (e: any) {
+      toast({ title: 'Erro ao excluir item', description: e.message, variant: 'destructive' })
+    }
+  }
 
   const handleSave = async () => {
     try {
@@ -86,17 +128,31 @@ export default function Districts() {
                       {d.is_active ? 'Ativo' : 'Inativo'}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setFormData(d)
-                        setIsOpen(true)
-                      }}
-                    >
-                      Editar
-                    </Button>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setFormData(d)
+                          setIsOpen(true)
+                        }}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                        onClick={() => {
+                          setDistrictToDelete(d)
+                          setDeleteDialog(true)
+                        }}
+                        disabled={!isAllowedToDelete}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -104,6 +160,21 @@ export default function Districts() {
           </Table>
         </CardContent>
       </Card>
+      <AlertDialog open={deleteDialog} onOpenChange={setDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza que deseja excluir este item?</AlertDialogTitle>
+            <AlertDialogDescription>Essa ação não poderá ser desfeita.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-500 hover:bg-red-600">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>
           <DialogHeader>

@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Users, Search, Target } from 'lucide-react'
+import { Plus, Users, Search, Target, Trash2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -30,9 +30,20 @@ import {
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
+import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { EmptyState } from '@/components/ui/empty-state'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 export default function Sellers() {
   const [sellers, setSellers] = useState<any[]>([])
@@ -48,10 +59,17 @@ export default function Sellers() {
     user_id: '',
   })
 
+  const [deleteDialog, setDeleteDialog] = useState(false)
+  const [sellerToDelete, setSellerToDelete] = useState<any>(null)
+
   const [filters, setFilters] = useLocalStorage('sellers-filters', { search: '', area: 'all' })
   const [searchTerm, setSearchTerm] = useState(filters.search)
 
   const { toast } = useToast()
+  const { user } = useAuth()
+  const isAllowedToDelete = ['Administrator', 'National Manager', 'Gerente Nacional'].includes(
+    user?.role || '',
+  )
 
   const loadData = async () => {
     setSellers(
@@ -75,6 +93,34 @@ export default function Sellers() {
   useRealtime('sellers', () => {
     loadData()
   })
+
+  const handleDelete = async () => {
+    if (!sellerToDelete) return
+    try {
+      const goals = await pb
+        .collection('goals')
+        .getList(1, 1, { filter: `seller_id="${sellerToDelete.user_id}"` })
+      const perf = await pb
+        .collection('actual_performance')
+        .getList(1, 1, { filter: `seller_id="${sellerToDelete.user_id}"` })
+      if (goals.items.length > 0 || perf.items.length > 0) {
+        toast({
+          title: 'Erro ao excluir item',
+          description:
+            'Não é possível excluir este item pois ele possui vínculos ativos (Metas/Realizado).',
+          variant: 'destructive',
+        })
+        setDeleteDialog(false)
+        return
+      }
+      await pb.collection('sellers').delete(sellerToDelete.id)
+      toast({ title: 'Item excluído com sucesso.' })
+      setDeleteDialog(false)
+      loadData()
+    } catch (e: any) {
+      toast({ title: 'Erro ao excluir item', description: e.message, variant: 'destructive' })
+    }
+  }
 
   const handleSave = async () => {
     try {
@@ -191,9 +237,23 @@ export default function Sellers() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(s)}>
-                        Editar
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(s)}>
+                          Editar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                          onClick={() => {
+                            setSellerToDelete(s)
+                            setDeleteDialog(true)
+                          }}
+                          disabled={!isAllowedToDelete}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -202,6 +262,21 @@ export default function Sellers() {
           </CardContent>
         </Card>
       )}
+
+      <AlertDialog open={deleteDialog} onOpenChange={setDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza que deseja excluir este item?</AlertDialogTitle>
+            <AlertDialogDescription>Essa ação não poderá ser desfeita.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-500 hover:bg-red-600">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>

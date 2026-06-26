@@ -34,6 +34,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
+import { useAuth } from '@/hooks/use-auth'
 import { Info, Plus, Pencil, Trash2 } from 'lucide-react'
 
 export default function Parameters() {
@@ -84,6 +85,15 @@ export default function Parameters() {
   })
   const [deleteDialog, setDeleteDialog] = useState(false)
   const [paramToDelete, setParamToDelete] = useState<any>(null)
+
+  const [deleteTierDialog, setDeleteTierDialog] = useState(false)
+  const [tierToDelete, setTierToDelete] = useState<any>(null)
+
+  const [deleteFamilyDialog, setDeleteFamilyDialog] = useState(false)
+  const [familyToDelete, setFamilyToDelete] = useState<any>(null)
+
+  const { user } = useAuth()
+  const isAllowedToDelete = user?.role === 'Administrator'
 
   const loadData = async () => {
     try {
@@ -233,9 +243,33 @@ export default function Parameters() {
       await pb.collection('system_parameters').delete(paramToDelete.id)
       setDeleteDialog(false)
       loadData()
-      toast({ title: 'Parâmetro excluído com sucesso' })
+      toast({ title: 'Item excluído com sucesso.' })
     } catch (e: any) {
-      toast({ title: 'Erro ao excluir', description: e.message, variant: 'destructive' })
+      toast({ title: 'Erro ao excluir item', description: e.message, variant: 'destructive' })
+    }
+  }
+
+  const handleTierDelete = async () => {
+    if (!tierToDelete) return
+    try {
+      await pb.collection('commission_tiers').delete(tierToDelete.id)
+      setDeleteTierDialog(false)
+      loadData()
+      toast({ title: 'Item excluído com sucesso.' })
+    } catch (e: any) {
+      toast({ title: 'Erro ao excluir item', description: e.message, variant: 'destructive' })
+    }
+  }
+
+  const handleFamilyDelete = async () => {
+    if (!familyToDelete) return
+    try {
+      await pb.collection('product_families').delete(familyToDelete.id)
+      setDeleteFamilyDialog(false)
+      loadData()
+      toast({ title: 'Item excluído com sucesso.' })
+    } catch (e: any) {
+      toast({ title: 'Erro ao excluir item', description: e.message, variant: 'destructive' })
     }
   }
 
@@ -326,16 +360,30 @@ export default function Parameters() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setTierFormData(t)
-                            setTierDialog(true)
-                          }}
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setTierFormData(t)
+                              setTierDialog(true)
+                            }}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                            onClick={() => {
+                              setTierToDelete(t)
+                              setDeleteTierDialog(true)
+                            }}
+                            disabled={!isAllowedToDelete}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -622,23 +670,37 @@ export default function Parameters() {
                       <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
                         {JSON.stringify(f.composition)}
                       </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setFamilyData({
-                              id: f.id,
-                              code: f.code,
-                              name: f.name,
-                              weight: f.weight,
-                              composition: JSON.stringify(f.composition || {}),
-                            })
-                            setFamilyDialog(true)
-                          }}
-                        >
-                          Editar
-                        </Button>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setFamilyData({
+                                id: f.id,
+                                code: f.code,
+                                name: f.name,
+                                weight: f.weight,
+                                composition: JSON.stringify(f.composition || {}),
+                              })
+                              setFamilyDialog(true)
+                            }}
+                          >
+                            Editar
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                            onClick={() => {
+                              setFamilyToDelete(f)
+                              setDeleteFamilyDialog(true)
+                            }}
+                            disabled={!isAllowedToDelete}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -709,6 +771,7 @@ export default function Parameters() {
                               setParamToDelete(p)
                               setDeleteDialog(true)
                             }}
+                            disabled={!isAllowedToDelete}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -914,12 +977,42 @@ export default function Parameters() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Dialog */}
+      {/* Delete Dialogs */}
+      <AlertDialog open={deleteTierDialog} onOpenChange={setDeleteTierDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza que deseja excluir este item?</AlertDialogTitle>
+            <AlertDialogDescription>Essa ação não poderá ser desfeita.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleTierDelete} className="bg-red-500 hover:bg-red-600">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={deleteFamilyDialog} onOpenChange={setDeleteFamilyDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza que deseja excluir este item?</AlertDialogTitle>
+            <AlertDialogDescription>Essa ação não poderá ser desfeita.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleFamilyDelete} className="bg-red-500 hover:bg-red-600">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={deleteDialog} onOpenChange={setDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
-            <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+            <AlertDialogTitle>Tem certeza que deseja excluir este item?</AlertDialogTitle>
+            <AlertDialogDescription>Essa ação não poderá ser desfeita.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
