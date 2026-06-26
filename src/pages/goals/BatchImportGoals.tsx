@@ -159,7 +159,7 @@ export default function BatchImportGoals({ user }: { user: any }) {
       const errs: string[] = []
       const data: any[] = []
       const keys = new Set<string>()
-      const currRegex = /^R\$\s\d{1,3}(\.\d{3})*,\d{2}$/
+      const currRegex = /^R\$\s?\d{1,3}(\.\d{3})*,\d{2}$/
 
       for (let i = 1; i < lines.length; i++) {
         const row = parseCsvLine(lines[i], delimiter)
@@ -276,10 +276,20 @@ export default function BatchImportGoals({ user }: { user: any }) {
           (x: any) => x.name.toLowerCase() === vendedor.toLowerCase(),
         )
 
-        if (!rObj || !dObj || !aObj || !sObj) {
+        if (!sObj)
+          errs.push(`Erro na linha ${i + 1}: Vendedor '${vendedor}' não encontrado no sistema.`)
+        if (!rObj) errs.push(`Erro na linha ${i + 1}: Regional '${reg}' não encontrada no sistema.`)
+        if (!dObj)
+          errs.push(`Erro na linha ${i + 1}: Distrito '${dist}' não encontrado no sistema.`)
+        if (!aObj) errs.push(`Erro na linha ${i + 1}: Área '${area}' não encontrada no sistema.`)
+
+        if (sObj && !sObj.user_id) {
           errs.push(
-            `Erro na linha ${i + 1}: Vendedor, Regional, Distrito ou Área não encontrados no sistema. Verifique a grafia.`,
+            `Erro na linha ${i + 1}: Vendedor '${vendedor}' não possui um usuário associado.`,
           )
+        }
+
+        if (!rObj || !dObj || !aObj || !sObj || !sObj.user_id) {
           continue
         }
 
@@ -288,6 +298,9 @@ export default function BatchImportGoals({ user }: { user: any }) {
           area,
           regional: reg,
           distrito: dist,
+          seller_id: sObj.user_id,
+          regional_id: rObj.id,
+          area_id: aObj.id,
           periodo,
           metricaFat,
           baseFat: nBaseFat,
@@ -318,11 +331,10 @@ export default function BatchImportGoals({ user }: { user: any }) {
     setIsSubmitting(true)
     try {
       const payloadRows = preview.map((p: any) => ({
-        vendedor: p.vendedor,
-        area: p.area,
-        regional: p.regional,
-        distrito: p.distrito,
-        periodo: p.periodo,
+        seller_id: p.seller_id,
+        regional_id: p.regional_id,
+        area_id: p.area_id,
+        period: p.periodo,
         metrica1: p.metricaFat,
         base1: p.baseFat,
         bronze1: p.broFat,
@@ -381,26 +393,40 @@ export default function BatchImportGoals({ user }: { user: any }) {
     <div className="bg-card rounded-xl p-6 shadow-sm border space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <h2 className="text-xl font-semibold">Importar Metas (18 Colunas)</h2>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={downloadExcel} className="gap-2">
-            <Download className="w-4 h-4" /> Baixar em Excel
-          </Button>
-          <Button variant="outline" size="sm" onClick={downloadCsv} className="gap-2">
-            <Download className="w-4 h-4" /> Baixar em CSV
-          </Button>
-          <Button variant="outline" size="sm" onClick={openGoogleSheets} className="gap-2">
-            <ExternalLink className="w-4 h-4" /> Abrir Google Sheets
-          </Button>
-        </div>
       </div>
 
       {step === 1 && (
-        <div className="space-y-4">
-          <Input type="file" accept=".csv" onChange={handleFile} />
-          <p className="text-sm text-muted-foreground mt-4">
-            A planilha deve conter exatas 18 colunas, conforme o template acima. Cada linha gerará
-            automaticamente 2 registros de meta (Faturamento Geral e Família).
-          </p>
+        <div className="space-y-6">
+          <div className="bg-muted/30 p-6 rounded-lg border border-dashed">
+            <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
+              <Download className="w-4 h-4 text-primary" />
+              MODELO PADRÃO DA PLANILHA
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Baixe o modelo de planilha com as 18 colunas exatas. A ordem e o nome das colunas não
+              devem ser alterados. Valores de faturamento exigem formato R$ X.XXX,XX.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={downloadExcel} className="gap-2">
+                <Download className="w-4 h-4" /> Baixar em Excel
+              </Button>
+              <Button variant="outline" size="sm" onClick={downloadCsv} className="gap-2">
+                <Download className="w-4 h-4" /> Baixar em CSV
+              </Button>
+              <Button variant="outline" size="sm" onClick={openGoogleSheets} className="gap-2">
+                <ExternalLink className="w-4 h-4" /> Abrir Google Sheets
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-semibold mb-2">Selecione o arquivo preenchido (.csv)</h3>
+            <Input type="file" accept=".csv" onChange={handleFile} />
+            <p className="text-sm text-muted-foreground mt-2">
+              A planilha deve conter exatas 18 colunas, conforme o template acima. Cada linha gerará
+              automaticamente 2 registros de meta (Faturamento Geral e Família).
+            </p>
+          </div>
         </div>
       )}
 
