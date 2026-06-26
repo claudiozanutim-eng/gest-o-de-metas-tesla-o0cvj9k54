@@ -32,6 +32,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/use-auth-store'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import pb from '@/lib/pocketbase/client'
 
 const mainNavItems = [
   { title: 'Painel', url: '/', icon: LayoutDashboard },
@@ -58,6 +59,10 @@ export function AppSidebar() {
   const location = useLocation()
   const user = useAuthStore((state) => state.user)
   const isAdminOrManager = user?.role !== 'Vendedor'
+
+  const avatarUrl = user?.avatar
+    ? pb.files.getUrl(user, user.avatar, { thumb: '100x100' })
+    : 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1'
 
   const filteredNavItems = mainNavItems.filter((item) => {
     if (user?.role === 'Vendedor') {
@@ -134,15 +139,13 @@ export function AppSidebar() {
         )}
       </SidebarContent>
       <SidebarFooter className="border-t p-4">
-        <div className="flex items-center gap-3">
-          <img
-            src="https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1"
-            alt="User"
-            className="w-8 h-8 rounded-full"
-          />
+        <div className="flex items-center gap-3 overflow-hidden">
+          <img src={avatarUrl} alt="User" className="w-8 h-8 rounded-full object-cover shrink-0" />
           <div className="flex flex-col truncate">
-            <span className="text-sm font-medium">{user?.name}</span>
-            <span className="text-xs text-muted-foreground">{user?.role || 'Usuário'}</span>
+            <span className="text-sm font-medium truncate">{user?.name || 'Usuário'}</span>
+            <span className="text-xs text-muted-foreground truncate">
+              {user?.role || 'Usuário'}
+            </span>
           </div>
         </div>
       </SidebarFooter>

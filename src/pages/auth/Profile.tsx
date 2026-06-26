@@ -92,6 +92,7 @@ export default function Profile() {
 
       const updated = await pb.collection('users').update(user.id, formData)
       setProfileData((prev: any) => ({ ...prev, name: updated.name, avatar: updated.avatar }))
+      pb.authStore.save(pb.authStore.token, updated)
       toast({ title: 'Sucesso', description: 'Perfil atualizado com sucesso.' })
     } catch (error) {
       setFieldErrors(extractFieldErrors(error))
