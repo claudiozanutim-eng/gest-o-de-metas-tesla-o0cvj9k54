@@ -3,6 +3,7 @@ import { Bell, Search, LogOut, User, Moon, Sun } from 'lucide-react'
 import { useTheme } from './theme-provider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,10 +13,23 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useAuthStore } from '@/stores/use-auth-store'
+import { useAuth } from '@/hooks/use-auth'
+import pb from '@/lib/pocketbase/client'
 
 export function AppHeader() {
-  const { user, selectedContext } = useAuthStore()
+  const { selectedContext } = useAuthStore()
   const { theme, setTheme } = useTheme()
+  const { user, signOut } = useAuth()
+  const navigate = useNavigate()
+
+  const handleSignOut = () => {
+    signOut()
+    navigate('/login')
+  }
+
+  const avatarUrl = user?.avatar
+    ? pb.files.getUrl(user, user.avatar, { thumb: '100x100' })
+    : 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1'
 
   return (
     <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-4 border-b bg-background px-4 md:px-6 shadow-sm">
@@ -57,21 +71,19 @@ export function AppHeader() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full">
-                <img
-                  src="https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1"
-                  alt="Avatar"
-                  className="h-8 w-8 rounded-full"
-                />
+                <img src={avatarUrl} alt="Avatar" className="h-8 w-8 rounded-full object-cover" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+              <DropdownMenuLabel>{user?.name || 'Minha Conta'}</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <User className="mr-2 h-4 w-4" />
-                <span>Perfil</span>
+              <DropdownMenuItem asChild>
+                <Link to="/perfil" className="w-full flex items-center cursor-pointer">
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Perfil</span>
+                </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive">
+              <DropdownMenuItem onClick={handleSignOut} className="text-destructive cursor-pointer">
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Sair</span>
               </DropdownMenuItem>

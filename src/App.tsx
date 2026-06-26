@@ -23,6 +23,7 @@ import Parameters from './pages/admin/Parameters'
 import Reports from './pages/reports/Reports'
 import Login from './pages/auth/Login'
 import ForcePasswordChange from './pages/auth/ForcePasswordChange'
+import Profile from './pages/auth/Profile'
 import { AuthProvider, useAuth } from './hooks/use-auth'
 
 const ProtectedRoute = () => {
@@ -83,6 +84,7 @@ const App = () => (
               <Route path="/change-password" element={<ForcePasswordChange />} />
               <Route element={<Layout />}>
                 <Route path="/" element={<Index />} />
+                <Route path="/perfil" element={<Profile />} />
                 <Route path="/metas" element={<GoalEntry />} />
                 <Route path="/simulacao" element={<Simulation />} />
 
