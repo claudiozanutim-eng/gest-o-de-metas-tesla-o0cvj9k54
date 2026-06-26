@@ -12,8 +12,8 @@ import { useAuth } from '@/hooks/use-auth'
 
 export default function Simulation() {
   const { user } = useAuth()
-  const [baseSalary, setBaseSalary] = useState(3000)
-  const [goal, setGoal] = useState(200000)
+  const [baseSalary, setBaseSalary] = useState<number | string>(3000)
+  const [goal, setGoal] = useState<number | string>(200000)
 
   const [achievements, setAchievements] = useState({
     revenue: [100],
@@ -77,11 +77,14 @@ export default function Simulation() {
   const multiplier = matchedTier ? matchedTier.multiplier : 0
 
   // Financial Math
-  const grossRevenue = goal * (achievements.revenue[0] / 100)
+  const numericGoal = Number(goal) || 0
+  const numericBaseSalary = Number(baseSalary) || 0
+
+  const grossRevenue = numericGoal * (achievements.revenue[0] / 100)
   const totalAdjustments = 32 // 32% tax discount
   const liquidRevenue = grossRevenue * (1 - 0.32)
   const commission = liquidRevenue * multiplier
-  const totalEarnings = baseSalary + commission
+  const totalEarnings = numericBaseSalary + commission
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-10">
@@ -110,7 +113,9 @@ export default function Simulation() {
                 <Input
                   type="number"
                   value={baseSalary}
-                  onChange={(e) => setBaseSalary(Number(e.target.value))}
+                  onChange={(e) =>
+                    setBaseSalary(e.target.value === '' ? '' : Number(e.target.value))
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -118,7 +123,7 @@ export default function Simulation() {
                 <Input
                   type="number"
                   value={goal}
-                  onChange={(e) => setGoal(Number(e.target.value))}
+                  onChange={(e) => setGoal(e.target.value === '' ? '' : Number(e.target.value))}
                 />
               </div>
             </CardContent>
@@ -265,7 +270,7 @@ export default function Simulation() {
                 </div>
               </div>
               <p className="text-xs text-center text-muted-foreground">
-                Composição: Fixo ({formatCurrency(baseSalary)}) + Comissão (
+                Composição: Fixo ({formatCurrency(numericBaseSalary)}) + Comissão (
                 {formatCurrency(commission)})
               </p>
             </CardContent>
