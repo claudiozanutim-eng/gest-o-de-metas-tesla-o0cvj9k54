@@ -35,6 +35,7 @@ import {
   CommandList,
 } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import Importacao from '../admin/Importacao'
 
 export default function GoalEntry() {
   const { toast } = useToast()
@@ -684,84 +685,22 @@ export default function GoalEntry() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="lote">
-          <Card>
-            <CardHeader>
-              <CardTitle>Importação via Planilha</CardTitle>
-              <CardDescription>
-                Fluxo de importação para Metas e Realizado (.csv / .xlsx).
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {importStep === 1 && (
-                <div className="relative border-2 border-dashed border-border rounded-lg p-12 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer">
-                  <input
-                    type="file"
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                    accept=".csv,.xlsx"
-                    onChange={handleFileChange}
-                  />
-                  <div className="bg-primary/10 p-4 rounded-full mb-4">
-                    <UploadCloud className="w-8 h-8 text-primary" />
-                  </div>
-                  <h3 className="text-lg font-medium mb-1">Clique ou arraste o arquivo</h3>
-                  <p className="text-sm text-muted-foreground mb-4">(.xlsx, .csv)</p>
-                  <Button variant="outline">Selecionar Arquivo</Button>
-                </div>
-              )}
-
-              {importStep === 2 && (
-                <div className="py-12 flex flex-col items-center justify-center space-y-4">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                  <p>Mapeando colunas e validando formato...</p>
-                </div>
-              )}
-
-              {importStep === 3 && (
-                <div className="space-y-6">
-                  <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium">
-                    <CheckCircle2 className="w-5 h-5" /> Arquivo mapeado com sucesso (
-                    {previewData.length} registros).
-                  </div>
-
-                  <div className="border rounded-md overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                      <thead className="bg-muted">
-                        <tr>
-                          <th className="px-4 py-2 font-medium">Vendedor</th>
-                          <th className="px-4 py-2 font-medium">Período</th>
-                          <th className="px-4 py-2 font-medium">Métrica</th>
-                          <th className="px-4 py-2 font-medium">Base</th>
-                          <th className="px-4 py-2 font-medium">Bronze</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {previewData.map((r, i) => (
-                          <tr key={i} className="border-t">
-                            <td className="px-4 py-2">{r.Vendedor}</td>
-                            <td className="px-4 py-2">{r.Período}</td>
-                            <td className="px-4 py-2">{r.Métrica}</td>
-                            <td className="px-4 py-2">{r.Base}</td>
-                            <td className="px-4 py-2">{r.Bronze}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <Button variant="outline" onClick={() => setImportStep(1)}>
-                      Cancelar
-                    </Button>
-                    <Button onClick={confirmImport} disabled={isSubmitting} className="gap-2">
-                      {isSubmitting ? 'Importando...' : 'Confirmar e Importar'}{' '}
-                      <ArrowRight className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        <TabsContent value="lote" className="mt-6">
+          {user?.role === 'Administrador' ? (
+            <div className="bg-card rounded-xl p-6 shadow-sm border">
+              <Importacao />
+            </div>
+          ) : (
+            <div className="bg-card text-card-foreground border rounded-xl p-12 shadow-sm text-center">
+              <UploadCloud className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">Acesso Restrito</h2>
+              <p className="text-muted-foreground text-sm max-w-md mx-auto">
+                A importação em lote está disponível apenas para Administradores do sistema. Por
+                favor, solicite a um administrador para realizar a importação ou utilize a entrada
+                manual.
+              </p>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

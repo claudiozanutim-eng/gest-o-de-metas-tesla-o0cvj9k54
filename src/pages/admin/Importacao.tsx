@@ -120,6 +120,59 @@ export default function Importacao() {
   const [deleteDialog, setDeleteDialog] = useState(false)
   const [historyToDelete, setHistoryToDelete] = useState<any>(null)
 
+  const getTemplateHeaders = () => [
+    'Vendedor',
+    'Área',
+    'Regional',
+    'Distrito',
+    'Período',
+    'Métrica',
+    'Base',
+    'Bronze',
+    'Prata',
+    'Ouro',
+    'Família',
+    'Frotas',
+    'CNPJs',
+    'Realizado',
+  ]
+
+  const downloadCSV = () => {
+    const headers = getTemplateHeaders().join(',')
+    const blob = new Blob([headers + '\n'], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'modelo_metas.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const downloadExcel = () => {
+    const headers = getTemplateHeaders()
+    const xml = `<?xml version="1.0"?>
+    <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+     xmlns:o="urn:schemas-microsoft-com:office:office"
+     xmlns:x="urn:schemas-microsoft-com:office:excel"
+     xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+     <Worksheet ss:Name="Modelo">
+      <Table>
+       <Row>
+        ${headers.map((h: string) => `<Cell><Data ss:Type="String">${h}</Data></Cell>`).join('')}
+       </Row>
+      </Table>
+     </Worksheet>
+    </Workbook>`
+
+    const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'modelo_metas.xls'
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   const loadHistory = async () => {
     try {
       const hist = await pb
@@ -219,29 +272,56 @@ export default function Importacao() {
     setLoading(true)
 
     try {
-      const reader = new FileReader()
-      reader.onload = async (ev) => {
-        try {
-          const resultStr = ev.target?.result as string | undefined
-          if (!resultStr) throw new Error('Falha ao ler arquivo')
-
-          const { headers: parsedHeaders, data: parsedData } = parseCSV(resultStr)
-
-          setData(parsedData)
-          setHeaders(parsedHeaders)
-          autoMap(parsedHeaders)
-          setStep(3)
-        } catch (err: any) {
-          toast({
-            title: 'Erro ao processar arquivo',
-            description: err.message,
-            variant: 'destructive',
-          })
-        } finally {
-          setLoading(false)
+      if (file.name.endsWith('.xlsx')) {
+        const reader = new FileReader()
+        reader.onload = async (ev) => {
+          try {
+            const resultStr = ev.target?.result as string | undefined
+            if (!resultStr) throw new Error('Falha ao ler arquivo')
+            const base64 = resultStr.split(',')[1] || resultStr
+            const res = await pb.send('/backend/v1/parse-excel', {
+              method: 'POST',
+              body: JSON.stringify({ data: base64 }),
+              headers: { 'Content-Type': 'application/json' },
+            })
+            setData(res.data)
+            setHeaders(res.headers)
+            autoMap(res.headers)
+            setStep(3)
+          } catch (err: any) {
+            toast({
+              title: 'Erro ao processar Excel',
+              description: err.message,
+              variant: 'destructive',
+            })
+          } finally {
+            setLoading(false)
+          }
         }
+        reader.readAsDataURL(file)
+      } else {
+        const reader = new FileReader()
+        reader.onload = async (ev) => {
+          try {
+            const resultStr = ev.target?.result as string | undefined
+            if (!resultStr) throw new Error('Falha ao ler arquivo')
+            const { headers: parsedHeaders, data: parsedData } = parseCSV(resultStr)
+            setData(parsedData)
+            setHeaders(parsedHeaders)
+            autoMap(parsedHeaders)
+            setStep(3)
+          } catch (err: any) {
+            toast({
+              title: 'Erro ao processar arquivo',
+              description: err.message,
+              variant: 'destructive',
+            })
+          } finally {
+            setLoading(false)
+          }
+        }
+        reader.readAsText(file)
       }
-      reader.readAsText(file)
     } catch (err) {
       setLoading(false)
       toast({ title: 'Erro de leitura', variant: 'destructive' })
@@ -302,7 +382,17 @@ export default function Importacao() {
     return false
   }
 
-  const pNum = (v: any) => parseFloat(String(v || '0').replace(',', '.')) || 0
+  const pNum = (v: any) => {
+    if (!v) return 0
+    const str = String(v).trim()
+    if (str.includes('.') && str.includes(',')) {
+      return parseFloat(str.replace(/\./g, '').replace(',', '.')) || 0
+    }
+    if (str.includes(',')) {
+      return parseFloat(str.replace(',', '.')) || 0
+    }
+    return parseFloat(str) || 0
+  }
 
   const validate = () => {
     const v = data.map((r, i) => {
@@ -328,11 +418,11 @@ export default function Importacao() {
       if (!sellerValue) err = 'Vendedor não identificado'
       else if (!r[mapping.period]) err = 'Período não identificado'
       else if (
-        targetBase > targetBronze ||
-        targetBronze > targetPrata ||
-        targetPrata > targetOuro
+        targetBase >= targetBronze ||
+        targetBronze >= targetPrata ||
+        targetPrata >= targetOuro
       ) {
-        err = 'Inconsistência numérica (Base > Bronze > Prata > Ouro)'
+        err = 'Inconsistência numérica (Base < Bronze < Prata < Ouro)'
       } else if (uid && !hasAccess(uid)) {
         err = 'Sem permissão para alterar metas deste vendedor'
       }
@@ -596,6 +686,32 @@ export default function Importacao() {
 
       {step === 1 && (
         <div className="space-y-8 animate-fade-in">
+          <Card className="bg-muted/30 border-dashed">
+            <CardHeader>
+              <CardTitle className="text-lg">Modelos de Importação</CardTitle>
+              <CardDescription>
+                Baixe um modelo padronizado para preencher seus dados antes de importar.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-4">
+              <Button variant="outline" onClick={downloadCSV} className="gap-2">
+                <Download className="w-4 h-4" /> Baixar Modelo CSV
+              </Button>
+              <Button variant="outline" onClick={downloadExcel} className="gap-2">
+                <FileSpreadsheet className="w-4 h-4" /> Baixar Modelo Excel
+              </Button>
+              <Button variant="outline" asChild className="gap-2">
+                <a
+                  href="https://docs.google.com/spreadsheets/d/1X5X9M8b1s7e9E8b1s7e9E8b1s7e9E8b1s7e9E/copy"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <LinkIcon className="w-4 h-4" /> Modelo Google Sheets
+                </a>
+              </Button>
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card
               className="hover:border-primary cursor-pointer transition-colors group"
@@ -744,13 +860,13 @@ export default function Importacao() {
       {step === 2 && source === 'excel' && (
         <Card className="animate-fade-in">
           <CardHeader>
-            <CardTitle>Upload do Arquivo CSV</CardTitle>
-            <CardDescription>Selecione um arquivo .csv</CardDescription>
+            <CardTitle>Upload do Arquivo CSV / Excel</CardTitle>
+            <CardDescription>Selecione um arquivo .csv ou .xlsx</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center justify-center py-10 gap-4">
             <Input
               type="file"
-              accept=".csv"
+              accept=".csv,.xlsx"
               onChange={handleFileUpload}
               className="max-w-sm"
               disabled={loading}
