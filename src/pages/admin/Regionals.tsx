@@ -143,7 +143,7 @@ export default function Regionals() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="pl-6">Nome</TableHead>
+                  <TableHead className="pl-6">Regional</TableHead>
                   <TableHead>Distrito</TableHead>
                   <TableHead>Cor</TableHead>
                   <TableHead>Abrangência</TableHead>
