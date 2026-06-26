@@ -30,6 +30,18 @@ routerAdd(
       return collectionsCache[colName]
     }
 
+    const cleanStr = (val) => {
+      if (val == null) return ''
+      let s = String(val).trim().toLowerCase().replace(/\s+/g, ' ')
+      if (s.match(/^-?[0-9]+\.0$/)) {
+        s = s.substring(0, s.length - 2)
+      }
+      if (s.match(/^[0-9]+$/)) {
+        s = parseInt(s, 10).toString()
+      }
+      return s
+    }
+
     $app.runInTransaction((txApp) => {
       const goalsCol = txApp.findCollectionByNameOrId('goals')
       for (let i = 0; i < rows.length; i++) {
@@ -51,41 +63,42 @@ routerAdd(
           if (!metrica) throw new Error("Coluna 'metrica' é obrigatória")
 
           // Find District
-          const distName = String(distrito).trim().toLowerCase()
+          const distName = cleanStr(distrito)
           const districts = loadCollection(txApp, 'districts')
-          const distritoRec = districts.find(
-            (d) => d.getString('name').trim().toLowerCase() === distName,
-          )
-          if (!distritoRec) throw new Error(`Distrito não encontrado: ${distrito}`)
+          const distritoRec = districts.find((d) => cleanStr(d.getString('name')) === distName)
+          if (!distritoRec) throw new Error(`Distrito "${distrito}" não encontrado no sistema.`)
 
           // Find Regional
-          const regName = String(regional).trim().toLowerCase()
+          const regName = cleanStr(regional)
           const regionals = loadCollection(txApp, 'regionals')
           const regionalRec = regionals.find(
             (rg) =>
-              rg.getString('name').trim().toLowerCase() === regName &&
+              cleanStr(rg.getString('name')) === regName &&
               rg.getString('district_id') === distritoRec.id,
           )
           if (!regionalRec)
-            throw new Error(`Regional não encontrada no distrito '${distrito}': ${regional}`)
+            throw new Error(
+              `Regional "${regional}" não encontrada associada ao distrito "${distrito}".`,
+            )
 
           // Find Area
-          const areaName = String(area).trim().toLowerCase()
+          const areaName = cleanStr(area)
           const areas = loadCollection(txApp, 'areas')
           const areaRec = areas.find(
             (a) =>
-              a.getString('name').trim().toLowerCase() === areaName &&
+              cleanStr(a.getString('name')) === areaName &&
               a.getString('regional_id') === regionalRec.id,
           )
-          if (!areaRec) throw new Error(`Área não encontrada na regional '${regional}': ${area}`)
+          if (!areaRec)
+            throw new Error(`Área "${area}" não encontrada associada à regional "${regional}".`)
 
           // Find Seller and User
-          const sellerNameOrCode = String(vendedor).trim().toLowerCase()
+          const sellerNameOrCode = cleanStr(vendedor)
           const sellers = loadCollection(txApp, 'sellers')
           const sellerRec = sellers.find(
             (s) =>
-              (s.getString('name').trim().toLowerCase() === sellerNameOrCode ||
-                s.getString('code').trim().toLowerCase() === sellerNameOrCode) &&
+              (cleanStr(s.getString('name')) === sellerNameOrCode ||
+                cleanStr(s.getString('code')) === sellerNameOrCode) &&
               s.getString('area_id') === areaRec.id,
           )
 
@@ -101,15 +114,15 @@ routerAdd(
             const users = loadCollection(txApp, 'users')
             userRec = users.find(
               (u) =>
-                (u.getString('name').trim().toLowerCase() === sellerNameOrCode ||
-                  u.getString('email').trim().toLowerCase() === sellerNameOrCode) &&
+                (cleanStr(u.getString('name')) === sellerNameOrCode ||
+                  cleanStr(u.getString('email')) === sellerNameOrCode) &&
                 u.getString('area_id') === areaRec.id,
             )
           }
 
           if (!userRec) {
             throw new Error(
-              `Vendedor não encontrado na hierarquia (Área: ${area}, Regional: ${regional}, Distrito: ${distrito}): ${vendedor}`,
+              `Vendedor "${vendedor}" não encontrado (Verifique a Área: "${area}", Regional: "${regional}", Distrito: "${distrito}").`,
             )
           }
 

@@ -540,8 +540,9 @@ export default function Importacao() {
                 </CardTitle>
                 <CardDescription className="text-red-600/80">
                   As seguintes linhas da planilha não puderam ser importadas devido a
-                  inconsistências:
-                </CardDescription>
+                  inconsistências. Verifique se os dados de hierarquia (Distrito, Regional, Área,
+                  Vendedor) estão corretos:
+                </CardDescription>{' '}
               </CardHeader>
               <CardContent>
                 <div className="max-h-[400px] overflow-y-auto rounded-md border border-red-100 dark:border-red-900 bg-background">
