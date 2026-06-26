@@ -54,7 +54,7 @@ export default function GoalEntry() {
   const [selectedAreaId, setSelectedAreaId] = useState<string>('')
 
   const [period, setPeriod] = useState('2026-06')
-  const [metric, setMetric] = useState('Revenue')
+  const [metric, setMetric] = useState('Faturamento Geral')
 
   const [focusFleet, setFocusFleet] = useState('')
   const [focusCompanies, setFocusCompanies] = useState('')
@@ -105,6 +105,22 @@ export default function GoalEntry() {
     return parseInt(digits, 10) / 100
   }
 
+  const normalizeRegional = (name: string) => {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, ' ')
+      .replace(/^regional\s+/, '')
+  }
+
+  const normalizeArea = (name: string) => {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, ' ')
+      .replace(/^(área|area)\s+/, '')
+  }
+
   const [existingGoalId, setExistingGoalId] = useState<string | null>(null)
 
   const [deleteDialog, setDeleteDialog] = useState(false)
@@ -144,6 +160,9 @@ export default function GoalEntry() {
       }
 
       const seller = sellers.find((s) => s.id === selectedSellerId)
+      const defaultAreaId = seller?.area_id || ''
+      const defaultRegionalId = seller?.expand?.area_id?.regional_id || ''
+
       if (!seller?.user_id) {
         setExistingGoalId(null)
         setTargetBase('')
@@ -153,13 +172,10 @@ export default function GoalEntry() {
         setFocusFleet('')
         setFocusCompanies('')
         setMixFamily('')
-        setSelectedRegionalId('')
-        setSelectedAreaId('')
+        setSelectedRegionalId(defaultRegionalId)
+        setSelectedAreaId(defaultAreaId)
         return
       }
-
-      const defaultAreaId = seller.area_id || ''
-      const defaultRegionalId = seller.expand?.area_id?.regional_id || ''
 
       try {
         const goal = await pb
@@ -233,20 +249,41 @@ export default function GoalEntry() {
     }
 
     const seller = sellers.find((s) => s.id === selectedSellerId)
-    if (!seller?.user_id) {
-      toast({
-        title: 'Atenção',
-        description: 'O vendedor selecionado não possui um usuário associado.',
-        variant: 'destructive',
-      })
-      return
-    }
+    if (!seller) return
 
     setIsSubmitting(true)
 
+    let finalUserId = seller.user_id
+    if (!finalUserId) {
+      try {
+        const email = `${seller.code || seller.id}@tesla.com.br`.toLowerCase().replace(/\s/g, '')
+        const newUser = await pb.collection('users').create({
+          email,
+          password: 'Password123!',
+          passwordConfirm: 'Password123!',
+          name: seller.name,
+          role: 'Vendedor',
+          area_id: seller.area_id || null,
+          is_active: true,
+        })
+        finalUserId = newUser.id
+        await pb.collection('sellers').update(seller.id, { user_id: finalUserId })
+        setSellers(sellers.map((s) => (s.id === seller.id ? { ...s, user_id: finalUserId } : s)))
+      } catch (err: any) {
+        console.error('Failed to create user for seller', err)
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível criar o usuário para este vendedor.',
+          variant: 'destructive',
+        })
+        setIsSubmitting(false)
+        return
+      }
+    }
+
     try {
       const data = {
-        seller_id: seller.user_id,
+        seller_id: finalUserId,
         regional_id: selectedRegionalId || null,
         area_id: selectedAreaId || null,
         period,
@@ -295,7 +332,7 @@ export default function GoalEntry() {
           {
             Vendedor: 'João Silva',
             Período: '2026-06',
-            Métrica: 'Revenue',
+            Métrica: 'Faturamento Geral',
             Base: 100000,
             Bronze: 110000,
             Prata: 120000,
@@ -304,7 +341,7 @@ export default function GoalEntry() {
           {
             Vendedor: 'Maria Santos',
             Período: '2026-06',
-            Métrica: 'Mix_F1',
+            Métrica: 'Faturamento F1',
             Base: 200000,
             Bronze: 220000,
             Prata: 240000,
@@ -420,6 +457,12 @@ export default function GoalEntry() {
                         </Command>
                       </PopoverContent>
                     </Popover>
+                    {selectedSellerId &&
+                      !sellers.find((s) => s.id === selectedSellerId)?.user_id && (
+                        <p className="text-[11px] text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                          Vendedor sem acesso ao sistema. O usuário será criado ao salvar.
+                        </p>
+                      )}
                   </div>
 
                   <div className="space-y-2">
@@ -453,6 +496,7 @@ export default function GoalEntry() {
                                 <CommandItem
                                   key={reg.id}
                                   value={reg.name}
+                                  keywords={[normalizeRegional(reg.name)]}
                                   onSelect={() => {
                                     setSelectedRegionalId(reg.id)
                                     if (selectedAreaId) {
@@ -510,6 +554,7 @@ export default function GoalEntry() {
                                   <CommandItem
                                     key={area.id}
                                     value={area.name}
+                                    keywords={[normalizeArea(area.name)]}
                                     onSelect={() => {
                                       setSelectedAreaId(area.id)
                                       if (!selectedRegionalId && area.regional_id) {
@@ -554,12 +599,12 @@ export default function GoalEntry() {
                         <SelectValue placeholder="Métrica" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Revenue">Faturamento Geral</SelectItem>
-                        <SelectItem value="Mix_F1">Faturamento F1 (Automação)</SelectItem>
-                        <SelectItem value="Mix_F2">Faturamento F2 (Robótica)</SelectItem>
-                        <SelectItem value="Mix_F3">Faturamento F3 (Sensores)</SelectItem>
-                        <SelectItem value="Mix_Outros">Faturamento Outros</SelectItem>
-                        <SelectItem value="Coverage">Cobertura (Empresas)</SelectItem>
+                        <SelectItem value="Faturamento Geral">Faturamento Geral</SelectItem>
+                        <SelectItem value="Faturamento F1">Faturamento F1</SelectItem>
+                        <SelectItem value="Faturamento F2">Faturamento F2</SelectItem>
+                        <SelectItem value="Faturamento F3">Faturamento F3</SelectItem>
+                        <SelectItem value="Faturamento Outros">Faturamento Outros</SelectItem>
+                        <SelectItem value="Cobertura">Cobertura</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
