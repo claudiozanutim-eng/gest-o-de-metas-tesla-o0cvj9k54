@@ -42,6 +42,18 @@ routerAdd(
       return s
     }
 
+    const normalizeHierarchyName = (val, type) => {
+      let s = cleanStr(val)
+      if (type === 'regional') {
+        s = s.replace(/^regional\s+/, '')
+      } else if (type === 'distrito') {
+        s = s.replace(/^distrito\s+/, '')
+      } else if (type === 'area' || type === 'área') {
+        s = s.replace(/^área\s+/, '').replace(/^area\s+/, '')
+      }
+      return s
+    }
+
     $app.runInTransaction((txApp) => {
       const goalsCol = txApp.findCollectionByNameOrId('goals')
       for (let i = 0; i < rows.length; i++) {
@@ -63,32 +75,41 @@ routerAdd(
           if (!metrica) throw new Error("Coluna 'metrica' é obrigatória")
 
           // Find District
-          const distName = cleanStr(distrito)
+          const distNameRaw = cleanStr(distrito)
+          const distNameNorm = normalizeHierarchyName(distrito, 'distrito')
           const districts = loadCollection(txApp, 'districts')
-          const distritoRec = districts.find((d) => cleanStr(d.getString('name')) === distName)
+          const distritoRec = districts.find((d) => {
+            const dbName = cleanStr(d.getString('name'))
+            const dbNorm = normalizeHierarchyName(d.getString('name'), 'distrito')
+            return dbName === distNameRaw || dbNorm === distNameNorm
+          })
           if (!distritoRec) throw new Error(`Distrito "${distrito}" não encontrado no sistema.`)
 
           // Find Regional
-          const regName = cleanStr(regional)
+          const regNameRaw = cleanStr(regional)
+          const regNameNorm = normalizeHierarchyName(regional, 'regional')
           const regionals = loadCollection(txApp, 'regionals')
-          const regionalRec = regionals.find(
-            (rg) =>
-              cleanStr(rg.getString('name')) === regName &&
-              rg.getString('district_id') === distritoRec.id,
-          )
+          const regionalRec = regionals.find((rg) => {
+            const dbName = cleanStr(rg.getString('name'))
+            const dbNorm = normalizeHierarchyName(rg.getString('name'), 'regional')
+            const matchName = dbName === regNameRaw || dbNorm === regNameNorm
+            return matchName && rg.getString('district_id') === distritoRec.id
+          })
           if (!regionalRec)
             throw new Error(
               `Regional "${regional}" não encontrada associada ao distrito "${distrito}".`,
             )
 
           // Find Area
-          const areaName = cleanStr(area)
+          const areaNameRaw = cleanStr(area)
+          const areaNameNorm = normalizeHierarchyName(area, 'area')
           const areas = loadCollection(txApp, 'areas')
-          const areaRec = areas.find(
-            (a) =>
-              cleanStr(a.getString('name')) === areaName &&
-              a.getString('regional_id') === regionalRec.id,
-          )
+          const areaRec = areas.find((a) => {
+            const dbName = cleanStr(a.getString('name'))
+            const dbNorm = normalizeHierarchyName(a.getString('name'), 'area')
+            const matchName = dbName === areaNameRaw || dbNorm === areaNameNorm
+            return matchName && a.getString('regional_id') === regionalRec.id
+          })
           if (!areaRec)
             throw new Error(`Área "${area}" não encontrada associada à regional "${regional}".`)
 
@@ -131,15 +152,18 @@ routerAdd(
           const regional_id = regionalRec.id
 
           const pNum = (v) => {
-            if (!v) return 0
+            if (v === null || v === undefined || v === '') return 0
             const str = String(v).trim()
             if (str.includes('.') && str.includes(',')) {
-              return parseFloat(str.replace(/\./g, '').replace(',', '.')) || 0
+              const parsed = parseFloat(str.replace(/\./g, '').replace(',', '.'))
+              return isNaN(parsed) ? 0 : parsed
             }
             if (str.includes(',')) {
-              return parseFloat(str.replace(',', '.')) || 0
+              const parsed = parseFloat(str.replace(',', '.'))
+              return isNaN(parsed) ? 0 : parsed
             }
-            return parseFloat(str) || 0
+            const parsed = parseFloat(str)
+            return isNaN(parsed) ? 0 : parsed
           }
 
           const target_base = pNum(r.base)
