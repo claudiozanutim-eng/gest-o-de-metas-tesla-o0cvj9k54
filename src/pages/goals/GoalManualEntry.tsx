@@ -93,20 +93,17 @@ export default function GoalManualEntry() {
     }
 
     try {
-      const perfs = await pb
-        .collection('actual_performance')
-        .getFullList({
-          filter: `seller_id="${seller.user_id}" && metric="${metric}"`,
-          sort: '-period',
-          limit: 3,
-        })
-      const goals = await pb
-        .collection('goals')
-        .getFullList({
-          filter: `seller_id="${seller.user_id}" && metric="${metric}"`,
-          sort: '-period',
-          limit: 3,
-        })
+      const perfs = await pb.collection('actual_performance').getFullList({
+        filter: `seller_id="${seller.user_id}" && metric="${metric}"`,
+        sort: '-period',
+        limit: 3,
+        expand: 'seller_id,seller_id.regional_id,seller_id.area_id',
+      })
+      const goals = await pb.collection('goals').getFullList({
+        filter: `seller_id="${seller.user_id}" && metric="${metric}"`,
+        sort: '-period',
+        limit: 3,
+      })
       setHistory(
         perfs.map((p) => ({
           ...p,
@@ -124,10 +121,10 @@ export default function GoalManualEntry() {
 
   const savePerf = async () => {
     const seller = data.sellers.find((s: any) => s.id === sellerId)
-    if (!seller?.user_id || !period || !metric || !atual || !regId || !areaId) {
+    if (!seller?.user_id || !period || !metric || !atual || !regId || !areaId || !cobAtual) {
       return toast({
         title: 'Atenção',
-        description: 'Preencha todos os filtros e o valor atual.',
+        description: 'Preencha todos os seletores obrigatórios, Meta Atual e Cobertura Atual.',
         variant: 'destructive',
       })
     }
@@ -184,6 +181,20 @@ export default function GoalManualEntry() {
         </CardContent>
       </Card>
     )
+  }
+
+  const handleDeletePerf = async (id: string) => {
+    if (!confirm('Deseja realmente excluir este lançamento?')) return
+    setIsSubmitting(true)
+    try {
+      await pb.collection('actual_performance').delete(id)
+      toast({ title: 'Sucesso', description: 'Desempenho excluído!' })
+      loadData()
+    } catch (e) {
+      toast({ title: 'Erro', description: 'Erro ao excluir.', variant: 'destructive' })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const aVal = unmaskMoney(atual)
@@ -328,10 +339,10 @@ export default function GoalManualEntry() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Diária</TableHead>
-                  <TableHead>Semanal</TableHead>
-                  <TableHead>Mensal</TableHead>
-                  <TableHead>Cobertura Atual</TableHead>
+                  <TableHead>Meta Cobertura Diária</TableHead>
+                  <TableHead>Meta Cobertura Semanal</TableHead>
+                  <TableHead>Meta Cobertura Mensal</TableHead>
+                  <TableHead>Cobertura Atual (%)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -360,17 +371,17 @@ export default function GoalManualEntry() {
             </Table>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <MetricCard
-                title="Cobertura Diária"
+                title="Atingimento Cobertura Diária"
                 act={cVal}
                 tgt={loadedGoal.target_daily_coverage || 0}
               />
               <MetricCard
-                title="Cobertura Semanal"
+                title="Atingimento Cobertura Semanal"
                 act={cVal}
                 tgt={loadedGoal.target_weekly_coverage || 0}
               />
               <MetricCard
-                title="Cobertura Mensal"
+                title="Atingimento Cobertura Mensal"
                 act={cVal}
                 tgt={loadedGoal.target_monthly_coverage || 0}
               />
@@ -386,31 +397,49 @@ export default function GoalManualEntry() {
 
       {history.length > 0 && (
         <div className="space-y-4 pt-6 border-t">
-          <h3 className="text-lg font-semibold">Histórico Recente</h3>
+          <h3 className="text-lg font-semibold">Histórico Recente (Últimos 3 Meses)</h3>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Período</TableHead>
-                <TableHead>Realizado</TableHead>
-                <TableHead>Atingimento (Base)</TableHead>
-                <TableHead>Ação</TableHead>
+                <TableHead>Data</TableHead>
+                <TableHead>Vendedor</TableHead>
+                <TableHead>Regional</TableHead>
+                <TableHead>Área</TableHead>
+                <TableHead>Meta Atual</TableHead>
+                <TableHead>% Atingimento (Base)</TableHead>
+                <TableHead className="text-right">Ação</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {history.map((h: any) => (
-                <TableRow key={h.id}>
-                  <TableCell>{h.period}</TableCell>
-                  <TableCell>{maskMoney(h.actual_value * 100)}</TableCell>
-                  <TableCell>
-                    {h.target > 0 ? ((h.actual_value / h.target) * 100).toFixed(1) : 0}%
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="sm" onClick={() => setPeriod(h.period)}>
-                      Editar
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {history.map((h: any) => {
+                const sellerName = h.expand?.seller_id?.name || '-'
+                const regionalName = h.expand?.seller_id?.expand?.regional_id?.name || '-'
+                const areaName = h.expand?.seller_id?.expand?.area_id?.name || '-'
+                const pct = h.target > 0 ? ((h.actual_value / h.target) * 100).toFixed(1) : 0
+                return (
+                  <TableRow key={h.id}>
+                    <TableCell>{h.period}</TableCell>
+                    <TableCell>{sellerName}</TableCell>
+                    <TableCell>{regionalName}</TableCell>
+                    <TableCell>{areaName}</TableCell>
+                    <TableCell>{maskMoney(h.actual_value * 100)}</TableCell>
+                    <TableCell>{pct}%</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" onClick={() => setPeriod(h.period)}>
+                        Editar
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleDeletePerf(h.id)}
+                      >
+                        Excluir
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>

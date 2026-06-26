@@ -51,12 +51,9 @@ export default function BatchImportGoals({ user }: { user: any }) {
         'Observações',
       ]
       const headers = lines[0].split(/[;,]/).map((h) => h.trim().replace(/^"|"$/g, ''))
-      if (
-        headers.length !== 14 ||
-        !expected.every((h, i) => headers[i].toLowerCase() === h.toLowerCase())
-      ) {
+      if (headers.length !== 14 || !expected.every((h, i) => headers[i] === h)) {
         throw new Error(
-          'Erro: Planilha inválida. Esperado 14 colunas com nomes: Regional, Distrito, Área, Família, Frota, Empresa, Meta Base, Meta Bronze, Meta Prata, Meta Ouro, Meta Cobertura Diária, Meta Cobertura Semanal, Meta Cobertura Mensal, Observações. Verifique o arquivo e tente novamente.',
+          'Erro: Planilha inválida. Esperado 14 colunas com nomes EXATOS: Regional, Distrito, Área, Família, Frota, Empresa, Meta Base, Meta Bronze, Meta Prata, Meta Ouro, Meta Cobertura Diária, Meta Cobertura Semanal, Meta Cobertura Mensal, Observações.',
         )
       }
 
@@ -64,33 +61,63 @@ export default function BatchImportGoals({ user }: { user: any }) {
       const data: any[] = []
       const unique = new Set()
       for (let i = 1; i < lines.length; i++) {
-        const row = lines[i].split(/[;,]/).map((c) => c.trim().replace(/^"|"$/g, ''))
+        const rawRow = lines[i].split(/[;,]/).map((c) => c.trim().replace(/^"|"$/g, ''))
+        // Fill missing cols with empty string if row is short
+        const row = Array.from({ length: 14 }, (_, idx) => rawRow[idx] || '')
         const [reg, dist, area, fam, frota, emp, base, bronze, prata, ouro, cDia, cSem, cMen, obs] =
           row
-        if (row.slice(0, 13).some((v) => !v)) {
-          errs.push(`Erro na linha ${i + 1}: Campo vazio encontrado. Preencha e tente novamente.`)
-          continue
+
+        let hasEmpty = false
+        for (let col = 0; col < 13; col++) {
+          if (!row[col]) {
+            errs.push(`Erro na linha ${i + 1}: Campo '${expected[col]}' está vazio.`)
+            hasEmpty = true
+          }
         }
-        if (!/^F([1-9]|10)$/i.test(fam)) {
-          errs.push(`Erro na linha ${i + 1}: Família '${fam}' é inválida. Use apenas: F1 a F10.`)
+        if (hasEmpty) continue
+
+        const famRegex = /^F([1-9]|10)$/i
+        if (!famRegex.test(fam)) {
+          errs.push(
+            `Erro na linha ${i + 1}: Família '${fam}' é inválida. Use apenas: F1, F2, F3, F4, F5, F6, F7, F8, F9, F10.`,
+          )
           continue
         }
 
-        const [nBase, nBro, nPra, nOuro, nCDia, nCSem, nCMen] = [
-          base,
-          bronze,
-          prata,
-          ouro,
-          cDia,
-          cSem,
-          cMen,
-        ].map(Number)
+        const nBase = Number(base),
+          nBro = Number(bronze),
+          nPra = Number(prata),
+          nOuro = Number(ouro)
+        const isInt = (n: number) => Number.isInteger(n)
+
         if (
-          [nBase, nBro, nPra, nOuro, nCDia, nCSem, nCMen].some(isNaN) ||
+          !isInt(nBase) ||
+          !isInt(nBro) ||
+          !isInt(nPra) ||
+          !isInt(nOuro) ||
           nBase <= 0 ||
-          nBro >= nPra ||
-          nPra >= nOuro ||
-          nBro < 0 ||
+          nBro <= 0 ||
+          nPra <= 0 ||
+          nOuro <= 0
+        ) {
+          errs.push(
+            `Erro na linha ${i + 1}: Valores de meta (Base, Bronze, Prata, Ouro) devem ser números inteiros positivos.`,
+          )
+          continue
+        } else if (!(nBro < nPra && nPra < nOuro && nBase < nOuro)) {
+          errs.push(
+            `Erro na linha ${i + 1}: Lógica de metas inválida. Regras: Bronze < Prata < Ouro e Base < Ouro.`,
+          )
+          continue
+        }
+
+        const nCDia = Number(cDia),
+          nCSem = Number(cSem),
+          nCMen = Number(cMen)
+        if (
+          !isInt(nCDia) ||
+          !isInt(nCSem) ||
+          !isInt(nCMen) ||
           nCDia < 0 ||
           nCDia > 100 ||
           nCSem < 0 ||
@@ -99,11 +126,10 @@ export default function BatchImportGoals({ user }: { user: any }) {
           nCMen > 100
         ) {
           errs.push(
-            `Erro na linha ${i + 1}: Valores de meta inválidos. Verifique: Meta Base > 0, Bronze < Prata < Ouro, Cobertura entre 0-100%.`,
+            `Erro na linha ${i + 1}: Valores de cobertura devem ser inteiros entre 0 e 100.`,
           )
           continue
         }
-
         const rObj = lookups.regionals.find((x: any) => x.name.toLowerCase() === reg.toLowerCase())
         const dObj = lookups.districts.find((x: any) => x.name.toLowerCase() === dist.toLowerCase())
         const aObj = lookups.areas.find((x: any) => x.name.toLowerCase() === area.toLowerCase())
@@ -152,7 +178,8 @@ export default function BatchImportGoals({ user }: { user: any }) {
     setIsSubmitting(true)
     try {
       const currentMonth = new Date().toISOString().slice(0, 7)
-      let chunk: any[] = []
+      // First, gather all operations without executing them
+      const operations = []
       for (const row of preview) {
         const seller = lookups.sellers.find((s: any) => s.area_id === row.area)
         if (!seller?.user_id)
@@ -174,26 +201,25 @@ export default function BatchImportGoals({ user }: { user: any }) {
           focus_fleet: Number(row.frota),
           focus_companies: Number(row.emp),
         }
-        chunk.push(
-          (async () => {
-            try {
-              const ex = await pb
-                .collection('goals')
-                .getFirstListItem(
-                  `seller_id="${seller.user_id}" && period="${currentMonth}" && metric="${metric}"`,
-                )
-              return pb.collection('goals').update(ex.id, goalData)
-            } catch {
-              return pb.collection('goals').create(goalData)
-            }
-          })(),
-        )
-        if (chunk.length >= 10) {
-          await Promise.all(chunk)
-          chunk = []
+
+        try {
+          const ex = await pb
+            .collection('goals')
+            .getFirstListItem(
+              `seller_id="${seller.user_id}" && period="${currentMonth}" && metric="${metric}"`,
+            )
+          operations.push(() => pb.collection('goals').update(ex.id, goalData))
+        } catch {
+          operations.push(() => pb.collection('goals').create(goalData))
         }
       }
-      if (chunk.length > 0) await Promise.all(chunk)
+
+      // Execute sequentially to avoid overwhelming the server,
+      // although true rollback would require a backend hook.
+      // The upfront validation minimizes DB-level failures.
+      for (const op of operations) {
+        await op()
+      }
       toast({
         title: 'Sucesso',
         description: `${preview.length} metas importadas com sucesso para o período de ${currentMonth}.`,
