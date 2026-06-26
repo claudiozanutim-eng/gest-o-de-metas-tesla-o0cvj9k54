@@ -15,43 +15,19 @@ routerAdd(
     let errorsCount = 0
     let errorDetails = []
 
-    const cache = { users: {}, areas: {}, regionals: {}, districts: {} }
+    const collectionsCache = {
+      users: null,
+      areas: null,
+      regionals: null,
+      districts: null,
+      sellers: null,
+    }
 
-    const findRecord = (txApp, collection, name) => {
-      if (!name) return null
-      const key = String(name).toLowerCase().trim()
-      if (cache[collection][key] !== undefined) return cache[collection][key]
-
-      try {
-        let record
-        if (collection === 'users') {
-          try {
-            record = txApp.findFirstRecordByFilter(
-              collection,
-              'name = {:name} || email = {:name}',
-              { name: key },
-            )
-          } catch (_) {
-            const seller = txApp.findFirstRecordByFilter(
-              'sellers',
-              'name = {:name} || code = {:name}',
-              { name: key },
-            )
-            if (seller.get('user_id')) {
-              record = txApp.findRecordById('users', seller.get('user_id'))
-            } else {
-              throw new Error('User not found')
-            }
-          }
-        } else {
-          record = txApp.findFirstRecordByFilter(collection, 'name = {:name}', { name: key })
-        }
-        cache[collection][key] = record
-        return record
-      } catch (_) {
-        cache[collection][key] = null
-        return null
+    const loadCollection = (txApp, colName) => {
+      if (!collectionsCache[colName]) {
+        collectionsCache[colName] = txApp.findRecordsByFilter(colName, '1=1', '', 10000, 0)
       }
+      return collectionsCache[colName]
     }
 
     $app.runInTransaction((txApp) => {
@@ -74,19 +50,70 @@ routerAdd(
           if (!periodo) throw new Error("Coluna 'periodo' é obrigatória")
           if (!metrica) throw new Error("Coluna 'metrica' é obrigatória")
 
-          const user = findRecord(txApp, 'users', vendedor)
-          if (!user) throw new Error(`Vendedor não encontrado no sistema: ${vendedor}`)
-
-          const areaRec = findRecord(txApp, 'areas', area)
-          if (!areaRec) throw new Error(`Área não encontrada: ${area}`)
-
-          const regionalRec = findRecord(txApp, 'regionals', regional)
-          if (!regionalRec) throw new Error(`Regional não encontrada: ${regional}`)
-
-          const distritoRec = findRecord(txApp, 'districts', distrito)
+          // Find District
+          const distName = String(distrito).trim().toLowerCase()
+          const districts = loadCollection(txApp, 'districts')
+          const distritoRec = districts.find(
+            (d) => d.getString('name').trim().toLowerCase() === distName,
+          )
           if (!distritoRec) throw new Error(`Distrito não encontrado: ${distrito}`)
 
-          const seller_id = user.id
+          // Find Regional
+          const regName = String(regional).trim().toLowerCase()
+          const regionals = loadCollection(txApp, 'regionals')
+          const regionalRec = regionals.find(
+            (rg) =>
+              rg.getString('name').trim().toLowerCase() === regName &&
+              rg.getString('district_id') === distritoRec.id,
+          )
+          if (!regionalRec)
+            throw new Error(`Regional não encontrada no distrito '${distrito}': ${regional}`)
+
+          // Find Area
+          const areaName = String(area).trim().toLowerCase()
+          const areas = loadCollection(txApp, 'areas')
+          const areaRec = areas.find(
+            (a) =>
+              a.getString('name').trim().toLowerCase() === areaName &&
+              a.getString('regional_id') === regionalRec.id,
+          )
+          if (!areaRec) throw new Error(`Área não encontrada na regional '${regional}': ${area}`)
+
+          // Find Seller and User
+          const sellerNameOrCode = String(vendedor).trim().toLowerCase()
+          const sellers = loadCollection(txApp, 'sellers')
+          const sellerRec = sellers.find(
+            (s) =>
+              (s.getString('name').trim().toLowerCase() === sellerNameOrCode ||
+                s.getString('code').trim().toLowerCase() === sellerNameOrCode) &&
+              s.getString('area_id') === areaRec.id,
+          )
+
+          let userRec = null
+          if (sellerRec && sellerRec.getString('user_id')) {
+            try {
+              userRec = txApp.findRecordById('users', sellerRec.getString('user_id'))
+            } catch (_) {}
+          }
+
+          if (!userRec) {
+            // Search in users directly as fallback
+            const users = loadCollection(txApp, 'users')
+            userRec = users.find(
+              (u) =>
+                (u.getString('name').trim().toLowerCase() === sellerNameOrCode ||
+                  u.getString('email').trim().toLowerCase() === sellerNameOrCode) &&
+                u.getString('area_id') === areaRec.id,
+            )
+          }
+
+          if (!userRec) {
+            throw new Error(
+              `Vendedor não encontrado na hierarquia (Área: ${area}, Regional: ${regional}, Distrito: ${distrito}): ${vendedor}`,
+            )
+          }
+
+          const seller_id = userRec.id
           const area_id = areaRec.id
           const regional_id = regionalRec.id
 
