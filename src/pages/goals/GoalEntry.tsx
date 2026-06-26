@@ -207,7 +207,7 @@ export default function GoalEntry() {
     setIsSubmitting(true)
     try {
       await pb.collection('goals').delete(existingGoalId)
-      toast({ title: 'Item excluído com sucesso.' })
+      toast({ title: 'Meta excluída com sucesso.' })
       setDeleteDialog(false)
       setExistingGoalId(null)
       setTargetBase('')
@@ -216,8 +216,9 @@ export default function GoalEntry() {
       setTargetOuro('')
       setFocusFleet('')
       setFocusCompanies('')
+      setMixFamily('')
     } catch (e: any) {
-      toast({ title: 'Erro ao excluir item', description: e.message, variant: 'destructive' })
+      toast({ title: 'Erro ao excluir meta', description: e.message, variant: 'destructive' })
     } finally {
       setIsSubmitting(false)
     }
@@ -329,9 +330,9 @@ export default function GoalEntry() {
   const isAllowedToEdit = true
 
   const isAllowedToDelete =
-    user?.role === 'Administrator' ||
-    user?.role === 'National Manager' ||
-    user?.role === 'Sales Assistant'
+    user?.role === 'Administrador' ||
+    user?.role === 'Gestor da Empresa' ||
+    user?.role === 'Gerente Nacional de Vendas'
 
   const getRegionalColor = (name: string) => {
     if (!name) return 'bg-muted'
@@ -665,7 +666,7 @@ export default function GoalEntry() {
               <AlertDialog open={deleteDialog} onOpenChange={setDeleteDialog}>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Tem certeza que deseja excluir este item?</AlertDialogTitle>
+                    <AlertDialogTitle>Tem certeza que deseja excluir esta meta?</AlertDialogTitle>
                     <AlertDialogDescription>
                       Essa ação não poderá ser desfeita.
                     </AlertDialogDescription>
@@ -676,7 +677,7 @@ export default function GoalEntry() {
                       onClick={handleDeleteGoal}
                       className="bg-red-500 hover:bg-red-600"
                     >
-                      Excluir
+                      Confirmar Exclusão
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
