@@ -21,6 +21,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { Checkbox } from '@/components/ui/checkbox'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
@@ -37,6 +39,8 @@ import {
 
 export default function Districts() {
   const [districts, setDistricts] = useState<any[]>([])
+  const [regionals, setRegionals] = useState<any[]>([])
+  const [selectedRegionals, setSelectedRegionals] = useState<string[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [formData, setFormData] = useState({ id: '', name: '', is_active: true })
   const [deleteDialog, setDeleteDialog] = useState(false)
@@ -47,10 +51,22 @@ export default function Districts() {
     user?.role || '',
   )
 
-  const loadData = () => pb.collection('districts').getFullList().then(setDistricts)
+  const loadData = async () => {
+    const dists = await pb.collection('districts').getFullList()
+    setDistricts(dists)
+    const regs = await pb.collection('regionals').getFullList()
+    setRegionals(regs)
+  }
+
   useEffect(() => {
     loadData()
   }, [])
+
+  const openEdit = (d: any) => {
+    setFormData({ id: d.id, name: d.name, is_active: d.is_active })
+    setSelectedRegionals(regionals.filter((r) => r.district_id === d.id).map((r) => r.id))
+    setIsOpen(true)
+  }
 
   const handleDelete = async () => {
     if (!districtToDelete) return
@@ -79,11 +95,27 @@ export default function Districts() {
 
   const handleSave = async () => {
     try {
-      if (formData.id) {
-        await pb.collection('districts').update(formData.id, formData)
+      let districtId = formData.id
+      if (districtId) {
+        await pb.collection('districts').update(districtId, formData)
       } else {
-        await pb.collection('districts').create(formData)
+        const created = await pb.collection('districts').create(formData)
+        districtId = created.id
       }
+
+      const currentlyAssociated = regionals
+        .filter((r) => r.district_id === districtId)
+        .map((r) => r.id)
+      const toAdd = selectedRegionals.filter((id) => !currentlyAssociated.includes(id))
+      const toRemove = currentlyAssociated.filter((id) => !selectedRegionals.includes(id))
+
+      for (const rId of toAdd) {
+        await pb.collection('regionals').update(rId, { district_id: districtId })
+      }
+      for (const rId of toRemove) {
+        await pb.collection('regionals').update(rId, { district_id: '' })
+      }
+
       toast({ title: 'Salvo com sucesso' })
       setIsOpen(false)
       loadData()
@@ -97,12 +129,13 @@ export default function Districts() {
       <div className="flex justify-between items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Map className="w-8 h-8" /> Distritos
+            <Map className="w-8 h-8" /> Gestão de Distritos
           </h1>
         </div>
         <Button
           onClick={() => {
             setFormData({ id: '', name: '', is_active: true })
+            setSelectedRegionals([])
             setIsOpen(true)
           }}
         >
@@ -115,47 +148,57 @@ export default function Districts() {
             <TableHeader>
               <TableRow>
                 <TableHead className="pl-6">Nome</TableHead>
+                <TableHead>Regionais Associadas</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {districts.map((d) => (
-                <TableRow key={d.id}>
-                  <TableCell className="pl-6">{d.name}</TableCell>
-                  <TableCell>
-                    <Badge variant={d.is_active ? 'default' : 'secondary'}>
-                      {d.is_active ? 'Ativo' : 'Inativo'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setFormData(d)
-                          setIsOpen(true)
-                        }}
-                      >
-                        Editar
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                        onClick={() => {
-                          setDistrictToDelete(d)
-                          setDeleteDialog(true)
-                        }}
-                        disabled={!isAllowedToDelete}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {districts.map((d) => {
+                const districtRegionals = regionals.filter((r) => r.district_id === d.id)
+                return (
+                  <TableRow key={d.id}>
+                    <TableCell className="pl-6 font-medium">{d.name}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {districtRegionals.length > 0 ? (
+                          districtRegionals.map((r) => (
+                            <Badge key={r.id} variant="outline" className="bg-muted/50 font-normal">
+                              {r.name}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-muted-foreground text-sm">-</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={d.is_active ? 'default' : 'secondary'}>
+                        {d.is_active ? 'Ativo' : 'Inativo'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(d)}>
+                          Editar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                          onClick={() => {
+                            setDistrictToDelete(d)
+                            setDeleteDialog(true)
+                          }}
+                          disabled={!isAllowedToDelete}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </CardContent>
@@ -187,6 +230,36 @@ export default function Districts() {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
+            </div>
+            <div className="grid gap-2">
+              <Label>Regionais</Label>
+              <ScrollArea className="h-[200px] border rounded-md p-4 bg-muted/20">
+                <div className="flex flex-col gap-3">
+                  {regionals.map((r) => (
+                    <div key={r.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`reg-${r.id}`}
+                        checked={selectedRegionals.includes(r.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) setSelectedRegionals([...selectedRegionals, r.id])
+                          else setSelectedRegionals(selectedRegionals.filter((id) => id !== r.id))
+                        }}
+                      />
+                      <Label
+                        htmlFor={`reg-${r.id}`}
+                        className="font-normal cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        {r.name}
+                      </Label>
+                    </div>
+                  ))}
+                  {regionals.length === 0 && (
+                    <div className="text-sm text-muted-foreground">
+                      Nenhuma regional encontrada.
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
             </div>
             <div className="flex items-center gap-2">
               <Switch

@@ -45,7 +45,7 @@ const mainNavItems = [
 
 const adminItems = [
   { title: 'Usuários', url: '/admin/usuarios', icon: UserCog },
-  { title: 'Distritos', url: '/admin/distritos', icon: Map },
+  { title: 'Gestão de Distritos', url: '/admin/distritos', icon: Map },
   { title: 'Regionais', url: '/admin/regionais', icon: MapPin },
   { title: 'Áreas', url: '/admin/areas', icon: MapPinned },
   { title: 'Vendedores', url: '/admin/vendedores', icon: Users },
