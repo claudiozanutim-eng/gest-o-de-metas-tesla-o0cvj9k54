@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -10,8 +11,40 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { FileDown, FileText } from 'lucide-react'
+import pb from '@/lib/pocketbase/client'
+import { useToast } from '@/hooks/use-toast'
+
+interface Regional {
+  id: string
+  name: string
+}
 
 export default function Reports() {
+  const [regionals, setRegionals] = useState<Regional[]>([])
+  const [selectedScope, setSelectedScope] = useState('all')
+  const { toast } = useToast()
+
+  useEffect(() => {
+    async function fetchRegionals() {
+      try {
+        const records = await pb.collection('regionals').getFullList({
+          filter: 'is_active = true',
+          sort: 'name',
+        })
+        setRegionals(records.map((r) => ({ id: r.id, name: r.name })))
+      } catch (error) {
+        console.error('Failed to fetch regionals:', error)
+        toast({
+          title: 'Erro ao carregar',
+          description: 'Não foi possível carregar a lista de regionais.',
+          variant: 'destructive',
+        })
+      }
+    }
+
+    fetchRegionals()
+  }, [toast])
+
   return (
     <div className="space-y-6">
       <div>
@@ -58,14 +91,17 @@ export default function Reports() {
 
             <div className="space-y-2">
               <Label>Nível Hierárquico</Label>
-              <Select defaultValue="all">
+              <Select value={selectedScope} onValueChange={setSelectedScope}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o escopo" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Visão Nacional (Todos)</SelectItem>
-                  <SelectItem value="d1">Somente Regional Sul</SelectItem>
-                  <SelectItem value="r1">Somente Regional Paraná</SelectItem>
+                  {regionals.map((regional) => (
+                    <SelectItem key={regional.id} value={regional.id}>
+                      {regional.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
