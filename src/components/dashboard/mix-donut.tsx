@@ -10,10 +10,19 @@ export function MixDonutChart() {
 
   const data = useMemo(() => {
     const fams = new Map<string, number>()
+
+    const nameMap: Record<string, string> = {
+      F1: 'Fase 1',
+      F2: 'Fase 2',
+      F3: 'Fase 3',
+      Outros: 'Fase 4',
+    }
+
     filteredActuals.forEach((a) => {
       if (['Faturamento', 'Revenue'].includes(a.metric)) {
         const f = a.mix_family || 'Outros'
-        fams.set(f, (fams.get(f) || 0) + (a.actual_value || 0))
+        const fName = nameMap[f] || f
+        fams.set(fName, (fams.get(fName) || 0) + (a.actual_value || 0))
       }
     })
     return Array.from(fams.entries())

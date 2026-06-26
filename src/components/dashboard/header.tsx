@@ -30,7 +30,12 @@ const ALL_PERIODS = [
   { id: 'Q3', name: '3º Trimestre' },
   { id: 'Q4', name: '4º Trimestre' },
 ]
-const ALL_FAMILIES = ['F1', 'F2', 'F3', 'Outros']
+const ALL_FAMILIES = [
+  { id: 'F1', name: 'Fase 1' },
+  { id: 'F2', name: 'Fase 2' },
+  { id: 'F3', name: 'Fase 3' },
+  { id: 'Outros', name: 'Fase 4' },
+]
 
 export function DashboardHeader() {
   const { user } = useAuth()
@@ -143,9 +148,9 @@ export function DashboardHeader() {
           onChange={(v) => setFilters({ seller: v })}
         />
         <FilterSelect
-          label="Família"
+          label="Mix/Fase"
           value={filters.family}
-          options={ALL_FAMILIES.map((f) => ({ id: f, name: f }))}
+          options={ALL_FAMILIES}
           onChange={(v) => setFilters({ family: v })}
         />
       </div>
