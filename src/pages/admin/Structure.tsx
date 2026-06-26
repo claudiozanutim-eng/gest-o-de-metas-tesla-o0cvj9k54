@@ -9,6 +9,23 @@ import {
 } from '@/components/ui/accordion'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import pb from '@/lib/pocketbase/client'
 
 import { useToast } from '@/hooks/use-toast'
@@ -20,6 +37,10 @@ export default function Structure() {
   const [areas, setAreas] = useState<any[]>([])
   const [vendedores, setVendedores] = useState<any[]>([])
   const [loadingStruct, setLoadingStruct] = useState(false)
+  const [isAddAreaOpen, setIsAddAreaOpen] = useState(false)
+  const [newAreaName, setNewAreaName] = useState('')
+  const [newAreaRegionalId, setNewAreaRegionalId] = useState('')
+  const [creatingArea, setCreatingArea] = useState(false)
   const { toast } = useToast()
 
   const loadData = () => {
@@ -58,6 +79,39 @@ export default function Structure() {
     }
   }
 
+  const handleAddArea = async () => {
+    if (!newAreaName.trim() || !newAreaRegionalId) {
+      toast({
+        title: 'Atenção',
+        description: 'Preencha o nome e selecione a regional.',
+        variant: 'destructive',
+      })
+      return
+    }
+    setCreatingArea(true)
+    try {
+      const regional = regionais.find((r) => r.id === newAreaRegionalId)
+      if (!regional) throw new Error('Regional não encontrada')
+
+      await pb.collection('areas').create({
+        name: newAreaName.trim(),
+        regional_id: newAreaRegionalId,
+        district_id: regional.district_id,
+        is_active: true,
+      })
+
+      toast({ title: 'Sucesso', description: 'Área criada com sucesso.' })
+      setIsAddAreaOpen(false)
+      setNewAreaName('')
+      setNewAreaRegionalId('')
+      loadData()
+    } catch (e: any) {
+      toast({ title: 'Erro ao criar área', description: e.message, variant: 'destructive' })
+    } finally {
+      setCreatingArea(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -70,7 +124,51 @@ export default function Structure() {
             {loadingStruct && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Carregar Estrutura Comercial Padrão
           </Button>
-          <Button variant="outline">Adicionar Nível</Button>
+          <Dialog open={isAddAreaOpen} onOpenChange={setIsAddAreaOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">Adicionar Nível</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Adicionar Nova Área</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="area-name">Nome da Área</Label>
+                  <Input
+                    id="area-name"
+                    placeholder="Ex: Área Norte 1"
+                    value={newAreaName}
+                    onChange={(e) => setNewAreaName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="regional-select">Regional Pai</Label>
+                  <Select value={newAreaRegionalId} onValueChange={setNewAreaRegionalId}>
+                    <SelectTrigger id="regional-select">
+                      <SelectValue placeholder="Selecione uma regional" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {regionais.map((r) => (
+                        <SelectItem key={r.id} value={r.id}>
+                          {r.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsAddAreaOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleAddArea} disabled={creatingArea}>
+                  {creatingArea && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Salvar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
