@@ -64,7 +64,9 @@ export default function Areas() {
   )
 
   const loadData = async () => {
-    const a = await pb.collection('areas').getFullList({ expand: 'regional_id,responsible_id' })
+    const a = await pb
+      .collection('areas')
+      .getFullList({ expand: 'regional_id,responsible_id,district_id' })
     setAreas(a)
     setRegionals(await pb.collection('regionals').getFullList())
 
@@ -127,10 +129,13 @@ export default function Areas() {
         throw new Error('A Regional é obrigatória.')
       }
 
+      const regional = regionals.find((r) => r.id === data.regional_id)
+      const district_id = regional?.district_id || ''
+
       if (data.id) {
-        await pb.collection('areas').update(data.id, data)
+        await pb.collection('areas').update(data.id, { ...data, district_id })
       } else {
-        await pb.collection('areas').create({ ...data, district_id: '' })
+        await pb.collection('areas').create({ ...data, district_id })
       }
 
       toast({ title: 'Área salva com sucesso' })
@@ -177,6 +182,7 @@ export default function Areas() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="pl-6">Nome</TableHead>
+                  <TableHead>Distrito</TableHead>
                   <TableHead>Regional</TableHead>
                   <TableHead>Vendedor da Área</TableHead>
                   <TableHead>Status</TableHead>
@@ -187,6 +193,7 @@ export default function Areas() {
                 {areas.map((a) => (
                   <TableRow key={a.id}>
                     <TableCell className="pl-6 font-medium">{a.name}</TableCell>
+                    <TableCell>{a.expand?.district_id?.name || '-'}</TableCell>
                     <TableCell>{a.expand?.regional_id?.name || '-'}</TableCell>
                     <TableCell>{a.expand?.responsible_id?.name || '-'}</TableCell>
                     <TableCell>

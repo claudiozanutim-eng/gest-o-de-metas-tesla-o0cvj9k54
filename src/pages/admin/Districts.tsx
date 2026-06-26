@@ -97,7 +97,7 @@ export default function Districts() {
       <div className="flex justify-between items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Map className="w-8 h-8" /> Regional
+            <Map className="w-8 h-8" /> Distritos
           </h1>
         </div>
         <Button
@@ -106,7 +106,7 @@ export default function Districts() {
             setIsOpen(true)
           }}
         >
-          <Plus className="w-4 h-4 mr-2" /> Nova Regional
+          <Plus className="w-4 h-4 mr-2" /> Novo Distrito
         </Button>
       </div>
       <Card>
@@ -178,7 +178,7 @@ export default function Districts() {
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{formData.id ? 'Editar' : 'Nova'} Regional</DialogTitle>
+            <DialogTitle>{formData.id ? 'Editar' : 'Novo'} Distrito</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
