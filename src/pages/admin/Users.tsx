@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
-import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { getErrorMessage, extractFieldErrors } from '@/lib/pocketbase/errors'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useLocalStorage } from '@/hooks/use-local-storage'
@@ -282,11 +282,23 @@ export default function Users() {
       setResetDialog(false)
       loadData()
     } catch (e: any) {
-      toast({
-        title: 'Erro ao redefinir senha',
-        description: getErrorMessage(e),
-        variant: 'destructive',
-      })
+      const fieldErrors = extractFieldErrors(e)
+      if (Object.keys(fieldErrors).length > 0) {
+        const errorDetails = Object.entries(fieldErrors)
+          .map(([f, m]) => `${f} (${m})`)
+          .join(', ')
+        toast({
+          title: 'Erro de validação no usuário',
+          description: `O cadastro do usuário possui campos inválidos ou em branco: ${errorDetails}. Por favor, edite o usuário para corrigir os dados antes de redefinir a senha.`,
+          variant: 'destructive',
+        })
+      } else {
+        toast({
+          title: 'Erro ao redefinir senha',
+          description: getErrorMessage(e),
+          variant: 'destructive',
+        })
+      }
     }
   }
 

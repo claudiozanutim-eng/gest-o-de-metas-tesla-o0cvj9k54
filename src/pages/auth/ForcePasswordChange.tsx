@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { useAuth } from '@/hooks/use-auth'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
-import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { getErrorMessage, extractFieldErrors } from '@/lib/pocketbase/errors'
 import logoUrl from '@/assets/image-247cf.png'
 
 export default function ForcePasswordChange() {
@@ -15,12 +15,17 @@ export default function ForcePasswordChange() {
   const navigate = useNavigate()
   const { toast } = useToast()
 
+  const [oldPassword, setOldPassword] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!oldPassword) {
+      toast({ title: 'Erro', description: 'A senha atual é obrigatória.', variant: 'destructive' })
+      return
+    }
     if (password !== confirmPassword) {
       toast({ title: 'Erro', description: 'As senhas não coincidem.', variant: 'destructive' })
       return
@@ -39,6 +44,7 @@ export default function ForcePasswordChange() {
       if (!user) throw new Error('Usuário não autenticado.')
 
       await pb.collection('users').update(user.id, {
+        oldPassword: oldPassword,
         password: password,
         passwordConfirm: confirmPassword,
         force_password_change: false,
@@ -48,8 +54,21 @@ export default function ForcePasswordChange() {
 
       toast({ title: 'Sucesso', description: 'Senha atualizada com sucesso!' })
       navigate('/', { replace: true })
-    } catch (err) {
-      toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
+    } catch (err: any) {
+      const fieldErrors = extractFieldErrors(err)
+      if (Object.keys(fieldErrors).length > 0) {
+        const errorMessages = Object.entries(fieldErrors)
+          .map(([field, msg]) => `${field} (${msg})`)
+          .join(', ')
+
+        toast({
+          title: 'Erro de validação',
+          description: `Ocorreu um erro com os campos: ${errorMessages}. Verifique os dados e tente novamente.`,
+          variant: 'destructive',
+        })
+      } else {
+        toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
+      }
     } finally {
       setLoading(false)
     }
@@ -70,6 +89,16 @@ export default function ForcePasswordChange() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="oldPassword">Senha Atual (Padrão)</Label>
+              <Input
+                id="oldPassword"
+                type="password"
+                value={oldPassword}
+                onChange={(e) => setOldPassword(e.target.value)}
+                required
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="password">Nova Senha</Label>
               <Input
