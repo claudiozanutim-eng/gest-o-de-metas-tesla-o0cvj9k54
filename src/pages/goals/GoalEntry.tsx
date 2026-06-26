@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import Importacao from '../admin/Importacao'
+import { useRealtime } from '@/hooks/use-realtime'
 
 export default function GoalEntry() {
   const { toast } = useToast()
@@ -130,6 +131,75 @@ export default function GoalEntry() {
   const [file, setFile] = useState<File | null>(null)
   const [previewData, setPreviewData] = useState<any[]>([])
 
+  const loadGoal = async () => {
+    if (!selectedSellerId || !period || !metric) {
+      setExistingGoalId(null)
+      setTargetBase('')
+      setTargetBronze('')
+      setTargetPrata('')
+      setTargetOuro('')
+      setFocusFleet('')
+      setFocusCompanies('')
+      return
+    }
+
+    const seller = sellers.find((s) => s.id === selectedSellerId)
+    const defaultAreaId = seller?.area_id || ''
+    const defaultRegionalId = seller?.expand?.area_id?.regional_id || ''
+
+    if (!seller?.user_id) {
+      setExistingGoalId(null)
+      setTargetBase('')
+      setTargetBronze('')
+      setTargetPrata('')
+      setTargetOuro('')
+      setFocusFleet('')
+      setFocusCompanies('')
+      setMixFamily('')
+      setSelectedRegionalId(defaultRegionalId)
+      setSelectedAreaId(defaultAreaId)
+      return
+    }
+
+    try {
+      const prefix = metric.replace(/\s*\(.*?\)\s*/g, '').trim()
+      const goal = await pb
+        .collection('goals')
+        .getFirstListItem(
+          `seller_id="${seller.user_id}" && period="${period}" && metric~"${prefix}"`,
+        )
+      setExistingGoalId(goal.id)
+      setTargetBase(
+        goal.target_base != null ? maskCurrency((goal.target_base * 100).toFixed(0)) : '',
+      )
+      setTargetBronze(
+        goal.target_bronze != null ? maskCurrency((goal.target_bronze * 100).toFixed(0)) : '',
+      )
+      setTargetPrata(
+        goal.target_prata != null ? maskCurrency((goal.target_prata * 100).toFixed(0)) : '',
+      )
+      setTargetOuro(
+        goal.target_ouro != null ? maskCurrency((goal.target_ouro * 100).toFixed(0)) : '',
+      )
+      setFocusFleet(goal.focus_fleet != null ? maskInteger(goal.focus_fleet) : '')
+      setFocusCompanies(goal.focus_companies != null ? maskInteger(goal.focus_companies) : '')
+      setMixFamily(goal.mix_family || '')
+      setSelectedRegionalId(goal.regional_id || defaultRegionalId)
+      setSelectedAreaId(goal.area_id || defaultAreaId)
+    } catch (e) {
+      setExistingGoalId(null)
+      setTargetBase('')
+      setTargetBronze('')
+      setTargetPrata('')
+      setTargetOuro('')
+      setFocusFleet('')
+      setFocusCompanies('')
+      setMixFamily('')
+      setSelectedRegionalId(defaultRegionalId)
+      setSelectedAreaId(defaultAreaId)
+    }
+  }
+
   useEffect(() => {
     Promise.all([
       pb
@@ -147,76 +217,12 @@ export default function GoalEntry() {
   }, [])
 
   useEffect(() => {
-    const loadGoal = async () => {
-      if (!selectedSellerId || !period || !metric) {
-        setExistingGoalId(null)
-        setTargetBase('')
-        setTargetBronze('')
-        setTargetPrata('')
-        setTargetOuro('')
-        setFocusFleet('')
-        setFocusCompanies('')
-        return
-      }
-
-      const seller = sellers.find((s) => s.id === selectedSellerId)
-      const defaultAreaId = seller?.area_id || ''
-      const defaultRegionalId = seller?.expand?.area_id?.regional_id || ''
-
-      if (!seller?.user_id) {
-        setExistingGoalId(null)
-        setTargetBase('')
-        setTargetBronze('')
-        setTargetPrata('')
-        setTargetOuro('')
-        setFocusFleet('')
-        setFocusCompanies('')
-        setMixFamily('')
-        setSelectedRegionalId(defaultRegionalId)
-        setSelectedAreaId(defaultAreaId)
-        return
-      }
-
-      try {
-        const goal = await pb
-          .collection('goals')
-          .getFirstListItem(
-            `seller_id="${seller.user_id}" && period="${period}" && metric="${metric}"`,
-          )
-        setExistingGoalId(goal.id)
-        setTargetBase(
-          goal.target_base != null ? maskCurrency((goal.target_base * 100).toFixed(0)) : '',
-        )
-        setTargetBronze(
-          goal.target_bronze != null ? maskCurrency((goal.target_bronze * 100).toFixed(0)) : '',
-        )
-        setTargetPrata(
-          goal.target_prata != null ? maskCurrency((goal.target_prata * 100).toFixed(0)) : '',
-        )
-        setTargetOuro(
-          goal.target_ouro != null ? maskCurrency((goal.target_ouro * 100).toFixed(0)) : '',
-        )
-        setFocusFleet(goal.focus_fleet != null ? maskInteger(goal.focus_fleet) : '')
-        setFocusCompanies(goal.focus_companies != null ? maskInteger(goal.focus_companies) : '')
-        setMixFamily(goal.mix_family || '')
-        setSelectedRegionalId(goal.regional_id || defaultRegionalId)
-        setSelectedAreaId(goal.area_id || defaultAreaId)
-      } catch (e) {
-        setExistingGoalId(null)
-        setTargetBase('')
-        setTargetBronze('')
-        setTargetPrata('')
-        setTargetOuro('')
-        setFocusFleet('')
-        setFocusCompanies('')
-        setMixFamily('')
-        setSelectedRegionalId(defaultRegionalId)
-        setSelectedAreaId(defaultAreaId)
-      }
-    }
-
     loadGoal()
   }, [selectedSellerId, period, metric, sellers])
+
+  useRealtime('goals', () => {
+    loadGoal()
+  })
 
   const handleDeleteGoal = async () => {
     if (!existingGoalId) return
@@ -599,12 +605,18 @@ export default function GoalEntry() {
                         <SelectValue placeholder="Métrica" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Faturamento Geral">Faturamento Geral</SelectItem>
-                        <SelectItem value="Faturamento F1">Faturamento F1</SelectItem>
-                        <SelectItem value="Faturamento F2">Faturamento F2</SelectItem>
-                        <SelectItem value="Faturamento F3">Faturamento F3</SelectItem>
-                        <SelectItem value="Faturamento Outros">Faturamento Outros</SelectItem>
-                        <SelectItem value="Cobertura">Cobertura</SelectItem>
+                        {[
+                          'Faturamento Geral',
+                          'Faturamento F1 (Automação)',
+                          'Faturamento F2 (Painéis)',
+                          'Faturamento F3 (Ferramentas)',
+                          'Faturamento Outros',
+                          'Cobertura',
+                        ].map((m) => (
+                          <SelectItem key={m} value={m}>
+                            {m.replace(/\s*\(.*?\)\s*/g, '').trim()}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

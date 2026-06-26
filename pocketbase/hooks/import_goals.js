@@ -147,6 +147,11 @@ routerAdd(
             )
           }
 
+          if (sellerRec && !sellerRec.getString('user_id')) {
+            sellerRec.set('user_id', userRec.id)
+            txApp.save(sellerRec)
+          }
+
           const seller_id = userRec.id
           const area_id = areaRec.id
           const regional_id = regionalRec.id
