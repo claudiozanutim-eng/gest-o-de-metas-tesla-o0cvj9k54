@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-26T19:01:40.015Z",
+  "generatedAt": "2026-06-26T19:11:47.519Z",
   "collections": [
     {
       "name": "users",
@@ -450,7 +450,9 @@
           "collectionRef": "areas"
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX idx_goals_unique ON goals (seller_id, period, metric)"]
+      "indexes": [
+        "CREATE UNIQUE INDEX `idx_goals_unique_mix` ON `goals` (seller_id, period, metric, mix_family)"
+      ]
     },
     {
       "name": "actual_performance",
