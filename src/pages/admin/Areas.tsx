@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, MapPinned, Trash2 } from 'lucide-react'
+import { Plus, MapPinned, Trash2, Check, ChevronsUpDown } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,17 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { cn } from '@/lib/utils'
+import { useRealtime } from '@/hooks/use-realtime'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -57,11 +68,18 @@ export default function Areas() {
   })
   const [deleteDialog, setDeleteDialog] = useState(false)
   const [areaToDelete, setAreaToDelete] = useState<any>(null)
+  const [selectedAreaId, setSelectedAreaId] = useState<string>('all')
+  const [openCombobox, setOpenCombobox] = useState(false)
+
   const { toast } = useToast()
   const { user } = useAuth()
   const isAllowedToDelete = ['Administrator', 'National Manager', 'Gerente Nacional'].includes(
     user?.role || '',
   )
+
+  useRealtime('areas', () => {
+    loadData()
+  })
 
   const loadData = async () => {
     const a = await pb
@@ -132,13 +150,49 @@ export default function Areas() {
       const regional = regionals.find((r) => r.id === data.regional_id)
       const district_id = regional?.district_id || ''
 
-      if (data.id) {
-        await pb.collection('areas').update(data.id, { ...data, district_id })
-      } else {
-        await pb.collection('areas').create({ ...data, district_id })
+      const payload = {
+        name: data.name,
+        regional_id: data.regional_id,
+        district_id,
+        responsible_id: data.responsible_id,
+        is_active: data.is_active,
       }
 
-      toast({ title: 'Área salva com sucesso' })
+      if (data.id) {
+        const originalArea = areas.find((a) => a.id === data.id)
+        if (originalArea) {
+          const oldRegionalId = originalArea.regional_id
+          const oldDistrictId = originalArea.district_id
+
+          const relatedAreas = areas.filter(
+            (a) => a.regional_id === oldRegionalId && a.district_id === oldDistrictId,
+          )
+
+          await Promise.all(
+            relatedAreas.map((a) =>
+              pb.collection('areas').update(a.id, {
+                ...payload,
+                name: a.id === data.id ? data.name : a.name,
+              }),
+            ),
+          )
+
+          if (relatedAreas.length > 1) {
+            toast({
+              title: `Área principal e ${relatedAreas.length - 1} áreas relacionadas sincronizadas e salvas.`,
+            })
+          } else {
+            toast({ title: 'Área salva com sucesso' })
+          }
+        } else {
+          await pb.collection('areas').update(data.id, payload)
+          toast({ title: 'Área salva com sucesso' })
+        }
+      } else {
+        await pb.collection('areas').create(payload)
+        toast({ title: 'Área salva com sucesso' })
+      }
+
       setIsOpen(false)
       loadData()
     } catch (e: any) {
@@ -157,15 +211,79 @@ export default function Areas() {
     setIsOpen(true)
   }
 
+  const filteredAreas =
+    selectedAreaId === 'all' ? areas : areas.filter((a) => a.id === selectedAreaId)
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <MapPinned className="w-8 h-8" /> Áreas
         </h1>
-        <Button onClick={() => openEdit({ id: '', is_active: true })}>
-          <Plus className="w-4 h-4 mr-2" /> Nova Área
-        </Button>
+        <div className="flex items-center gap-4">
+          <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={openCombobox}
+                className="w-[300px] justify-between"
+              >
+                {selectedAreaId !== 'all'
+                  ? areas.find((area) => area.id === selectedAreaId)?.name || 'Selecionar área...'
+                  : 'Todas as áreas...'}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[300px] p-0">
+              <Command>
+                <CommandInput placeholder="Buscar área..." />
+                <CommandList>
+                  <CommandEmpty>Nenhuma área encontrada.</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem
+                      value="todas as areas"
+                      onSelect={() => {
+                        setSelectedAreaId('all')
+                        setOpenCombobox(false)
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          'mr-2 h-4 w-4',
+                          selectedAreaId === 'all' ? 'opacity-100' : 'opacity-0',
+                        )}
+                      />
+                      Todas as áreas
+                    </CommandItem>
+                    {areas.map((area) => (
+                      <CommandItem
+                        key={area.id}
+                        value={`${area.name}-${area.id}`}
+                        keywords={[area.name]}
+                        onSelect={() => {
+                          setSelectedAreaId(area.id)
+                          setOpenCombobox(false)
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            'mr-2 h-4 w-4',
+                            selectedAreaId === area.id ? 'opacity-100' : 'opacity-0',
+                          )}
+                        />
+                        {area.name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          <Button onClick={() => openEdit({ id: '', is_active: true })}>
+            <Plus className="w-4 h-4 mr-2" /> Nova Área
+          </Button>
+        </div>
       </div>
       {areas.length === 0 ? (
         <EmptyState
@@ -190,7 +308,7 @@ export default function Areas() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {areas.map((a) => (
+                {filteredAreas.map((a) => (
                   <TableRow key={a.id}>
                     <TableCell className="pl-6 font-medium">{a.name}</TableCell>
                     <TableCell>{a.expand?.district_id?.name || '-'}</TableCell>
