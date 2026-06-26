@@ -31,6 +31,33 @@ const ProtectedRoute = () => {
   return <Outlet />
 }
 
+const SuperAdminRoute = () => {
+  const { user, loading } = useAuth()
+  if (loading) return null
+  if (user?.role !== 'Administrator' && user?.role !== 'National Manager') {
+    return <Navigate to="/" replace />
+  }
+  return <Outlet />
+}
+
+const AdminRoute = () => {
+  const { user, loading } = useAuth()
+  if (loading) return null
+  if (user?.role === 'Seller' || user?.role === 'Sales Assistant') {
+    return <Navigate to="/" replace />
+  }
+  return <Outlet />
+}
+
+const NonSellerRoute = () => {
+  const { user, loading } = useAuth()
+  if (loading) return null
+  if (user?.role === 'Seller') {
+    return <Navigate to="/" replace />
+  }
+  return <Outlet />
+}
+
 const App = () => (
   <BrowserRouter>
     <AuthProvider>
@@ -44,21 +71,29 @@ const App = () => (
               <Route element={<Layout />}>
                 <Route path="/" element={<Index />} />
                 <Route path="/metas" element={<GoalEntry />} />
-                <Route path="/acompanhamento" element={<Tracking />} />
                 <Route path="/simulacao" element={<Simulation />} />
-                <Route path="/assistente" element={<Assistant />} />
-                <Route path="/relatorios" element={<Reports />} />
 
-                <Route path="/admin">
-                  <Route path="usuarios" element={<Users />} />
-                  <Route path="estrutura" element={<Structure />} />
-                  <Route path="distritos" element={<Districts />} />
-                  <Route path="regionais" element={<Regionals />} />
-                  <Route path="areas" element={<Areas />} />
-                  <Route path="vendedores" element={<Sellers />} />
-                  <Route path="importacao" element={<Importacao />} />
-                  <Route path="parametros" element={<Parameters />} />
-                  <Route path="auditoria" element={<Auditoria />} />
+                <Route element={<NonSellerRoute />}>
+                  <Route path="/acompanhamento" element={<Tracking />} />
+                  <Route path="/assistente" element={<Assistant />} />
+                  <Route path="/relatorios" element={<Reports />} />
+                </Route>
+
+                <Route element={<AdminRoute />}>
+                  <Route path="/admin">
+                    <Route path="estrutura" element={<Structure />} />
+                    <Route path="distritos" element={<Districts />} />
+                    <Route path="regionais" element={<Regionals />} />
+                    <Route path="areas" element={<Areas />} />
+                    <Route path="vendedores" element={<Sellers />} />
+                    <Route path="auditoria" element={<Auditoria />} />
+
+                    <Route element={<SuperAdminRoute />}>
+                      <Route path="usuarios" element={<Users />} />
+                      <Route path="importacao" element={<Importacao />} />
+                      <Route path="parametros" element={<Parameters />} />
+                    </Route>
+                  </Route>
                 </Route>
               </Route>
             </Route>

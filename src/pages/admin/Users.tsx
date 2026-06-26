@@ -73,6 +73,7 @@ const roles = [
 export default function Users() {
   const [users, setUsers] = useState<any[]>([])
   const [districts, setDistricts] = useState<any[]>([])
+  const [regionals, setRegionals] = useState<any[]>([])
   const [areas, setAreas] = useState<any[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [formData, setFormData] = useState<any>({
@@ -83,6 +84,7 @@ export default function Users() {
     role: '',
     is_active: true,
     district_id: 'none',
+    regional_id: 'none',
     area_id: 'none',
   })
 
@@ -106,10 +108,12 @@ export default function Users() {
     try {
       const u = await pb
         .collection('users')
-        .getFullList({ sort: '-created', expand: 'district_id,area_id' })
+        .getFullList({ sort: '-created', expand: 'district_id,regional_id,area_id' })
       setUsers(u)
       const d = await pb.collection('districts').getFullList({ sort: 'name' })
       setDistricts(d)
+      const r = await pb.collection('regionals').getFullList({ sort: 'name' })
+      setRegionals(r)
       const a = await pb.collection('areas').getFullList({ sort: 'name' })
       setAreas(a)
     } catch (error) {
@@ -182,9 +186,59 @@ export default function Users() {
       const data = { ...formData, emailVisibility: true }
       if (!data.password) delete data.password
       else data.passwordConfirm = data.password
+
+      if (data.role === 'District Manager' && data.district_id === 'none') {
+        toast({
+          title: 'Erro de validação',
+          description: 'Selecione o Distrito.',
+          variant: 'destructive',
+        })
+        return
+      }
+      if (data.role === 'Regional Manager' && data.regional_id === 'none') {
+        toast({
+          title: 'Erro de validação',
+          description: 'Selecione a Regional.',
+          variant: 'destructive',
+        })
+        return
+      }
+      if (data.role === 'Seller' && data.area_id === 'none') {
+        toast({
+          title: 'Erro de validação',
+          description: 'Selecione a Área.',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      // Auto-fill higher levels
+      if (data.role === 'Seller' && data.area_id !== 'none') {
+        const area = areas.find((a) => a.id === data.area_id)
+        if (area?.regional_id) {
+          data.regional_id = area.regional_id
+          const regional = regionals.find((r) => r.id === area.regional_id)
+          if (regional?.district_id) data.district_id = regional.district_id
+        }
+      }
+      if (data.role === 'Regional Manager' && data.regional_id !== 'none') {
+        const regional = regionals.find((r) => r.id === data.regional_id)
+        if (regional?.district_id) data.district_id = regional.district_id
+        data.area_id = ''
+      }
+      if (data.role === 'District Manager') {
+        data.regional_id = ''
+        data.area_id = ''
+      }
+      if (['Administrator', 'National Manager', 'Sales Assistant'].includes(data.role)) {
+        data.district_id = ''
+        data.regional_id = ''
+        data.area_id = ''
+      }
+
       data.district_id = data.district_id === 'none' ? '' : data.district_id
+      data.regional_id = data.regional_id === 'none' ? '' : data.regional_id
       data.area_id = data.area_id === 'none' ? '' : data.area_id
-      data.role = data.role === 'Vendedor' ? 'Seller' : data.role
 
       if (data.id) await pb.collection('users').update(data.id, data)
       else {
@@ -215,9 +269,10 @@ export default function Users() {
       id: u.id || '',
       name: u.name || '',
       email: u.email || '',
-      role: u.role === 'Seller' ? 'Vendedor' : u.role || '',
+      role: u.role || '',
       is_active: u.is_active ?? true,
       district_id: u.district_id || 'none',
+      regional_id: u.regional_id || 'none',
       area_id: u.area_id || 'none',
       password: '',
     })
@@ -316,7 +371,7 @@ export default function Users() {
                   <TableHead className="pl-6">Nome</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Cargo/Função</TableHead>
-                  <TableHead>Distrito</TableHead>
+                  <TableHead>Escopo (Distrito/Reg/Área)</TableHead>
                   <TableHead>Situação</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
@@ -329,7 +384,12 @@ export default function Users() {
                     <TableCell>
                       <Badge variant="outline">{roleDisplayMap[u.role] || u.role}</Badge>
                     </TableCell>
-                    <TableCell>{u.expand?.district_id?.name || '-'}</TableCell>
+                    <TableCell>
+                      {u.expand?.area_id?.name ||
+                        u.expand?.regional_id?.name ||
+                        u.expand?.district_id?.name ||
+                        '-'}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={u.is_active ? 'default' : 'secondary'}>
                         {u.is_active ? 'Ativo' : 'Inativo'}
@@ -429,46 +489,79 @@ export default function Users() {
                 </SelectContent>{' '}
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label>Distrito (Opcional)</Label>
-                <Select
-                  value={formData.district_id}
-                  onValueChange={(v) => setFormData({ ...formData, district_id: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Nenhum" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Nenhum</SelectItem>
-                    {districts.map((d) => (
-                      <SelectItem key={d.id} value={d.id}>
-                        {d.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {['District Manager', 'Regional Manager', 'Seller'].includes(formData.role) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {formData.role === 'District Manager' && (
+                  <div className="grid gap-2">
+                    <Label>
+                      Distrito <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={formData.district_id}
+                      onValueChange={(v) => setFormData({ ...formData, district_id: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Selecione...</SelectItem>
+                        {districts.map((d) => (
+                          <SelectItem key={d.id} value={d.id}>
+                            {d.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {formData.role === 'Regional Manager' && (
+                  <div className="grid gap-2">
+                    <Label>
+                      Regional <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={formData.regional_id}
+                      onValueChange={(v) => setFormData({ ...formData, regional_id: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Selecione...</SelectItem>
+                        {regionals.map((r) => (
+                          <SelectItem key={r.id} value={r.id}>
+                            {r.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {formData.role === 'Seller' && (
+                  <div className="grid gap-2">
+                    <Label>
+                      Área <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={formData.area_id}
+                      onValueChange={(v) => setFormData({ ...formData, area_id: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Selecione...</SelectItem>
+                        {areas.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
-              <div className="grid gap-2">
-                <Label>Área (Opcional)</Label>
-                <Select
-                  value={formData.area_id}
-                  onValueChange={(v) => setFormData({ ...formData, area_id: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Nenhuma" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Nenhuma</SelectItem>
-                    {areas.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            )}
             <div className="flex items-center gap-2 mt-2">
               <Switch
                 checked={formData.is_active}

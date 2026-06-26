@@ -313,12 +313,12 @@ export default function GoalEntry() {
     }, 1500)
   }
 
-  const isAllowedToEdit =
+  const isAllowedToEdit = true
+
+  const isAllowedToDelete =
     user?.role === 'Administrator' ||
     user?.role === 'National Manager' ||
     user?.role === 'Sales Assistant'
-
-  const isAllowedToDelete = isAllowedToEdit
 
   const getRegionalColor = (name: string) => {
     if (!name) return 'bg-muted'
@@ -344,426 +344,414 @@ export default function GoalEntry() {
         </p>
       </div>
 
-      {!isAllowedToEdit && (
-        <div className="p-4 bg-destructive/10 text-destructive rounded-md">
-          Você não tem permissão para lançar metas.
-        </div>
-      )}
+      <Tabs defaultValue="manual" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="manual">Entrada Manual</TabsTrigger>
+          <TabsTrigger value="lote">Importação em Lote</TabsTrigger>
+        </TabsList>
 
-      {isAllowedToEdit && (
-        <Tabs defaultValue="manual" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="manual">Entrada Manual</TabsTrigger>
-            <TabsTrigger value="lote">Importação em Lote</TabsTrigger>
-          </TabsList>
+        <TabsContent value="manual">
+          <Card>
+            <CardHeader>
+              <CardTitle>Nova Meta Individual</CardTitle>
+              <CardDescription>
+                Preencha os dados para lançar a meta de um vendedor específico e categoria.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleManualSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Vendedor</Label>
+                    <Popover open={open} onOpenChange={setOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={open}
+                          className="w-full justify-between font-normal"
+                        >
+                          {selectedSellerId
+                            ? sellers.find((s) => s.id === selectedSellerId)?.name
+                            : 'Selecione o vendedor...'}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                        <Command>
+                          <CommandInput placeholder="Buscar vendedor..." />
+                          <CommandList>
+                            <CommandEmpty>Nenhum vendedor encontrado.</CommandEmpty>
+                            <CommandGroup>
+                              {sellers.map((seller) => (
+                                <CommandItem
+                                  key={seller.id}
+                                  value={seller.name}
+                                  onSelect={() => {
+                                    setSelectedSellerId(seller.id)
+                                    setOpen(false)
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      'mr-2 h-4 w-4',
+                                      selectedSellerId === seller.id ? 'opacity-100' : 'opacity-0',
+                                    )}
+                                  />
+                                  {seller.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
 
-          <TabsContent value="manual">
-            <Card>
-              <CardHeader>
-                <CardTitle>Nova Meta Individual</CardTitle>
-                <CardDescription>
-                  Preencha os dados para lançar a meta de um vendedor específico e categoria.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleManualSubmit} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label>Vendedor</Label>
-                      <Popover open={open} onOpenChange={setOpen}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={open}
-                            className="w-full justify-between font-normal"
-                          >
-                            {selectedSellerId
-                              ? sellers.find((s) => s.id === selectedSellerId)?.name
-                              : 'Selecione o vendedor...'}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                          <Command>
-                            <CommandInput placeholder="Buscar vendedor..." />
-                            <CommandList>
-                              <CommandEmpty>Nenhum vendedor encontrado.</CommandEmpty>
-                              <CommandGroup>
-                                {sellers.map((seller) => (
-                                  <CommandItem
-                                    key={seller.id}
-                                    value={seller.name}
-                                    onSelect={() => {
-                                      setSelectedSellerId(seller.id)
-                                      setOpen(false)
-                                    }}
-                                  >
-                                    <Check
-                                      className={cn(
-                                        'mr-2 h-4 w-4',
-                                        selectedSellerId === seller.id
-                                          ? 'opacity-100'
-                                          : 'opacity-0',
-                                      )}
-                                    />
-                                    {seller.name}
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Regional</Label>
-                      <Popover open={openRegional} onOpenChange={setOpenRegional}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={openRegional}
-                            className={cn(
-                              'w-full justify-between font-normal',
-                              getRegionalColor(
-                                regionals.find((r) => r.id === selectedRegionalId)?.name || '',
-                              ),
-                            )}
-                          >
-                            {selectedRegionalId
-                              ? regionals.find((r) => r.id === selectedRegionalId)?.name
-                              : 'Selecione a regional...'}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                          <Command>
-                            <CommandInput placeholder="Buscar regional..." />
-                            <CommandList>
-                              <CommandEmpty>Nenhuma regional encontrada.</CommandEmpty>
-                              <CommandGroup>
-                                {regionals.map((reg) => (
-                                  <CommandItem
-                                    key={reg.id}
-                                    value={reg.name}
-                                    onSelect={() => {
-                                      setSelectedRegionalId(reg.id)
-                                      if (selectedAreaId) {
-                                        const currentArea = areas.find(
-                                          (a) => a.id === selectedAreaId,
-                                        )
-                                        if (currentArea && currentArea.regional_id !== reg.id) {
-                                          setSelectedAreaId('')
-                                        }
+                  <div className="space-y-2">
+                    <Label>Regional</Label>
+                    <Popover open={openRegional} onOpenChange={setOpenRegional}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={openRegional}
+                          className={cn(
+                            'w-full justify-between font-normal',
+                            getRegionalColor(
+                              regionals.find((r) => r.id === selectedRegionalId)?.name || '',
+                            ),
+                          )}
+                        >
+                          {selectedRegionalId
+                            ? regionals.find((r) => r.id === selectedRegionalId)?.name
+                            : 'Selecione a regional...'}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                        <Command>
+                          <CommandInput placeholder="Buscar regional..." />
+                          <CommandList>
+                            <CommandEmpty>Nenhuma regional encontrada.</CommandEmpty>
+                            <CommandGroup>
+                              {regionals.map((reg) => (
+                                <CommandItem
+                                  key={reg.id}
+                                  value={reg.name}
+                                  onSelect={() => {
+                                    setSelectedRegionalId(reg.id)
+                                    if (selectedAreaId) {
+                                      const currentArea = areas.find((a) => a.id === selectedAreaId)
+                                      if (currentArea && currentArea.regional_id !== reg.id) {
+                                        setSelectedAreaId('')
                                       }
-                                      setOpenRegional(false)
+                                    }
+                                    setOpenRegional(false)
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      'mr-2 h-4 w-4',
+                                      selectedRegionalId === reg.id ? 'opacity-100' : 'opacity-0',
+                                    )}
+                                  />
+                                  {reg.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Área</Label>
+                    <Popover open={openArea} onOpenChange={setOpenArea}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={openArea}
+                          className="w-full justify-between font-normal"
+                        >
+                          {selectedAreaId
+                            ? areas.find((a) => a.id === selectedAreaId)?.name
+                            : 'Selecione a área...'}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                        <Command>
+                          <CommandInput placeholder="Buscar área..." />
+                          <CommandList>
+                            <CommandEmpty>Nenhuma área encontrada.</CommandEmpty>
+                            <CommandGroup>
+                              {areas
+                                .filter(
+                                  (a) =>
+                                    !selectedRegionalId || a.regional_id === selectedRegionalId,
+                                )
+                                .map((area) => (
+                                  <CommandItem
+                                    key={area.id}
+                                    value={area.name}
+                                    onSelect={() => {
+                                      setSelectedAreaId(area.id)
+                                      if (!selectedRegionalId && area.regional_id) {
+                                        setSelectedRegionalId(area.regional_id)
+                                      }
+                                      setOpenArea(false)
                                     }}
                                   >
                                     <Check
                                       className={cn(
                                         'mr-2 h-4 w-4',
-                                        selectedRegionalId === reg.id ? 'opacity-100' : 'opacity-0',
+                                        selectedAreaId === area.id ? 'opacity-100' : 'opacity-0',
                                       )}
                                     />
-                                    {reg.name}
+                                    {area.name}
                                   </CommandItem>
                                 ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Área</Label>
-                      <Popover open={openArea} onOpenChange={setOpenArea}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={openArea}
-                            className="w-full justify-between font-normal"
-                          >
-                            {selectedAreaId
-                              ? areas.find((a) => a.id === selectedAreaId)?.name
-                              : 'Selecione a área...'}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                          <Command>
-                            <CommandInput placeholder="Buscar área..." />
-                            <CommandList>
-                              <CommandEmpty>Nenhuma área encontrada.</CommandEmpty>
-                              <CommandGroup>
-                                {areas
-                                  .filter(
-                                    (a) =>
-                                      !selectedRegionalId || a.regional_id === selectedRegionalId,
-                                  )
-                                  .map((area) => (
-                                    <CommandItem
-                                      key={area.id}
-                                      value={area.name}
-                                      onSelect={() => {
-                                        setSelectedAreaId(area.id)
-                                        if (!selectedRegionalId && area.regional_id) {
-                                          setSelectedRegionalId(area.regional_id)
-                                        }
-                                        setOpenArea(false)
-                                      }}
-                                    >
-                                      <Check
-                                        className={cn(
-                                          'mr-2 h-4 w-4',
-                                          selectedAreaId === area.id ? 'opacity-100' : 'opacity-0',
-                                        )}
-                                      />
-                                      {area.name}
-                                    </CommandItem>
-                                  ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                  <div className="space-y-2">
+                    <Label htmlFor="periodo">Período</Label>
+                    <Input
+                      id="periodo"
+                      name="periodo"
+                      type="month"
+                      value={period}
+                      onChange={(e) => setPeriod(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="metric">Métrica</Label>
+                    <Select value={metric} onValueChange={setMetric} required>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Métrica" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Revenue">Faturamento Geral</SelectItem>
+                        <SelectItem value="Mix_F1">Faturamento F1 (Automação)</SelectItem>
+                        <SelectItem value="Mix_F2">Faturamento F2 (Robótica)</SelectItem>
+                        <SelectItem value="Mix_F3">Faturamento F3 (Sensores)</SelectItem>
+                        <SelectItem value="Mix_Outros">Faturamento Outros</SelectItem>
+                        <SelectItem value="Coverage">Cobertura (Empresas)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
+                  <div className="space-y-2">
+                    <Label htmlFor="mix_family">Família Mix</Label>
+                    <Input
+                      id="mix_family"
+                      value={mixFamily}
+                      onChange={(e) => setMixFamily(e.target.value)}
+                      placeholder="Ex: F1, F2..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="focus_fleet">Frota Foco da Área</Label>
+                    <Input
+                      id="focus_fleet"
+                      type="tel"
+                      value={focusFleet}
+                      onChange={(e) => setFocusFleet(maskInteger(e.target.value))}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="focus_companies">Empresas Foco da Área</Label>
+                    <Input
+                      id="focus_companies"
+                      type="tel"
+                      value={focusCompanies}
+                      onChange={(e) => setFocusCompanies(maskInteger(e.target.value))}
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
+                  <div className="space-y-2">
+                    <Label htmlFor="target_base">Meta Base</Label>
+                    <Input
+                      id="target_base"
+                      type="tel"
+                      value={targetBase}
+                      onChange={(e) => setTargetBase(maskCurrency(e.target.value))}
+                      placeholder="R$ 0,00"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="target_bronze">Meta Bronze</Label>
+                    <Input
+                      id="target_bronze"
+                      type="tel"
+                      value={targetBronze}
+                      onChange={(e) => setTargetBronze(maskCurrency(e.target.value))}
+                      placeholder="R$ 0,00"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="target_prata">Meta Prata</Label>
+                    <Input
+                      id="target_prata"
+                      type="tel"
+                      value={targetPrata}
+                      onChange={(e) => setTargetPrata(maskCurrency(e.target.value))}
+                      placeholder="R$ 0,00"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="target_ouro">Meta Ouro</Label>
+                    <Input
+                      id="target_ouro"
+                      type="tel"
+                      value={targetOuro}
+                      onChange={(e) => setTargetOuro(maskCurrency(e.target.value))}
+                      placeholder="R$ 0,00"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 flex justify-end gap-2">
+                  {existingGoalId && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                      onClick={() => setDeleteDialog(true)}
+                      disabled={isSubmitting || !isAllowedToDelete}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Excluir Meta
+                    </Button>
+                  )}
+                  <Button type="submit" disabled={isSubmitting || !selectedSellerId}>
+                    {isSubmitting ? 'Salvando...' : 'Salvar'}
+                  </Button>
+                </div>
+              </form>
+
+              <AlertDialog open={deleteDialog} onOpenChange={setDeleteDialog}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Tem certeza que deseja excluir este item?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Essa ação não poderá ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteGoal}
+                      className="bg-red-500 hover:bg-red-600"
+                    >
+                      Excluir
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="lote">
+          <Card>
+            <CardHeader>
+              <CardTitle>Importação via Planilha</CardTitle>
+              <CardDescription>
+                Fluxo de importação para Metas e Realizado (.csv / .xlsx).
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {importStep === 1 && (
+                <div className="relative border-2 border-dashed border-border rounded-lg p-12 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer">
+                  <input
+                    type="file"
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    accept=".csv,.xlsx"
+                    onChange={handleFileChange}
+                  />
+                  <div className="bg-primary/10 p-4 rounded-full mb-4">
+                    <UploadCloud className="w-8 h-8 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-medium mb-1">Clique ou arraste o arquivo</h3>
+                  <p className="text-sm text-muted-foreground mb-4">(.xlsx, .csv)</p>
+                  <Button variant="outline">Selecionar Arquivo</Button>
+                </div>
+              )}
+
+              {importStep === 2 && (
+                <div className="py-12 flex flex-col items-center justify-center space-y-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <p>Mapeando colunas e validando formato...</p>
+                </div>
+              )}
+
+              {importStep === 3 && (
+                <div className="space-y-6">
+                  <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium">
+                    <CheckCircle2 className="w-5 h-5" /> Arquivo mapeado com sucesso (
+                    {previewData.length} registros).
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
-                    <div className="space-y-2">
-                      <Label htmlFor="periodo">Período</Label>
-                      <Input
-                        id="periodo"
-                        name="periodo"
-                        type="month"
-                        value={period}
-                        onChange={(e) => setPeriod(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="metric">Métrica</Label>
-                      <Select value={metric} onValueChange={setMetric} required>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Métrica" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Revenue">Faturamento Geral</SelectItem>
-                          <SelectItem value="Mix_F1">Faturamento F1 (Automação)</SelectItem>
-                          <SelectItem value="Mix_F2">Faturamento F2 (Robótica)</SelectItem>
-                          <SelectItem value="Mix_F3">Faturamento F3 (Sensores)</SelectItem>
-                          <SelectItem value="Mix_Outros">Faturamento Outros</SelectItem>
-                          <SelectItem value="Coverage">Cobertura (Empresas)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="border rounded-md overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-muted">
+                        <tr>
+                          <th className="px-4 py-2 font-medium">Vendedor</th>
+                          <th className="px-4 py-2 font-medium">Período</th>
+                          <th className="px-4 py-2 font-medium">Métrica</th>
+                          <th className="px-4 py-2 font-medium">Base</th>
+                          <th className="px-4 py-2 font-medium">Bronze</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {previewData.map((r, i) => (
+                          <tr key={i} className="border-t">
+                            <td className="px-4 py-2">{r.Vendedor}</td>
+                            <td className="px-4 py-2">{r.Período}</td>
+                            <td className="px-4 py-2">{r.Métrica}</td>
+                            <td className="px-4 py-2">{r.Base}</td>
+                            <td className="px-4 py-2">{r.Bronze}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
-                    <div className="space-y-2">
-                      <Label htmlFor="mix_family">Família Mix</Label>
-                      <Input
-                        id="mix_family"
-                        value={mixFamily}
-                        onChange={(e) => setMixFamily(e.target.value)}
-                        placeholder="Ex: F1, F2..."
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="focus_fleet">Frota Foco da Área</Label>
-                      <Input
-                        id="focus_fleet"
-                        type="tel"
-                        value={focusFleet}
-                        onChange={(e) => setFocusFleet(maskInteger(e.target.value))}
-                        placeholder="0"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="focus_companies">Empresas Foco da Área</Label>
-                      <Input
-                        id="focus_companies"
-                        type="tel"
-                        value={focusCompanies}
-                        onChange={(e) => setFocusCompanies(maskInteger(e.target.value))}
-                        placeholder="0"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
-                    <div className="space-y-2">
-                      <Label htmlFor="target_base">Meta Base</Label>
-                      <Input
-                        id="target_base"
-                        type="tel"
-                        value={targetBase}
-                        onChange={(e) => setTargetBase(maskCurrency(e.target.value))}
-                        placeholder="R$ 0,00"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="target_bronze">Meta Bronze</Label>
-                      <Input
-                        id="target_bronze"
-                        type="tel"
-                        value={targetBronze}
-                        onChange={(e) => setTargetBronze(maskCurrency(e.target.value))}
-                        placeholder="R$ 0,00"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="target_prata">Meta Prata</Label>
-                      <Input
-                        id="target_prata"
-                        type="tel"
-                        value={targetPrata}
-                        onChange={(e) => setTargetPrata(maskCurrency(e.target.value))}
-                        placeholder="R$ 0,00"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="target_ouro">Meta Ouro</Label>
-                      <Input
-                        id="target_ouro"
-                        type="tel"
-                        value={targetOuro}
-                        onChange={(e) => setTargetOuro(maskCurrency(e.target.value))}
-                        placeholder="R$ 0,00"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="pt-4 flex justify-end gap-2">
-                    {existingGoalId && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                        onClick={() => setDeleteDialog(true)}
-                        disabled={isSubmitting || !isAllowedToDelete}
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Excluir Meta
-                      </Button>
-                    )}
-                    <Button type="submit" disabled={isSubmitting || !selectedSellerId}>
-                      {isSubmitting ? 'Salvando...' : 'Salvar'}
+                  <div className="flex justify-between items-center">
+                    <Button variant="outline" onClick={() => setImportStep(1)}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={confirmImport} disabled={isSubmitting} className="gap-2">
+                      {isSubmitting ? 'Importando...' : 'Confirmar e Importar'}{' '}
+                      <ArrowRight className="w-4 h-4" />
                     </Button>
                   </div>
-                </form>
-
-                <AlertDialog open={deleteDialog} onOpenChange={setDeleteDialog}>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Tem certeza que deseja excluir este item?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Essa ação não poderá ser desfeita.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleDeleteGoal}
-                        className="bg-red-500 hover:bg-red-600"
-                      >
-                        Excluir
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="lote">
-            <Card>
-              <CardHeader>
-                <CardTitle>Importação via Planilha</CardTitle>
-                <CardDescription>
-                  Fluxo de importação para Metas e Realizado (.csv / .xlsx).
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {importStep === 1 && (
-                  <div className="relative border-2 border-dashed border-border rounded-lg p-12 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer">
-                    <input
-                      type="file"
-                      className="absolute inset-0 opacity-0 cursor-pointer"
-                      accept=".csv,.xlsx"
-                      onChange={handleFileChange}
-                    />
-                    <div className="bg-primary/10 p-4 rounded-full mb-4">
-                      <UploadCloud className="w-8 h-8 text-primary" />
-                    </div>
-                    <h3 className="text-lg font-medium mb-1">Clique ou arraste o arquivo</h3>
-                    <p className="text-sm text-muted-foreground mb-4">(.xlsx, .csv)</p>
-                    <Button variant="outline">Selecionar Arquivo</Button>
-                  </div>
-                )}
-
-                {importStep === 2 && (
-                  <div className="py-12 flex flex-col items-center justify-center space-y-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                    <p>Mapeando colunas e validando formato...</p>
-                  </div>
-                )}
-
-                {importStep === 3 && (
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium">
-                      <CheckCircle2 className="w-5 h-5" /> Arquivo mapeado com sucesso (
-                      {previewData.length} registros).
-                    </div>
-
-                    <div className="border rounded-md overflow-x-auto">
-                      <table className="w-full text-sm text-left">
-                        <thead className="bg-muted">
-                          <tr>
-                            <th className="px-4 py-2 font-medium">Vendedor</th>
-                            <th className="px-4 py-2 font-medium">Período</th>
-                            <th className="px-4 py-2 font-medium">Métrica</th>
-                            <th className="px-4 py-2 font-medium">Base</th>
-                            <th className="px-4 py-2 font-medium">Bronze</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {previewData.map((r, i) => (
-                            <tr key={i} className="border-t">
-                              <td className="px-4 py-2">{r.Vendedor}</td>
-                              <td className="px-4 py-2">{r.Período}</td>
-                              <td className="px-4 py-2">{r.Métrica}</td>
-                              <td className="px-4 py-2">{r.Base}</td>
-                              <td className="px-4 py-2">{r.Bronze}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <div className="flex justify-between items-center">
-                      <Button variant="outline" onClick={() => setImportStep(1)}>
-                        Cancelar
-                      </Button>
-                      <Button onClick={confirmImport} disabled={isSubmitting} className="gap-2">
-                        {isSubmitting ? 'Importando...' : 'Confirmar e Importar'}{' '}
-                        <ArrowRight className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

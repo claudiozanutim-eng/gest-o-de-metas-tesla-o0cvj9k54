@@ -57,7 +57,22 @@ const adminItems = [
 export function AppSidebar() {
   const location = useLocation()
   const user = useAuthStore((state) => state.user)
-  const isAdmin = user?.role === 'Administrator' || user?.role === 'National Manager'
+  const isAdminOrManager = user?.role !== 'Seller' && user?.role !== 'Sales Assistant'
+
+  const filteredNavItems = mainNavItems.filter((item) => {
+    if (user?.role === 'Seller') {
+      return ['/', '/metas', '/simulacao'].includes(item.url)
+    }
+    return true
+  })
+
+  const filteredAdminItems = adminItems.filter((item) => {
+    if (user?.role === 'Administrator' || user?.role === 'National Manager') {
+      return true
+    }
+    const hideForManagers = ['/admin/parametros', '/admin/usuarios', '/admin/importacao']
+    return !hideForManagers.includes(item.url)
+  })
 
   return (
     <Sidebar variant="inset">
@@ -71,7 +86,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Operação</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainNavItems.map((item) => (
+              {filteredNavItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
@@ -89,7 +104,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {isAdmin && (
+        {isAdminOrManager && filteredAdminItems.length > 0 && (
           <Collapsible defaultOpen className="group/collapsible">
             <SidebarGroup>
               <SidebarGroupLabel asChild>
@@ -101,7 +116,7 @@ export function AppSidebar() {
               <CollapsibleContent>
                 <SidebarGroupContent>
                   <SidebarMenu>
-                    {adminItems.map((item) => (
+                    {filteredAdminItems.map((item) => (
                       <SidebarMenuItem key={item.title}>
                         <SidebarMenuButton asChild isActive={location.pathname === item.url}>
                           <Link to={item.url}>
