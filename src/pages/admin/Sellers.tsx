@@ -67,9 +67,11 @@ export default function Sellers() {
 
   const { toast } = useToast()
   const { user } = useAuth()
-  const isAllowedToDelete = ['Administrator', 'National Manager', 'Gerente Nacional'].includes(
-    user?.role || '',
-  )
+  const isAllowedToDelete = [
+    'Administrador',
+    'Gestor da Empresa',
+    'Gerente Nacional de Vendas',
+  ].includes(user?.role || '')
 
   const loadData = async () => {
     setSellers(
@@ -97,28 +99,33 @@ export default function Sellers() {
   const handleDelete = async () => {
     if (!sellerToDelete) return
     try {
-      const goals = await pb
-        .collection('goals')
-        .getList(1, 1, { filter: `seller_id="${sellerToDelete.user_id}"` })
-      const perf = await pb
-        .collection('actual_performance')
-        .getList(1, 1, { filter: `seller_id="${sellerToDelete.user_id}"` })
-      if (goals.items.length > 0 || perf.items.length > 0) {
-        toast({
-          title: 'Erro ao excluir item',
-          description:
-            'Não é possível excluir este item pois ele possui vínculos ativos (Metas/Realizado).',
-          variant: 'destructive',
-        })
-        setDeleteDialog(false)
-        return
+      if (sellerToDelete.user_id) {
+        const goals = await pb
+          .collection('goals')
+          .getList(1, 1, { filter: `seller_id="${sellerToDelete.user_id}"` })
+        const perf = await pb
+          .collection('actual_performance')
+          .getList(1, 1, { filter: `seller_id="${sellerToDelete.user_id}"` })
+        if (goals.items.length > 0 || perf.items.length > 0) {
+          toast({
+            title: 'Erro ao excluir vendedor. Por favor, tente novamente.',
+            description:
+              'Não é possível excluir este item pois ele possui vínculos ativos (Metas/Realizado).',
+            variant: 'destructive',
+          })
+          setDeleteDialog(false)
+          return
+        }
       }
       await pb.collection('sellers').delete(sellerToDelete.id)
-      toast({ title: 'Item excluído com sucesso.' })
+      toast({ title: 'Vendedor excluído com sucesso.' })
       setDeleteDialog(false)
       loadData()
     } catch (e: any) {
-      toast({ title: 'Erro ao excluir item', description: e.message, variant: 'destructive' })
+      toast({
+        title: 'Erro ao excluir vendedor. Por favor, tente novamente.',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -266,8 +273,10 @@ export default function Sellers() {
       <AlertDialog open={deleteDialog} onOpenChange={setDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Tem certeza que deseja excluir este item?</AlertDialogTitle>
-            <AlertDialogDescription>Essa ação não poderá ser desfeita.</AlertDialogDescription>
+            <AlertDialogTitle>Excluir Vendedor</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este vendedor? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
