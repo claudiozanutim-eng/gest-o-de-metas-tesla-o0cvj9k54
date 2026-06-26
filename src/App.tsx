@@ -46,11 +46,7 @@ const ProtectedRoute = () => {
 const SuperAdminRoute = () => {
   const { user, loading } = useAuth()
   if (loading) return null
-  if (
-    user?.role !== 'Administrador' &&
-    user?.role !== 'Gestor da Empresa' &&
-    user?.role !== 'Gerente Nacional de Vendas'
-  ) {
+  if (user?.role !== 'Administrador') {
     return <Navigate to="/" replace />
   }
   return <Outlet />

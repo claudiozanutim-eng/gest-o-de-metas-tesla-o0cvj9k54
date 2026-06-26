@@ -64,31 +64,43 @@ export default function GoalEntry() {
   const [targetPrata, setTargetPrata] = useState('')
   const [targetOuro, setTargetOuro] = useState('')
 
-  const maskInteger = (value: string | number) => {
-    const digits = String(value).replace(/\D/g, '')
+  const maskInteger = (value: string | number | null | undefined) => {
+    if (value === null || value === undefined) return ''
+    let digits = String(value).replace(/\D/g, '')
     if (!digits) return ''
+    if (digits.length > 15) digits = digits.slice(0, 15)
     const num = parseInt(digits, 10).toString()
     return num.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
   }
 
-  const unmaskInteger = (value: string | number) => {
-    const digits = String(value).replace(/\D/g, '')
+  const unmaskInteger = (value: string | number | null | undefined) => {
+    if (value === null || value === undefined) return 0
+    let digits = String(value).replace(/\D/g, '')
     if (!digits) return 0
+    if (digits.length > 15) digits = digits.slice(0, 15)
     return parseInt(digits, 10)
   }
 
-  const maskCurrency = (value: string | number) => {
-    const digits = String(value).replace(/\D/g, '')
+  const maskCurrency = (value: string | number | null | undefined) => {
+    if (value === null || value === undefined) return ''
+    let digits = String(value).replace(/\D/g, '')
     if (!digits) return ''
-    const num = (parseInt(digits, 10) / 100).toFixed(2)
-    const parts = num.split('.')
-    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-    return `R$ ${parts.join(',')}`
+    if (digits.length > 15) digits = digits.slice(0, 15)
+    try {
+      const num = (parseInt(digits, 10) / 100).toFixed(2)
+      const parts = num.split('.')
+      parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+      return `R$ ${parts.join(',')}`
+    } catch {
+      return ''
+    }
   }
 
-  const unmaskCurrency = (value: string | number) => {
-    const digits = String(value).replace(/\D/g, '')
+  const unmaskCurrency = (value: string | number | null | undefined) => {
+    if (value === null || value === undefined) return 0
+    let digits = String(value).replace(/\D/g, '')
     if (!digits) return 0
+    if (digits.length > 15) digits = digits.slice(0, 15)
     return parseInt(digits, 10) / 100
   }
 

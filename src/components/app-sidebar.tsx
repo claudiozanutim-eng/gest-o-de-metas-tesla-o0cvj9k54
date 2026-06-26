@@ -57,17 +57,17 @@ const adminItems = [
 export function AppSidebar() {
   const location = useLocation()
   const user = useAuthStore((state) => state.user)
-  const isAdminOrManager = user?.role !== 'Seller' && user?.role !== 'Sales Assistant'
+  const isAdminOrManager = user?.role !== 'Vendedor'
 
   const filteredNavItems = mainNavItems.filter((item) => {
-    if (user?.role === 'Seller') {
+    if (user?.role === 'Vendedor') {
       return ['/', '/metas', '/simulacao'].includes(item.url)
     }
     return true
   })
 
   const filteredAdminItems = adminItems.filter((item) => {
-    if (user?.role === 'Administrator' || user?.role === 'National Manager') {
+    if (user?.role === 'Administrador') {
       return true
     }
     const hideForManagers = ['/admin/parametros', '/admin/usuarios', '/admin/importacao']
@@ -142,21 +142,7 @@ export function AppSidebar() {
           />
           <div className="flex flex-col truncate">
             <span className="text-sm font-medium">{user?.name}</span>
-            <span className="text-xs text-muted-foreground">
-              {user?.role === 'District Manager'
-                ? 'Gerente Distrital'
-                : user?.role === 'National Manager'
-                  ? 'Gerente Nacional'
-                  : user?.role === 'Administrator'
-                    ? 'Administrador'
-                    : user?.role === 'Seller'
-                      ? 'Vendedor'
-                      : user?.role === 'Sales Assistant'
-                        ? 'Assistente de Vendas'
-                        : user?.role === 'Regional Manager'
-                          ? 'Gerente Regional'
-                          : user?.role}
-            </span>
+            <span className="text-xs text-muted-foreground">{user?.role || 'Usuário'}</span>
           </div>
         </div>
       </SidebarFooter>

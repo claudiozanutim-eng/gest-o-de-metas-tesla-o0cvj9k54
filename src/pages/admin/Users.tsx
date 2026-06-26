@@ -235,9 +235,9 @@ export default function Users() {
         data.area_id = ''
       }
 
-      data.district_id = data.district_id === 'none' ? '' : data.district_id
-      data.regional_id = data.regional_id === 'none' ? '' : data.regional_id
-      data.area_id = data.area_id === 'none' ? '' : data.area_id
+      if (!data.district_id || data.district_id === 'none') data.district_id = null
+      if (!data.regional_id || data.regional_id === 'none') data.regional_id = null
+      if (!data.area_id || data.area_id === 'none') data.area_id = null
 
       if (data.id) {
         await pb.collection('users').update(data.id, data)
