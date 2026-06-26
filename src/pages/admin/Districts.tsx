@@ -149,7 +149,7 @@ export default function Districts() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="pl-6">Nome</TableHead>
+                <TableHead className="pl-6">Distrito</TableHead>
                 <TableHead>Regionais Associadas</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead></TableHead>
