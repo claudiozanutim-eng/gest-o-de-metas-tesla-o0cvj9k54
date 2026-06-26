@@ -5,13 +5,15 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import logoUrl from '@/assets/image-247cf.png'
 
 export default function Login() {
   const { signIn, isAuthenticated, loading: authLoading } = useAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(() => localStorage.getItem('rememberedEmail') || '')
   const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(() => !!localStorage.getItem('rememberedEmail'))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -30,6 +32,11 @@ export default function Login() {
       setError('E-mail ou senha incorretos.')
       setLoading(false)
     } else {
+      if (rememberMe) {
+        localStorage.setItem('rememberedEmail', email)
+      } else {
+        localStorage.removeItem('rememberedEmail')
+      }
       navigate('/', { replace: true })
     }
   }
@@ -66,6 +73,19 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="remember"
+                checked={rememberMe}
+                onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+              />
+              <label
+                htmlFor="remember"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Lembrar-me
+              </label>
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
