@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-27T15:27:33.482Z",
+  "generatedAt": "2026-06-27T15:32:21.455Z",
   "collections": [
     {
       "name": "users",
@@ -751,6 +751,60 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "goal_audit_logs",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "goal_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "goals"
+        },
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "old_values",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "new_values",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_goal_audit_goal_id ON goal_audit_logs (goal_id)"]
     }
   ]
 }

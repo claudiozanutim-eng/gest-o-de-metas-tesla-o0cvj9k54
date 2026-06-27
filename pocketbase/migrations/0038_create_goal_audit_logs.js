@@ -1,5 +1,7 @@
 migrate(
   (app) => {
+    const goalsCollection = app.findCollectionByNameOrId('goals')
+
     const collection = new Collection({
       name: 'goal_audit_logs',
       type: 'base',
@@ -13,7 +15,7 @@ migrate(
           name: 'goal_id',
           type: 'relation',
           required: true,
-          collectionId: 'goals',
+          collectionId: goalsCollection.id,
           cascadeDelete: true,
           maxSelect: 1,
         },

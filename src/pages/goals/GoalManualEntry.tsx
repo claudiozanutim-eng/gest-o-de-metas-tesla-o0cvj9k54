@@ -264,11 +264,9 @@ export default function GoalManualEntry() {
         sort: '-created',
         expand: 'seller_id',
       })
-      const goals = await pb
-        .collection('goals')
-        .getFullList({
-          filter: `seller_id="${seller.user_id}" && area_id="${areaId}" && metric="${metric}"`,
-        })
+      const goals = await pb.collection('goals').getFullList({
+        filter: `seller_id="${seller.user_id}" && area_id="${areaId}" && metric="${metric}"`,
+      })
       setHistory(
         perfs.map((p) => ({
           ...p,
