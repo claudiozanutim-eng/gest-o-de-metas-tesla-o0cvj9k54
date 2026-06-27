@@ -48,13 +48,23 @@ export const EXPLICIT_METRICS = [
 const maskMoney = (v: any) => {
   const n = String(v).replace(/\D/g, '')
   return n
-    ? `R$ ${(parseInt(n) / 100)
+    ? `R$ ${(Number(n) / 100)
         .toFixed(2)
         .replace('.', ',')
         .replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`
     : ''
 }
-const unmaskMoney = (v: any) => parseInt(String(v).replace(/\D/g, '') || '0') / 100
+const unmaskMoney = (v: any) => {
+  const digits = String(v).replace(/\D/g, '') || '0'
+  return Number(digits) / 100
+}
+const formatCurrency = (v: number) => {
+  const safe = Number.isFinite(v) ? v : 0
+  return `R$ ${safe
+    .toFixed(2)
+    .replace('.', ',')
+    .replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`
+}
 
 function MonthPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false)
@@ -169,11 +179,12 @@ export default function GoalManualEntry() {
 
   const formatVal = (v: any) => {
     if (v === undefined || v === null) return ''
-    return isCurrency ? maskMoney(Number(v) * 100) : String(v)
+    return isCurrency ? formatCurrency(Number(v) || 0) : String(v)
   }
   const parseVal = (v: string) => {
     if (!v) return 0
-    return isCurrency ? unmaskMoney(v) : Number(v.toString().replace(',', '.'))
+    const result = isCurrency ? unmaskMoney(v) : Number(v.toString().replace(',', '.'))
+    return Number.isFinite(result) ? result : 0
   }
 
   useEffect(() => {
@@ -280,6 +291,7 @@ export default function GoalManualEntry() {
   const calcActual = parseVal(atual)
 
   const diff = calcActual - calcBase
+  const ouroDiff = calcActual - calcOuro
   const pct = calcBase > 0 ? (calcActual / calcBase) * 100 : 0
 
   const getTier = () => {
@@ -516,7 +528,7 @@ export default function GoalManualEntry() {
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <Card className="bg-primary/5 border-primary/20">
               <CardHeader className="py-3 px-4">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -525,7 +537,7 @@ export default function GoalManualEntry() {
               </CardHeader>
               <CardContent className="px-4 pb-4">
                 <div className="text-2xl font-bold">
-                  {isCurrency ? maskMoney(calcBase * 100) : calcBase}
+                  {isCurrency ? formatCurrency(calcBase) : calcBase}
                 </div>
               </CardContent>
             </Card>
@@ -537,7 +549,7 @@ export default function GoalManualEntry() {
               </CardHeader>
               <CardContent className="px-4 pb-4">
                 <div className="text-2xl font-bold">
-                  {isCurrency ? maskMoney(calcActual * 100) : calcActual}
+                  {isCurrency ? formatCurrency(calcActual) : calcActual}
                 </div>
               </CardContent>
             </Card>
@@ -559,8 +571,31 @@ export default function GoalManualEntry() {
                     diff >= 0 ? 'text-green-600' : 'text-red-500',
                   )}
                 >
-                  {diff >= 0 ? '+' : ''}
-                  {isCurrency ? maskMoney(diff * 100) : diff}
+                  {diff >= 0 ? '+' : '-'}
+                  {isCurrency ? formatCurrency(Math.abs(diff)) : Math.abs(diff)}
+                </div>
+              </CardContent>
+            </Card>
+            <Card className={cn('border-yellow-300/50', ouroDiff >= 0 && 'bg-yellow-50/50')}>
+              <CardHeader className="py-3 px-4">
+                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                  Meta Ouro{' '}
+                  {ouroDiff >= 0 ? (
+                    <TrendingUp className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <TrendingDown className="w-4 h-4 text-yellow-600" />
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <div
+                  className={cn(
+                    'text-2xl font-bold',
+                    ouroDiff >= 0 ? 'text-green-600' : 'text-yellow-700',
+                  )}
+                >
+                  {ouroDiff >= 0 ? '+' : '-'}
+                  {isCurrency ? formatCurrency(Math.abs(ouroDiff)) : Math.abs(ouroDiff)}
                 </div>
               </CardContent>
             </Card>
