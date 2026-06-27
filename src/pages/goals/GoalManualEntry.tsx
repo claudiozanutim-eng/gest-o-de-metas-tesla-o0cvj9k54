@@ -11,6 +11,8 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -31,6 +33,97 @@ const maskMoney = (v: any) => {
     : ''
 }
 const unmaskMoney = (v: any) => parseInt(String(v).replace(/\D/g, '') || '0') / 100
+
+function MonthPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false)
+
+  const currentYear = value ? parseInt(value.split('-')[0], 10) : new Date().getFullYear()
+  const currentMonth = value ? parseInt(value.split('-')[1], 10) - 1 : new Date().getMonth()
+
+  const months = [
+    'Janeiro',
+    'Fevereiro',
+    'Março',
+    'Abril',
+    'Maio',
+    'Junho',
+    'Julho',
+    'Agosto',
+    'Setembro',
+    'Outubro',
+    'Novembro',
+    'Dezembro',
+  ]
+  const shortMonths = [
+    'Jan',
+    'Fev',
+    'Mar',
+    'Abr',
+    'Mai',
+    'Jun',
+    'Jul',
+    'Ago',
+    'Set',
+    'Out',
+    'Nov',
+    'Dez',
+  ]
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={cn(
+            'w-full justify-start text-left font-normal',
+            !value && 'text-muted-foreground',
+          )}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {value ? `${months[currentMonth]} ${currentYear}` : <span>Selecione o período</span>}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-3" align="start">
+        <div className="flex items-center justify-between space-x-2 pb-4">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() =>
+              onChange(`${currentYear - 1}-${String(currentMonth + 1).padStart(2, '0')}`)
+            }
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="font-semibold">{currentYear}</div>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() =>
+              onChange(`${currentYear + 1}-${String(currentMonth + 1).padStart(2, '0')}`)
+            }
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {shortMonths.map((m, i) => (
+            <Button
+              key={i}
+              variant={i === currentMonth ? 'default' : 'outline'}
+              className="h-9 w-full"
+              onClick={() => {
+                onChange(`${currentYear}-${String(i + 1).padStart(2, '0')}`)
+                setOpen(false)
+              }}
+            >
+              {m}
+            </Button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
 
 export default function GoalManualEntry() {
   const { toast } = useToast()
@@ -285,7 +378,7 @@ export default function GoalManualEntry() {
               ))}
           </SelectContent>
         </Select>
-        <Input type="month" value={period} onChange={(e) => setPeriod(e.target.value)} />
+        <MonthPicker value={period} onChange={setPeriod} />
         <Select value={metric} onValueChange={setMetric}>
           <SelectTrigger>
             <SelectValue placeholder="Métrica" />
