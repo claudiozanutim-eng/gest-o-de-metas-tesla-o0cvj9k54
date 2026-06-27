@@ -2,6 +2,10 @@ routerAdd(
   'GET',
   '/backend/v1/audit/diagnostic',
   (e) => {
+    if (!e.auth || e.auth.getString('role') !== 'Administrador') {
+      return e.forbiddenError('Acesso restrito a administradores.')
+    }
+
     const getCount = (query) => {
       const result = new DynamicModel({ c: 0 })
       try {
@@ -70,5 +74,5 @@ routerAdd(
       },
     })
   },
-  $apis.requireSuperuserAuth(),
+  $apis.requireAuth(),
 )
