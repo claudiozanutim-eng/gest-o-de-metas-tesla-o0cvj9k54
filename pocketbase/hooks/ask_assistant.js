@@ -8,12 +8,12 @@ routerAdd(
       if (!userId) return e.unauthorizedError('auth required')
       if (!body.message?.trim()) return e.badRequestError('message is required')
 
-      const conv = $ai.agent('tesla-sales-copilot').getOrCreateConversation({
+      const conv = $ai.agent('vendedor-tesla').getOrCreateConversation({
         user_id: userId,
         id: body.conversation_id || null,
       })
 
-      const iter = $ai.agent('tesla-sales-copilot').chat({
+      const iter = $ai.agent('vendedor-tesla').chat({
         user_id: userId,
         conversation_id: conv.id,
         message: body.message,

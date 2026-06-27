@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Bot, Send, Sparkles, User } from 'lucide-react'
+import mascotUrl from '@/assets/image-7530a.png'
 import { streamAgentChat } from '@/lib/skipAi'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
@@ -22,7 +23,7 @@ export default function Assistant() {
       id: '1',
       role: 'assistant',
       content:
-        'Olá! Sou o assistente de IA da Tesla Mecatrônica. Posso analisar dados, apontar áreas de risco e sugerir ações de vendas. Como posso ajudar hoje?',
+        'Olá! Sou o Nico IA, seu assistente inteligente da Tesla Mecatrônica. Posso analisar dados, apontar áreas de risco e sugerir ações de vendas. Como posso ajudar hoje?',
     },
   ])
   const [input, setInput] = useState('')
@@ -90,7 +91,7 @@ export default function Assistant() {
       <div className="mb-4">
         <h1 className="text-3xl font-bold tracking-tight text-primary flex items-center gap-2">
           <Bot className="w-8 h-8 text-accent" />
-          Assistente IA
+          Nico IA
         </h1>
         <p className="text-muted-foreground">Análise inteligente e insights sobre sua operação.</p>
       </div>
@@ -100,7 +101,7 @@ export default function Assistant() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-accent" />
-              Tesla IA - Contexto: {user?.role || 'Global'}
+              Nico IA - Contexto: {user?.role || 'Global'}
             </CardTitle>
           </div>
         </CardHeader>
@@ -118,7 +119,12 @@ export default function Assistant() {
                   className={`w-8 h-8 mt-1 border shadow-sm ${msg.role === 'assistant' ? 'bg-primary text-primary-foreground' : ''}`}
                 >
                   {msg.role === 'assistant' ? (
-                    <Bot className="w-4 h-4" />
+                    <>
+                      <AvatarImage src={mascotUrl} alt="Nico IA" />
+                      <AvatarFallback className="bg-primary text-primary-foreground">
+                        <Bot className="w-4 h-4" />
+                      </AvatarFallback>
+                    </>
                   ) : (
                     <>
                       <AvatarImage
@@ -151,7 +157,10 @@ export default function Assistant() {
             {isTyping && messages[messages.length - 1]?.role === 'user' && (
               <div className="flex gap-4 max-w-[85%]">
                 <Avatar className="w-8 h-8 mt-1 border shadow-sm bg-primary text-primary-foreground">
-                  <Bot className="w-4 h-4" />
+                  <AvatarImage src={mascotUrl} alt="Nico IA" />
+                  <AvatarFallback>
+                    <Bot className="w-4 h-4" />
+                  </AvatarFallback>
                 </Avatar>
                 <div className="rounded-2xl px-4 py-3 bg-muted rounded-tl-sm border flex items-center gap-1">
                   <span className="w-1.5 h-1.5 bg-primary/50 rounded-full animate-bounce [animation-delay:-0.3s]"></span>

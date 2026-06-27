@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import logoUrl from '@/assets/image-247cf.png'
+import mascotUrl from '@/assets/image-7530a.png'
 import {
   Sidebar,
   SidebarContent,
@@ -17,7 +18,6 @@ import {
   Target,
   TrendingUp,
   Calculator,
-  Bot,
   FileText,
   Settings,
   Users,
@@ -32,6 +32,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/use-auth-store'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { cn } from '@/lib/utils'
 import pb from '@/lib/pocketbase/client'
 
 const mainNavItems = [
@@ -39,7 +40,6 @@ const mainNavItems = [
   { title: 'Metas', url: '/metas', icon: Target },
   { title: 'Acompanhamento', url: '/acompanhamento', icon: TrendingUp },
   { title: 'Simulação', url: '/simulacao', icon: Calculator },
-  { title: 'Assistente IA', url: '/assistente', icon: Bot },
   { title: 'Relatórios', url: '/relatorios', icon: FileText },
 ]
 
@@ -79,6 +79,8 @@ export function AppSidebar() {
     return !hideForManagers.includes(item.url)
   })
 
+  const isAssistantActive = location.pathname === '/assistente'
+
   return (
     <Sidebar variant="inset">
       <SidebarHeader className="border-b p-4">
@@ -108,6 +110,46 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {isAdminOrManager && (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <Link
+                    to="/assistente"
+                    className={cn(
+                      'group flex items-center gap-3 rounded-xl px-3 py-2.5 mx-2 transition-all duration-200 cursor-pointer',
+                      'hover:bg-sidebar-accent hover:scale-[1.02]',
+                      isAssistantActive && 'bg-sidebar-accent',
+                    )}
+                  >
+                    <div className="relative shrink-0">
+                      <img
+                        src={mascotUrl}
+                        alt="Nico IA"
+                        className="h-10 w-10 rounded-xl object-cover ring-2 ring-primary/20"
+                      />
+                      <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                        <span className="relative inline-flex h-3 w-3 rounded-full bg-green-500 ring-2 ring-sidebar" />
+                      </span>
+                    </div>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-sm font-bold text-[#003DA5] dark:text-primary">
+                        Nico IA
+                      </span>
+                      <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-green-500" />
+                        Assistente Online
+                      </span>
+                    </div>
+                  </Link>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {isAdminOrManager && filteredAdminItems.length > 0 && (
           <Collapsible defaultOpen className="group/collapsible">
