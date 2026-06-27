@@ -54,7 +54,7 @@ export default function Auditoria() {
     setLoading(true)
     try {
       await pb.send('/backend/v1/audit/cleanup', { method: 'POST' })
-      toast({ title: 'Sucesso', description: 'Limpeza finalizada!' })
+      toast({ title: 'Sucesso', description: 'Limpeza de órfãos e metas concluída.' })
       await loadDiagnostic()
     } catch (e) {
       toast({ title: 'Erro', description: getErrorMessage(e), variant: 'destructive' })
@@ -74,7 +74,7 @@ export default function Auditoria() {
     setLoading(true)
     try {
       await pb.send('/backend/v1/audit/reset-partial', { method: 'POST' })
-      toast({ title: 'Sucesso', description: 'Reset parcial concluído!' })
+      toast({ title: 'Sucesso', description: 'Reset parcial concluído com sucesso.' })
       await loadDiagnostic()
       loadHistory()
     } catch (e) {
@@ -90,7 +90,7 @@ export default function Auditoria() {
     setLoading(true)
     try {
       await pb.send('/backend/v1/audit/reset-full', { method: 'POST' })
-      toast({ title: 'Sucesso', description: 'Reset total concluído!' })
+      toast({ title: 'Sucesso', description: 'Reset total concluído com sucesso.' })
       await loadDiagnostic()
       loadHistory()
     } catch (e) {

@@ -329,6 +329,14 @@ export default function GoalManualEntry() {
       })
     }
 
+    if (calcBase <= 0) {
+      return toast({
+        title: 'Atenção',
+        description: 'O campo Meta Base é obrigatório.',
+        variant: 'destructive',
+      })
+    }
+
     setIsSubmitting(true)
     try {
       const mixFamily = isCoverage ? '' : metric
@@ -375,22 +383,43 @@ export default function GoalManualEntry() {
           })
         }
       } else {
-        const g = await pb.collection('goals').create({
-          seller_id: seller.user_id,
-          area_id: areaId,
-          regional_id: regId,
-          period,
-          metric,
-          mix_family: mixFamily,
-          ...newGoalData,
-        })
-        currentGoalId = g.id
-        await pb.collection('goal_audit_logs').create({
-          goal_id: currentGoalId,
-          user_id: user.id,
-          old_values: null,
-          new_values: newGoalData,
-        })
+        try {
+          const g = await pb.collection('goals').create({
+            seller_id: seller.user_id,
+            area_id: areaId,
+            regional_id: regId,
+            period,
+            metric,
+            mix_family: mixFamily,
+            ...newGoalData,
+          })
+          currentGoalId = g.id
+          await pb.collection('goal_audit_logs').create({
+            goal_id: currentGoalId,
+            user_id: user.id,
+            old_values: null,
+            new_values: newGoalData,
+          })
+        } catch (createErr) {
+          const foundGoal = await pb
+            .collection('goals')
+            .getFirstListItem(
+              `seller_id="${seller.user_id}" && area_id="${areaId}" && regional_id="${regId}" && period="${period}" && metric="${metric}" && mix_family="${mixFamily}"`,
+            )
+            .catch(() => null)
+          if (foundGoal) {
+            currentGoalId = foundGoal.id
+            await pb.collection('goals').update(foundGoal.id, newGoalData)
+            await pb.collection('goal_audit_logs').create({
+              goal_id: foundGoal.id,
+              user_id: user.id,
+              old_values: foundGoal,
+              new_values: newGoalData,
+            })
+          } else {
+            throw createErr
+          }
+        }
       }
 
       const newPerfData = { actual_value: calcActual, actual_coverage: isCoverage ? calcActual : 0 }
@@ -409,31 +438,31 @@ export default function GoalManualEntry() {
       if (existingPerf) {
         await pb.collection('actual_performance').update(existingPerf.id, newPerfData)
       } else {
-        await pb.collection('actual_performance').create({
-          seller_id: seller.user_id,
-          period,
-          metric,
-          mix_family: mixFamily,
-          ...newPerfData,
-        })
+        try {
+          await pb.collection('actual_performance').create({
+            seller_id: seller.user_id,
+            period,
+            metric,
+            mix_family: mixFamily,
+            ...newPerfData,
+          })
+        } catch (createErr) {
+          const foundPerf = await pb
+            .collection('actual_performance')
+            .getFirstListItem(
+              `seller_id="${seller.user_id}" && period="${period}" && metric="${metric}"`,
+            )
+            .catch(() => null)
+          if (foundPerf) {
+            await pb.collection('actual_performance').update(foundPerf.id, newPerfData)
+          } else {
+            throw createErr
+          }
+        }
       }
 
       toast({ title: 'Sucesso', description: 'Meta salva com sucesso!' })
-      setTargetBase('')
-      setTargetBronze('')
-      setTargetPrata('')
-      setTargetOuro('')
-      setAtual('')
-      setCovDaily('')
-      setCovWeekly('')
-      setCovMonthly('')
-      setSellerId('')
-      setDistId('')
-      setRegId('')
-      setAreaId('')
-
-      // Let loadData handle refreshing the UI context if any remains
-      loadData()
+      await loadData()
     } catch (e) {
       toast({
         title: 'Erro ao salvar meta',
