@@ -24,10 +24,12 @@ export function TrendLineChart() {
 
     return sortedPeriods.map((p, idx) => {
       const acts = filteredActuals.filter(
-        (a) => a.period === p && ['Faturamento', 'Revenue'].includes(a.metric),
+        (a) =>
+          a.period === p && ['Faturamento', 'Revenue', 'Faturamento (Geral)'].includes(a.metric),
       )
       const gls = filteredGoals.filter(
-        (g) => g.period === p && ['Faturamento', 'Revenue'].includes(g.metric),
+        (g) =>
+          g.period === p && ['Faturamento', 'Revenue', 'Faturamento (Geral)'].includes(g.metric),
       )
 
       return {
@@ -40,21 +42,17 @@ export function TrendLineChart() {
   }, [filteredActuals, filteredGoals])
 
   return (
-    <Card className="shadow-sm flex flex-col col-span-1 lg:col-span-2">
+    <Card className="shadow-sm flex flex-col hover:shadow-md transition-all duration-300">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-bold text-[#002147] uppercase tracking-wider">
+        <CardTitle className="text-sm font-bold text-[#003DA5] uppercase tracking-wider">
           Evolução Histórica
         </CardTitle>
       </CardHeader>
       <CardContent className="flex-1 min-h-[250px]">
         {data.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={data}
-              margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
-              key="trend-line-chart"
-            >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+            <LineChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E6F0FF" />
               <XAxis dataKey="period" fontSize={10} tickLine={false} axisLine={false} />
               <YAxis
                 fontSize={10}
@@ -64,16 +62,17 @@ export function TrendLineChart() {
               />
               <Tooltip
                 formatter={(value: number) =>
-                  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                    value,
-                  )
+                  new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL',
+                  }).format(value)
                 }
               />
               <Legend verticalAlign="bottom" height={36} />
               <Line
                 type="monotone"
                 dataKey="Realizado"
-                stroke="#004b87"
+                stroke="#003DA5"
                 strokeWidth={3}
                 dot={{ r: 4 }}
                 activeDot={{ r: 6 }}
@@ -81,7 +80,7 @@ export function TrendLineChart() {
               <Line
                 type="monotone"
                 dataKey="Meta"
-                stroke="#00a3e0"
+                stroke="#4D94FF"
                 strokeWidth={2}
                 strokeDasharray="5 5"
                 dot={false}

@@ -116,9 +116,7 @@ export function DashboardHeader() {
     <div className="flex flex-col gap-4 mb-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[#002147]">
-            Performance Executiva
-          </h1>
+          <h1 className="text-3xl font-bold tracking-tight text-[#003DA5]">Dashboard</h1>
           <p className="text-muted-foreground">Monitoramento consolidado de metas e resultados.</p>
         </div>
         <Button variant="outline" onClick={clearFilters} className="mt-2 md:mt-0">

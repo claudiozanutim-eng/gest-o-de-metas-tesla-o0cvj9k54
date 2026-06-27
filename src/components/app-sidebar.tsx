@@ -35,7 +35,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import pb from '@/lib/pocketbase/client'
 
 const mainNavItems = [
-  { title: 'Painel', url: '/', icon: LayoutDashboard },
+  { title: 'Dashboard', url: '/', icon: LayoutDashboard },
   { title: 'Metas', url: '/metas', icon: Target },
   { title: 'Acompanhamento', url: '/acompanhamento', icon: TrendingUp },
   { title: 'Simulação', url: '/simulacao', icon: Calculator },

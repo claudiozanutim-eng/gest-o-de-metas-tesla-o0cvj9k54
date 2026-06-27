@@ -1,11 +1,13 @@
 import { DashboardProvider, useDashboard } from '@/hooks/use-dashboard'
 import { DashboardHeader } from '@/components/dashboard/header'
 import { DashboardKPIs } from '@/components/dashboard/kpi-cards'
+import { ComparativeCards } from '@/components/dashboard/comparative-cards'
+import { TruckRanking } from '@/components/dashboard/truck-ranking'
 import { MixDonutChart } from '@/components/dashboard/mix-donut'
-import { SellerRanking } from '@/components/dashboard/seller-ranking'
 import { ProductsRanking } from '@/components/dashboard/products-ranking'
 import { BrazilMap } from '@/components/dashboard/brazil-map'
 import { TrendLineChart } from '@/components/dashboard/trend-line'
+import { CoverageLaunch } from '@/components/dashboard/coverage-launch'
 import { Activity } from 'lucide-react'
 import { EmptyState } from '@/components/ui/empty-state'
 
@@ -15,7 +17,7 @@ function DashboardContent() {
   if (isLoading) {
     return (
       <div className="p-8 text-center text-muted-foreground animate-pulse">
-        Carregando painel executivo...
+        Carregando dashboard...
       </div>
     )
   }
@@ -26,7 +28,7 @@ function DashboardContent() {
         <EmptyState
           icon={Activity}
           title="Nenhum dado encontrado"
-          description="O painel precisa de dados de metas e desempenho para ser exibido. Importe os dados no menu de administração."
+          description="O dashboard precisa de dados de metas e desempenho para ser exibido. Importe os dados no menu de administração."
         />
       </div>
     )
@@ -36,14 +38,16 @@ function DashboardContent() {
     <div className="flex flex-col gap-6">
       <DashboardHeader />
       <DashboardKPIs />
+      <ComparativeCards />
+      <TruckRanking />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <MixDonutChart />
-        <SellerRanking />
         <ProductsRanking />
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 pb-8">
-        <BrazilMap />
         <TrendLineChart />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-8">
+        <BrazilMap />
+        <CoverageLaunch />
       </div>
     </div>
   )
@@ -52,7 +56,7 @@ function DashboardContent() {
 export default function Index() {
   return (
     <DashboardProvider>
-      <div className="p-4 md:p-8 bg-slate-50 min-h-screen">
+      <div className="p-4 md:p-8 bg-background min-h-screen">
         <DashboardContent />
       </div>
     </DashboardProvider>

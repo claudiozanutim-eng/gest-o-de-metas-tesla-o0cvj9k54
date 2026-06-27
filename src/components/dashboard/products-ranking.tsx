@@ -9,7 +9,7 @@ export function ProductsRanking() {
   const data = useMemo(() => {
     const products = new Map<string, number>()
     filteredActuals.forEach((a) => {
-      if (['Faturamento', 'Revenue'].includes(a.metric)) {
+      if (['Faturamento', 'Revenue', 'Faturamento (Geral)'].includes(a.metric)) {
         const p = a.mix_family ? `Família ${a.mix_family}` : 'Outros Produtos'
         products.set(p, (products.get(p) || 0) + (a.actual_value || 0))
       }
@@ -21,9 +21,9 @@ export function ProductsRanking() {
   }, [filteredActuals])
 
   return (
-    <Card className="shadow-sm flex flex-col">
+    <Card className="shadow-sm flex flex-col hover:shadow-md transition-all duration-300">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-bold text-[#002147] uppercase tracking-wider">
+        <CardTitle className="text-sm font-bold text-[#003DA5] uppercase tracking-wider">
           Top Produtos / Famílias
         </CardTitle>
       </CardHeader>
@@ -36,7 +36,7 @@ export function ProductsRanking() {
               key="products-ranking-chart"
               margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
             >
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E6F0FF" />
               <XAxis
                 type="number"
                 fontSize={10}
@@ -55,12 +55,13 @@ export function ProductsRanking() {
               <Tooltip
                 cursor={{ fill: 'transparent' }}
                 formatter={(value: number) =>
-                  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                    value,
-                  )
+                  new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL',
+                  }).format(value)
                 }
               />
-              <Bar dataKey="value" fill="#0072c6" radius={[0, 4, 4, 0]} barSize={24} />
+              <Bar dataKey="value" fill="#0066CC" radius={[0, 4, 4, 0]} barSize={24} />
             </BarChart>
           </ResponsiveContainer>
         ) : (

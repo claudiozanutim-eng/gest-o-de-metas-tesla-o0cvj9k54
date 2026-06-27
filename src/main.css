@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,103 +6,90 @@
 
 @layer base {
   :root {
-    /* Industrial Blue Theme */
-    --background: 43.6 40.7% 94.7%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 214 100% 95%;
+    --foreground: 217 100% 15%;
 
-    --card: 43.6 40.7% 94.7%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 217 100% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 217 100% 15%;
 
-    --primary: 215 28% 17%; /* Deep Industrial Blue - slate-800 */
-    --primary-foreground: 210 40% 98%;
+    --primary: 217 100% 33%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 214 32% 91%;
-    --secondary-foreground: 222.2 84% 4.9%;
+    --secondary: 214 40% 90%;
+    --secondary-foreground: 217 100% 33%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 214 100% 95%;
+    --muted-foreground: 215 25% 40%;
 
-    --accent: 240 4% 43.7%; /* Electric Blue - blue-500 */
-    --accent-foreground: 210 40% 98%;
+    --accent: 217 100% 65%;
+    --accent-foreground: 217 100% 15%;
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 215 28% 17%;
+    --border: 214 50% 88%;
+    --input: 214 50% 88%;
+    --ring: 217 100% 33%;
 
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222.2 84% 4.9%;
-    --sidebar-primary: 215 28% 17%;
+    --sidebar-foreground: 217 100% 15%;
+    --sidebar-primary: 217 100% 33%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 40% 96.1%;
-    --sidebar-accent-foreground: 222.2 84% 4.9%;
-    --sidebar-border: 214.3 31.8% 91.4%;
-    --sidebar-ring: 215 28% 17%;
+    --sidebar-accent: 214 100% 95%;
+    --sidebar-accent-foreground: 217 100% 15%;
+    --sidebar-border: 214 50% 90%;
+    --sidebar-ring: 217 100% 33%;
 
-    /* Categories */
-    --cat-base: 215 16% 47%; /* slate-500 */
-    --cat-bronze: 30 61% 50%; /* #cd7f32 roughly */
-    --cat-prata: 0 0% 75%; /* #c0c0c0 */
-    --cat-ouro: 51 100% 50%; /* #ffd700 */
+    --cat-base: 215 16% 47%;
+    --cat-bronze: 30 61% 50%;
+    --cat-prata: 0 0% 75%;
+    --cat-ouro: 51 100% 50%;
 
-    /* Charts */
-    --chart-1: 217 91% 60%; /* Electric blue */
-    --chart-2: 215 28% 17%; /* Deep blue */
-    --chart-3: 142 76% 36%; /* Emerald */
-    --chart-4: 43 74% 66%; /* Yellow */
-    --chart-5: 0 84% 60%; /* Rose */
+    --chart-1: 217 100% 33%;
+    --chart-2: 210 100% 40%;
+    --chart-3: 217 100% 65%;
+    --chart-4: 214 100% 80%;
+    --chart-5: 210 100% 50%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 84% 4.9%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 91.2% 59.8%;
-    --accent-foreground: 210 40% 98%;
-
+    --background: 217 100% 10%;
+    --foreground: 214 100% 95%;
+    --card: 217 100% 12%;
+    --card-foreground: 214 100% 95%;
+    --popover: 217 100% 12%;
+    --popover-foreground: 214 100% 95%;
+    --primary: 217 100% 65%;
+    --primary-foreground: 217 100% 10%;
+    --secondary: 217 100% 20%;
+    --secondary-foreground: 214 100% 95%;
+    --muted: 217 100% 18%;
+    --muted-foreground: 214 50% 70%;
+    --accent: 217 100% 65%;
+    --accent-foreground: 214 100% 95%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-
-    --sidebar-background: 222.2 84% 4.9%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 217.2 91.2% 59.8%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217.2 32.6% 17.5%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217.2 32.6% 17.5%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-
-    --chart-1: 217 91% 60%;
-    --chart-2: 215 28% 50%;
-    --chart-3: 142 76% 36%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 217 100% 22%;
+    --input: 217 100% 22%;
+    --ring: 217 100% 65%;
+    --sidebar-background: 217 100% 10%;
+    --sidebar-foreground: 214 100% 95%;
+    --sidebar-primary: 217 100% 65%;
+    --sidebar-primary-foreground: 217 100% 10%;
+    --sidebar-accent: 217 100% 18%;
+    --sidebar-accent-foreground: 214 100% 95%;
+    --sidebar-border: 217 100% 22%;
+    --sidebar-ring: 217 100% 65%;
+    --chart-1: 217 100% 65%;
+    --chart-2: 210 100% 55%;
+    --chart-3: 217 100% 75%;
+    --chart-4: 214 100% 85%;
+    --chart-5: 210 100% 60%;
   }
 }
 
@@ -115,14 +102,45 @@
   }
 }
 
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 @layer utilities {
-  .animate-accordion-down {
-    animation: accordion-down 0.2s ease-out;
-  }
-  .animate-accordion-up {
-    animation: accordion-up 0.2s ease-out;
-  }
   .animate-fade-in {
-    animation: fade-in 0.5s ease-out;
+    animation: fade-in 0.5s ease-out both;
+  }
+  .animate-fade-in-up {
+    animation: fade-in-up 0.4s ease-out both;
+  }
+  .animate-scale-in {
+    animation: scale-in 0.3s ease-out both;
   }
 }

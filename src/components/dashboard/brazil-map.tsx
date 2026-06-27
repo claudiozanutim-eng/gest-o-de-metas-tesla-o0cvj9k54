@@ -6,15 +6,15 @@ import { BRAZIL_STATES, BRAZIL_VIEW_BOX } from './brazil-paths'
 import { cn } from '@/lib/utils'
 
 export const REG_COLORS: Record<string, string> = {
-  '1': '#34a853',
-  '2': '#673ab7',
-  '3': '#ff9800',
-  '4': '#ffeb3b',
-  '5': '#42a5f5',
-  '6': '#f44336',
-  '7': '#ff7043',
-  '8': '#9e9e9e',
-  '0': '#e91e63',
+  '1': '#003DA5',
+  '2': '#0066CC',
+  '3': '#4D94FF',
+  '4': '#80B5FF',
+  '5': '#003DA5',
+  '6': '#0066CC',
+  '7': '#4D94FF',
+  '8': '#80B5FF',
+  '0': '#003DA5',
 }
 
 export function BrazilMap() {
@@ -127,8 +127,8 @@ export function BrazilMap() {
                   className={cn(
                     'flex items-center gap-2 text-xs cursor-pointer p-2 rounded-md transition-all border border-transparent',
                     isSelected
-                      ? 'bg-slate-100 font-bold border-slate-300 shadow-sm'
-                      : 'hover:bg-slate-50',
+                      ? 'bg-[#E6F0FF] font-bold border-[#4D94FF]/30 shadow-sm'
+                      : 'hover:bg-[#E6F0FF]/50',
                   )}
                 >
                   <div
@@ -160,7 +160,7 @@ export function BrazilMap() {
                 const isRegionalSelected = rData && filters.regional === rData.id
                 const isActive = isSelected || isRegionalSelected
                 const strokeWidth = isActive ? 6 : 2
-                const stroke = isActive ? '#002147' : '#ffffff'
+                const stroke = isActive ? '#003DA5' : '#ffffff'
 
                 return (
                   <Tooltip key={`state-${uf}`}>
@@ -173,15 +173,15 @@ export function BrazilMap() {
                         strokeWidth={strokeWidth}
                         className={cn(
                           'cursor-pointer transition-all duration-300',
-                          'hover:fill-opacity-100 hover:stroke-[#002147]',
+                          'hover:fill-opacity-100 hover:stroke-[#003DA5]',
                         )}
                         onClick={() => handleStateClick(uf)}
                       />
                     </TooltipTrigger>
                     <TooltipContent className="z-50">
                       <div className="text-sm">
-                        <p className="font-bold">
-                          {uf} - Regional {regNum}
+                        <p className="font-bold text-[#003DA5]">
+                          {rData ? rData.name : `Regional ${regNum}`} ({uf})
                         </p>
                         {rData ? (
                           <>

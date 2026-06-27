@@ -7,7 +7,7 @@ export function DashboardKPIs() {
   const { filteredActuals, filteredGoals } = useDashboard()
 
   const metrics = useMemo(() => {
-    const isRevenue = (m: string) => ['Faturamento', 'Revenue'].includes(m)
+    const isRevenue = (m: string) => ['Faturamento', 'Revenue', 'Faturamento (Geral)'].includes(m)
 
     const revActual = filteredActuals
       .filter((a) => isRevenue(a.metric))
@@ -61,39 +61,46 @@ export function DashboardKPIs() {
         title="Faturamento Realizado"
         value={formatCurrency(metrics.revActual)}
         icon={DollarSign}
-        color="text-[#0072c6]"
-        bgAccent="bg-[#0072c6]/10"
-        borderColor="border-l-[#0072c6]"
+        color="text-[#0066CC]"
+        bgAccent="bg-[#0066CC]/10"
+        borderColor="border-l-[#0066CC]"
+        delay={0}
       />
       <KPICard
         title="Meta de Faturamento"
         value={formatCurrency(metrics.revGoal)}
         icon={Target}
-        color="text-[#004b87]"
-        bgAccent="bg-[#004b87]/10"
-        borderColor="border-l-[#004b87]"
+        color="text-[#003DA5]"
+        bgAccent="bg-[#003DA5]/10"
+        borderColor="border-l-[#003DA5]"
+        delay={75}
       />
       <KPICard
         title="% Atingimento"
         value={`${metrics.achievement.toFixed(1)}%`}
         icon={Activity}
-        color={metrics.achievement >= 100 ? 'text-emerald-600' : 'text-rose-600'}
-        bgAccent={metrics.achievement >= 100 ? 'bg-emerald-600/10' : 'bg-rose-600/10'}
-        borderColor={metrics.achievement >= 100 ? 'border-l-emerald-600' : 'border-l-rose-600'}
+        color={metrics.achievement >= 100 ? 'text-emerald-600' : 'text-red-600'}
+        bgAccent={metrics.achievement >= 100 ? 'bg-emerald-600/10' : 'bg-red-600/10'}
+        borderColor={metrics.achievement >= 100 ? 'border-l-emerald-600' : 'border-l-red-600'}
         subtitle="Vs Meta Base"
+        delay={150}
       />
       <KPICard
         title="Cobertura nas Empresas"
         value={formatNumber(metrics.covActual)}
         icon={Building2}
-        color="text-[#002147]"
-        bgAccent="bg-[#002147]/10"
-        borderColor="border-l-[#002147]"
+        color="text-[#003DA5]"
+        bgAccent="bg-[#003DA5]/10"
+        borderColor="border-l-[#003DA5]"
         subtitle={`Meta: ${formatNumber(metrics.covGoal)}`}
+        delay={225}
       />
-      <Card className="border-l-4 border-l-[#00a3e0] shadow-sm relative overflow-hidden group">
-        <div className="absolute top-0 right-0 p-4 rounded-bl-3xl bg-[#00a3e0]/10 transition-all duration-300 group-hover:scale-110">
-          <PieChart className="h-6 w-6 text-[#00a3e0]" strokeWidth={2} />
+      <Card
+        className="border-l-4 border-l-[#4D94FF] shadow-sm relative overflow-hidden group hover:shadow-md hover:scale-[1.02] transition-all duration-300 animate-fade-in-up"
+        style={{ animationDelay: '300ms' }}
+      >
+        <div className="absolute top-0 right-0 p-4 rounded-bl-3xl bg-[#4D94FF]/10 transition-all duration-300 group-hover:scale-110">
+          <PieChart className="h-6 w-6 text-[#4D94FF]" strokeWidth={2} />
         </div>
         <CardContent className="p-4 flex flex-col justify-center h-full relative z-10">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
@@ -102,10 +109,10 @@ export function DashboardKPIs() {
           <div className="grid grid-cols-2 gap-x-2 gap-y-3 mt-1">
             {metrics.phases.map((p, i) => (
               <div key={`phase-${p.name}-${i}`} className="flex flex-col">
-                <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">
+                <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
                   {p.name}
                 </span>
-                <span className="text-sm font-bold text-[#002147]">{p.pct.toFixed(1)}%</span>
+                <span className="text-base font-extrabold text-[#003DA5]">{p.pct.toFixed(1)}%</span>
               </div>
             ))}
           </div>
@@ -115,9 +122,12 @@ export function DashboardKPIs() {
   )
 }
 
-function KPICard({ title, value, icon: Icon, color, bgAccent, borderColor, subtitle }: any) {
+function KPICard({ title, value, icon: Icon, color, bgAccent, borderColor, subtitle, delay }: any) {
   return (
-    <Card className={`border-l-4 ${borderColor} shadow-sm relative overflow-hidden group`}>
+    <Card
+      className={`border-l-4 ${borderColor} shadow-sm relative overflow-hidden group hover:shadow-md hover:scale-[1.02] transition-all duration-300 animate-fade-in-up`}
+      style={{ animationDelay: `${delay}ms` }}
+    >
       <div
         className={`absolute top-0 right-0 p-4 rounded-bl-3xl ${bgAccent} transition-all duration-300 group-hover:scale-110`}
       >
@@ -128,12 +138,12 @@ function KPICard({ title, value, icon: Icon, color, bgAccent, borderColor, subti
           {title}
         </p>
         <h3
-          className="text-2xl lg:text-2xl xl:text-3xl font-bold text-[#002147] truncate tracking-tight"
+          className="text-2xl lg:text-3xl font-extrabold text-[#003DA5] truncate tracking-tight"
           title={value}
         >
           {value}
         </h3>
-        {subtitle && <p className="text-xs text-slate-500 mt-1 font-medium">{subtitle}</p>}
+        {subtitle && <p className="text-xs text-muted-foreground mt-1 font-medium">{subtitle}</p>}
       </CardContent>
     </Card>
   )
