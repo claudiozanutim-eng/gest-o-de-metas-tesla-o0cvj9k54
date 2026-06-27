@@ -3,14 +3,13 @@ routerAdd(
   '/backend/v1/audit/cleanup',
   (e) => {
     if (!e.auth || e.auth.getString('role') !== 'Administrador') {
-      return e.forbiddenError('Acesso restrito a administradores.')
+      return e.forbiddenError('Acesso negado: você não tem permissão para executar esta ação.')
     }
 
     try {
       $app.runInTransaction((txApp) => {
         const db = txApp.db()
 
-        // 1. Orphan Cleanup
         db.newQuery(
           "DELETE FROM actual_performance WHERE seller_id = '' OR seller_id NOT IN (SELECT id FROM users)",
         ).execute()
@@ -30,7 +29,6 @@ routerAdd(
           "DELETE FROM sellers WHERE area_id = '' OR area_id NOT IN (SELECT id FROM areas)",
         ).execute()
 
-        // 2. Tier Order Correction (top-down to cascade adjustments properly)
         db.newQuery(
           'UPDATE goals SET target_prata = target_ouro - 1 WHERE target_prata >= target_ouro AND target_ouro > 0',
         ).execute()
@@ -38,12 +36,10 @@ routerAdd(
           'UPDATE goals SET target_bronze = target_prata - 1 WHERE target_bronze >= target_prata AND target_prata > 0',
         ).execute()
 
-        // Deduplicate goals (Keep the oldest record)
         db.newQuery(
           'DELETE FROM goals WHERE id NOT IN (SELECT MIN(id) FROM goals GROUP BY seller_id, area_id, regional_id, period, metric, mix_family)',
         ).execute()
 
-        // Deduplicate actual_performance
         db.newQuery(
           'DELETE FROM actual_performance WHERE id NOT IN (SELECT MIN(id) FROM actual_performance GROUP BY seller_id, period, metric)',
         ).execute()
@@ -51,7 +47,7 @@ routerAdd(
 
       return e.json(200, { success: true })
     } catch (err) {
-      return e.badRequestError(err.message)
+      return e.badRequestError('Erro ao executar limpeza: ' + err.message)
     }
   },
   $apis.requireAuth(),

@@ -65,7 +65,7 @@ export function CoverageLaunch() {
           actual_coverage: value,
         })
       }
-      toast({ title: 'Sucesso', description: 'Cobertura lançada com sucesso.' })
+      toast({ title: 'Sucesso', description: 'Cobertura lançada com sucesso!' })
       setCoverage('')
     } catch (e) {
       toast({ title: 'Erro', description: getErrorMessage(e), variant: 'destructive' })

@@ -18,8 +18,13 @@ export function DashboardKPIs() {
 
     const achievement = revGoal > 0 ? (revActual / revGoal) * 100 : 0
 
-    const covActual = filteredActuals.reduce((sum, a) => sum + (a.focus_companies || 0), 0)
-    const covGoal = filteredGoals.reduce((sum, g) => sum + (g.focus_companies || 0), 0)
+    const covActual = filteredActuals
+      .filter((a) => a.metric === 'Coverage')
+      .reduce((sum, a) => sum + (a.actual_coverage || a.actual_value || 0), 0)
+    const covGoal = filteredGoals
+      .filter((g) => g.metric === 'Coverage')
+      .reduce((sum, g) => sum + (g.target_monthly_coverage || g.target_base || 0), 0)
+    const covAchievement = covGoal > 0 ? (covActual / covGoal) * 100 : 0
 
     const fams = new Map<string, number>()
     filteredActuals.forEach((a) => {
@@ -42,7 +47,7 @@ export function DashboardKPIs() {
       { name: 'Fase 4', pct: getPhasePct('Outros') },
     ]
 
-    return { revActual, revGoal, achievement, covActual, covGoal, phases }
+    return { revActual, revGoal, achievement, covActual, covGoal, covAchievement, phases }
   }, [filteredActuals, filteredGoals])
 
   const formatCurrency = (v: number) =>
@@ -86,13 +91,13 @@ export function DashboardKPIs() {
         delay={150}
       />
       <KPICard
-        title="Cobertura nas Empresas"
-        value={formatNumber(metrics.covActual)}
+        title="Atingimento de Cobertura"
+        value={`${metrics.covAchievement.toFixed(1)}%`}
         icon={Building2}
-        color="text-[#003DA5]"
-        bgAccent="bg-[#003DA5]/10"
-        borderColor="border-l-[#003DA5]"
-        subtitle={`Meta: ${formatNumber(metrics.covGoal)}`}
+        color={metrics.covAchievement >= 100 ? 'text-emerald-600' : 'text-[#003DA5]'}
+        bgAccent={metrics.covAchievement >= 100 ? 'bg-emerald-600/10' : 'bg-[#003DA5]/10'}
+        borderColor={metrics.covAchievement >= 100 ? 'border-l-emerald-600' : 'border-l-[#003DA5]'}
+        subtitle={`Realizado: ${metrics.covActual.toFixed(1)}% | Meta: ${metrics.covGoal.toFixed(1)}%`}
         delay={225}
       />
       <Card

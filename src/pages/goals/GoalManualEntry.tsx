@@ -169,6 +169,9 @@ export default function GoalManualEntry() {
   const [targetPrata, setTargetPrata] = useState('')
   const [targetOuro, setTargetOuro] = useState('')
   const [atual, setAtual] = useState('')
+  const [covDaily, setCovDaily] = useState('')
+  const [covWeekly, setCovWeekly] = useState('')
+  const [covMonthly, setCovMonthly] = useState('')
 
   const [history, setHistory] = useState<any[]>([])
   const [auditLogs, setAuditLogs] = useState<any[]>([])
@@ -227,12 +230,18 @@ export default function GoalManualEntry() {
       setTargetBronze(formatVal(g.target_bronze || 0))
       setTargetPrata(formatVal(g.target_prata || 0))
       setTargetOuro(formatVal(g.target_ouro || 0))
+      setCovDaily(String(g.target_daily_coverage || ''))
+      setCovWeekly(String(g.target_weekly_coverage || ''))
+      setCovMonthly(String(g.target_monthly_coverage || ''))
     } catch {
       setLoadedGoal(null)
       setTargetBase('')
       setTargetBronze('')
       setTargetPrata('')
       setTargetOuro('')
+      setCovDaily('')
+      setCovWeekly('')
+      setCovMonthly('')
     }
 
     try {
@@ -289,6 +298,9 @@ export default function GoalManualEntry() {
   const calcPrata = parseVal(targetPrata)
   const calcOuro = parseVal(targetOuro)
   const calcActual = parseVal(atual)
+  const calcCovDaily = parseVal(covDaily)
+  const calcCovWeekly = parseVal(covWeekly)
+  const calcCovMonthly = parseVal(covMonthly)
 
   const diff = calcActual - calcBase
   const ouroDiff = calcActual - calcOuro
@@ -311,7 +323,8 @@ export default function GoalManualEntry() {
     if (!seller?.user_id || !period || !metric || !regId || !areaId || !distId) {
       return toast({
         title: 'Atenção',
-        description: 'Preencha todos os seletores obrigatórios.',
+        description:
+          'Preencha todos os campos obrigatórios: Distrito, Regional, Área, Vendedor, Período e Métrica.',
         variant: 'destructive',
       })
     }
@@ -336,7 +349,9 @@ export default function GoalManualEntry() {
         target_bronze: calcBronze,
         target_prata: calcPrata,
         target_ouro: calcOuro,
-        target_monthly_coverage: isCoverage ? calcBase : 0,
+        target_daily_coverage: calcCovDaily,
+        target_weekly_coverage: calcCovWeekly,
+        target_monthly_coverage: calcCovMonthly || (isCoverage ? calcBase : 0),
       }
 
       let currentGoalId = existingGoal?.id
@@ -403,12 +418,15 @@ export default function GoalManualEntry() {
         })
       }
 
-      toast({ title: 'Sucesso', description: 'Meta lançada com sucesso' })
+      toast({ title: 'Sucesso', description: 'Meta salva com sucesso!' })
       setTargetBase('')
       setTargetBronze('')
       setTargetPrata('')
       setTargetOuro('')
       setAtual('')
+      setCovDaily('')
+      setCovWeekly('')
+      setCovMonthly('')
       setSellerId('')
       setDistId('')
       setRegId('')
@@ -705,9 +723,59 @@ export default function GoalManualEntry() {
             </Table>
           </div>
 
+          {isCoverage && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader className="py-3 px-4">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Meta Cobertura Diária (%)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-4">
+                  <Input
+                    value={covDaily}
+                    onChange={(e) => setCovDaily(e.target.value)}
+                    placeholder="0"
+                    type="number"
+                  />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="py-3 px-4">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Meta Cobertura Semanal (%)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-4">
+                  <Input
+                    value={covWeekly}
+                    onChange={(e) => setCovWeekly(e.target.value)}
+                    placeholder="0"
+                    type="number"
+                  />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="py-3 px-4">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Meta Cobertura Mensal (%)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-4">
+                  <Input
+                    value={covMonthly}
+                    onChange={(e) => setCovMonthly(e.target.value)}
+                    placeholder="0"
+                    type="number"
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
           <div className="flex justify-end">
             <Button onClick={savePerf} disabled={isSubmitting}>
-              {loadedGoal ? 'Salvar Alterações' : 'Criar Lançamento'}
+              {isSubmitting ? 'Salvando...' : loadedGoal ? 'Salvar Alterações' : 'Criar Lançamento'}
             </Button>
           </div>
         </div>

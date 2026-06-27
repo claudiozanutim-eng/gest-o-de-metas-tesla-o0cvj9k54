@@ -196,6 +196,14 @@ export default function GoalDashboard() {
       let filterGoal = `period="${period}" && metric="${metric}"`
       let filterPerf = `period="${period}" && metric="${metric}"`
 
+      if (regId && regId !== 'all') {
+        filterGoal += ` && regional_id="${regId}"`
+      }
+
+      if (areaId && areaId !== 'all') {
+        filterGoal += ` && area_id="${areaId}"`
+      }
+
       if (sellerId && sellerId !== 'all') {
         const seller = data.sellers.find((s: any) => s.id === sellerId)
         if (seller) {
@@ -203,9 +211,21 @@ export default function GoalDashboard() {
           filterPerf += ` && seller_id="${seller.user_id}"`
         }
       } else if (areaId && areaId !== 'all') {
-        filterGoal += ` && area_id="${areaId}"`
         const sellerIds = data.sellers
           .filter((s: any) => s.area_id === areaId)
+          .map((s: any) => s.user_id)
+          .filter(Boolean)
+        if (sellerIds.length > 0) {
+          filterPerf += ` && seller_id in ('${sellerIds.join("','")}')`
+        } else {
+          filterPerf += ` && id="0"`
+        }
+      } else if (regId && regId !== 'all') {
+        const sellerIds = data.sellers
+          .filter((s: any) => {
+            const area = data.areas.find((a: any) => a.id === s.area_id)
+            return area?.regional_id === regId
+          })
           .map((s: any) => s.user_id)
           .filter(Boolean)
         if (sellerIds.length > 0) {
