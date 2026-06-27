@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react'
+import { CalendarIcon, ChevronLeft, ChevronRight, History, Target } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -22,6 +22,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/hooks/use-auth'
 
 const maskMoney = (v: any) => {
   const n = String(v).replace(/\D/g, '')
@@ -36,16 +37,12 @@ const unmaskMoney = (v: any) => parseInt(String(v).replace(/\D/g, '') || '0') / 
 
 function MonthPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false)
-
   const selectedYear = value ? parseInt(value.split('-')[0], 10) : new Date().getFullYear()
   const selectedMonth = value ? parseInt(value.split('-')[1], 10) - 1 : new Date().getMonth()
-
   const [displayYear, setDisplayYear] = useState(selectedYear)
 
   useEffect(() => {
-    if (open) {
-      setDisplayYear(selectedYear)
-    }
+    if (open) setDisplayYear(selectedYear)
   }, [open, selectedYear])
 
   const months = [
@@ -135,6 +132,7 @@ function MonthPicker({ value, onChange }: { value: string; onChange: (v: string)
 
 export default function GoalManualEntry() {
   const { toast } = useToast()
+  const { user } = useAuth()
   const [data, setData] = useState<any>({ sellers: [], regionals: [], areas: [], districts: [] })
   const [distId, setDistId] = useState('')
   const [regId, setRegId] = useState('')
@@ -146,14 +144,37 @@ export default function GoalManualEntry() {
 
   const [loadedGoal, setLoadedGoal] = useState<any>(null)
   const [perfId, setPerfId] = useState<string | null>(null)
+
+  // States for Goal and Performance inputs
+  const [targetBase, setTargetBase] = useState('')
+  const [targetBronze, setTargetBronze] = useState('')
+  const [targetPrata, setTargetPrata] = useState('')
+  const [targetOuro, setTargetOuro] = useState('')
   const [atual, setAtual] = useState('')
+
+  // Coverage specific states
+  const [targetCoverage, setTargetCoverage] = useState('')
+  const [plannedCompanies, setPlannedCompanies] = useState('')
+  const [actualCoverage, setActualCoverage] = useState('')
+  const [visitedCompanies, setVisitedCompanies] = useState('')
+
   const [history, setHistory] = useState<any[]>([])
+  const [auditLogs, setAuditLogs] = useState<any[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const isCoverage = metric.toLowerCase().includes('cobertura')
   const isCurrency =
-    metric.toLowerCase().includes('faturamento') || metric.toLowerCase().includes('f')
-  const formatVal = (v: number) => (isCurrency ? maskMoney(v * 100) : v.toString())
-  const parseVal = (v: string) => (isCurrency ? unmaskMoney(v) : Number(v.replace(',', '.')))
+    (metric.toLowerCase().includes('faturamento') || metric.toLowerCase().includes('f')) &&
+    !isCoverage
+
+  const formatVal = (v: any) => {
+    if (v === undefined || v === null) return ''
+    return isCurrency ? maskMoney(Number(v) * 100) : String(v)
+  }
+  const parseVal = (v: string) => {
+    if (!v) return 0
+    return isCurrency ? unmaskMoney(v) : Number(v.replace(',', '.'))
+  }
 
   useEffect(() => {
     Promise.all([
@@ -169,7 +190,7 @@ export default function GoalManualEntry() {
         setMetricsList(uniqueMetrics)
         if (!metric) setMetric(uniqueMetrics[0])
       } else {
-        const fallbacks = ['Métrica Faturamento', 'Métrica Família', 'Métrica Cobertura']
+        const fallbacks = ['Métrica Faturamento', 'Métrica Família', 'Cobertura Mensal']
         setMetricsList(fallbacks)
         if (!metric) setMetric(fallbacks[0])
       }
@@ -181,11 +202,21 @@ export default function GoalManualEntry() {
     if (!seller?.user_id || !period || !metric) {
       setLoadedGoal(null)
       setPerfId(null)
+      setTargetBase('')
+      setTargetBronze('')
+      setTargetPrata('')
+      setTargetOuro('')
       setAtual('')
+      setTargetCoverage('')
+      setPlannedCompanies('')
+      setActualCoverage('')
+      setVisitedCompanies('')
       setHistory([])
+      setAuditLogs([])
       return
     }
 
+    let gId = null
     try {
       const g = await pb
         .collection('goals')
@@ -193,8 +224,21 @@ export default function GoalManualEntry() {
           `seller_id="${seller.user_id}" && area_id="${areaId}" && period="${period}" && metric="${metric}"`,
         )
       setLoadedGoal(g)
+      gId = g.id
+      setTargetBase(formatVal(g.target_base || 0))
+      setTargetBronze(formatVal(g.target_bronze || 0))
+      setTargetPrata(formatVal(g.target_prata || 0))
+      setTargetOuro(formatVal(g.target_ouro || 0))
+      setTargetCoverage(g.target_monthly_coverage?.toString() || '')
+      setPlannedCompanies(g.focus_companies?.toString() || '')
     } catch {
       setLoadedGoal(null)
+      setTargetBase('')
+      setTargetBronze('')
+      setTargetPrata('')
+      setTargetOuro('')
+      setTargetCoverage('')
+      setPlannedCompanies('')
     }
 
     try {
@@ -204,10 +248,14 @@ export default function GoalManualEntry() {
           `seller_id="${seller.user_id}" && period="${period}" && metric="${metric}"`,
         )
       setPerfId(p.id)
-      setAtual(isCurrency ? maskMoney(p.actual_value * 100) : p.actual_value.toString())
+      setAtual(formatVal(p.actual_value || 0))
+      setActualCoverage(p.actual_coverage?.toString() || '')
+      setVisitedCompanies(p.focus_companies?.toString() || '')
     } catch {
       setPerfId(null)
       setAtual('')
+      setActualCoverage('')
+      setVisitedCompanies('')
     }
 
     try {
@@ -216,9 +264,11 @@ export default function GoalManualEntry() {
         sort: '-created',
         expand: 'seller_id',
       })
-      const goals = await pb.collection('goals').getFullList({
-        filter: `seller_id="${seller.user_id}" && area_id="${areaId}" && metric="${metric}"`,
-      })
+      const goals = await pb
+        .collection('goals')
+        .getFullList({
+          filter: `seller_id="${seller.user_id}" && area_id="${areaId}" && metric="${metric}"`,
+        })
       setHistory(
         perfs.map((p) => ({
           ...p,
@@ -228,60 +278,111 @@ export default function GoalManualEntry() {
     } catch {
       setHistory([])
     }
+
+    try {
+      if (gId) {
+        const logs = await pb
+          .collection('goal_audit_logs')
+          .getFullList({ filter: `goal_id="${gId}"`, sort: '-created', expand: 'user_id' })
+        setAuditLogs(logs)
+      } else {
+        setAuditLogs([])
+      }
+    } catch {
+      setAuditLogs([])
+    }
   }
 
   useEffect(() => {
     loadData()
-  }, [sellerId, period, metric, data.sellers])
+  }, [sellerId, areaId, period, metric, data.sellers])
 
   const savePerf = async () => {
     const seller = data.sellers.find((s: any) => s.id === sellerId)
-    if (!seller?.user_id || !period || !metric || !atual || !regId || !areaId || !distId) {
+    if (!seller?.user_id || !period || !metric || !regId || !areaId || !distId) {
       return toast({
         title: 'Atenção',
-        description: 'Preencha todos os seletores e a Meta Atual.',
+        description: 'Preencha todos os seletores.',
         variant: 'destructive',
-      })
-    }
-
-    const val = parseVal(atual)
-
-    if (val < 0) {
-      return toast({
-        title: 'Atenção',
-        description: 'Meta Atual deve ser positiva.',
-        variant: 'destructive',
-      })
-    }
-
-    const isCoverage = metric.toLowerCase().includes('cobertura')
-    if (isCoverage && val > 100) {
-      return toast({
-        title: 'Atenção',
-        description: 'Cobertura Atual deve estar entre 0 e 100.',
-        variant: 'destructive',
-      })
-    }
-
-    if (loadedGoal && val > loadedGoal.target_ouro) {
-      toast({
-        title: 'Aviso',
-        description: 'Aviso: Meta Atual excede Meta Ouro.',
-        variant: 'default',
       })
     }
 
     setIsSubmitting(true)
     try {
-      const payload = {
-        seller_id: seller.user_id,
-        period,
-        metric,
-        actual_value: val,
+      let currentGoalId = loadedGoal?.id
+
+      const newGoalData = isCoverage
+        ? {
+            target_monthly_coverage: Number(targetCoverage),
+            focus_companies: Number(plannedCompanies),
+          }
+        : {
+            target_base: parseVal(targetBase),
+            target_bronze: parseVal(targetBronze),
+            target_prata: parseVal(targetPrata),
+            target_ouro: parseVal(targetOuro),
+          }
+
+      if (currentGoalId) {
+        const changes: any = {}
+        let hasChanges = false
+        for (const k of Object.keys(newGoalData)) {
+          if (newGoalData[k as keyof typeof newGoalData] !== loadedGoal[k]) {
+            hasChanges = true
+            changes[k] = newGoalData[k as keyof typeof newGoalData]
+          }
+        }
+
+        if (hasChanges) {
+          await pb.collection('goals').update(currentGoalId, changes)
+          await pb.collection('goal_audit_logs').create({
+            goal_id: currentGoalId,
+            user_id: user.id,
+            old_values: loadedGoal,
+            new_values: changes,
+          })
+        }
+      } else {
+        const g = await pb.collection('goals').create({
+          seller_id: seller.user_id,
+          area_id: areaId,
+          regional_id: regId,
+          period,
+          metric,
+          mix_family: isCoverage ? '' : metric,
+          ...newGoalData,
+        })
+        currentGoalId = g.id
+        await pb.collection('goal_audit_logs').create({
+          goal_id: currentGoalId,
+          user_id: user.id,
+          old_values: null,
+          new_values: newGoalData,
+        })
       }
-      if (perfId) await pb.collection('actual_performance').update(perfId, payload)
-      else await pb.collection('actual_performance').create(payload)
-      toast({ title: 'Sucesso', description: 'Desempenho salvo!' })
+
+      const newPerfData = isCoverage
+        ? {
+            actual_coverage: Number(actualCoverage),
+            focus_companies: Number(visitedCompanies),
+            actual_value: 0,
+          }
+        : {
+            actual_value: parseVal(atual),
+          }
+
+      if (perfId) {
+        await pb.collection('actual_performance').update(perfId, newPerfData)
+      } else {
+        await pb.collection('actual_performance').create({
+          seller_id: seller.user_id,
+          period,
+          metric,
+          ...newPerfData,
+        })
+      }
+
+      toast({ title: 'Sucesso', description: 'Valores salvos com sucesso!' })
       loadData()
     } catch (e) {
       toast({ title: 'Erro', description: 'Não foi possível salvar.', variant: 'destructive' })
@@ -291,7 +392,7 @@ export default function GoalManualEntry() {
   }
 
   const handleDeletePerf = async (id: string) => {
-    if (!confirm('Deseja realmente excluir este lançamento?')) return
+    if (!confirm('Deseja realmente excluir este lançamento de desempenho?')) return
     setIsSubmitting(true)
     try {
       await pb.collection('actual_performance').delete(id)
@@ -304,35 +405,18 @@ export default function GoalManualEntry() {
     }
   }
 
-  const MetricCard = ({ title, act, tgt }: any) => {
-    const pct = tgt > 0 ? (act / tgt) * 100 : 0
-    let color = 'text-red-500'
-    if (pct >= 100) color = 'text-green-600'
-    else if (pct >= 80) color = 'text-yellow-500'
-
-    const tierName = title.split(' ')[1]
-
-    return (
-      <Card>
-        <CardHeader className="p-4 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 pt-0">
-          <div className={cn('text-2xl font-bold', color)}>{pct.toFixed(1)}%</div>
-          <div className="text-xs text-muted-foreground mt-1">
-            % Atingimento {tierName}: {pct.toFixed(1)}%
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  const aVal = parseVal(atual) || 0
-
   return (
     <div className="bg-card rounded-xl p-6 shadow-sm border space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-        <Select value={distId} onValueChange={setDistId}>
+        <Select
+          value={distId}
+          onValueChange={(v) => {
+            setDistId(v)
+            setRegId('')
+            setAreaId('')
+            setSellerId('')
+          }}
+        >
           <SelectTrigger>
             <SelectValue placeholder="Distrito" />
           </SelectTrigger>
@@ -344,7 +428,14 @@ export default function GoalManualEntry() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={regId} onValueChange={setRegId}>
+        <Select
+          value={regId}
+          onValueChange={(v) => {
+            setRegId(v)
+            setAreaId('')
+            setSellerId('')
+          }}
+        >
           <SelectTrigger>
             <SelectValue placeholder="Regional" />
           </SelectTrigger>
@@ -358,7 +449,13 @@ export default function GoalManualEntry() {
               ))}
           </SelectContent>
         </Select>
-        <Select value={areaId} onValueChange={setAreaId}>
+        <Select
+          value={areaId}
+          onValueChange={(v) => {
+            setAreaId(v)
+            setSellerId('')
+          }}
+        >
           <SelectTrigger>
             <SelectValue placeholder="Área" />
           </SelectTrigger>
@@ -401,96 +498,218 @@ export default function GoalManualEntry() {
         </Select>
       </div>
 
-      {!loadedGoal ? (
+      {!sellerId ? (
         <div className="p-8 text-center border rounded-lg bg-muted/20">
           <p className="text-muted-foreground">
-            Nenhuma meta lançada para esta combinação. As metas base devem ser importadas via Lote.
+            Selecione todos os filtros para carregar as metas.
           </p>
         </div>
       ) : (
-        <>
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Metas Comparativas</h3>
-            <div className="border rounded-md">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Meta Base</TableHead>
-                    <TableHead>Meta Bronze</TableHead>
-                    <TableHead>Meta Prata</TableHead>
-                    <TableHead>Meta Ouro</TableHead>
-                    <TableHead>Meta Atual</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow>
-                    <TableCell className="bg-muted/50 font-medium">
-                      {formatVal(loadedGoal.target_base)}
-                    </TableCell>
-                    <TableCell className="bg-muted/50 font-medium text-amber-700">
-                      {formatVal(loadedGoal.target_bronze)}
-                    </TableCell>
-                    <TableCell className="bg-muted/50 font-medium text-slate-500">
-                      {formatVal(loadedGoal.target_prata)}
-                    </TableCell>
-                    <TableCell className="bg-muted/50 font-medium text-yellow-600">
-                      {formatVal(loadedGoal.target_ouro)}
-                    </TableCell>
-                    <TableCell className="bg-background">
-                      <Input
-                        value={atual}
-                        onChange={(e) => {
-                          if (isCurrency) setAtual(maskMoney(e.target.value))
-                          else setAtual(e.target.value)
-                        }}
-                        placeholder={isCurrency ? 'R$ 0,00' : '0'}
-                      />
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+        <div className="space-y-6">
+          {isCoverage ? (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Target className="w-5 h-5 text-primary" />
+                Métricas de Cobertura
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 border p-4 rounded-md bg-muted/10">
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground mb-1 block">
+                    Meta Cobertura (%)
+                  </label>
+                  <Input
+                    value={targetCoverage}
+                    onChange={(e) => setTargetCoverage(e.target.value)}
+                    type="number"
+                    placeholder="Ex: 80"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground mb-1 block">
+                    Cobertura Atual (%)
+                  </label>
+                  <Input
+                    value={actualCoverage}
+                    onChange={(e) => setActualCoverage(e.target.value)}
+                    type="number"
+                    placeholder="Ex: 75"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground mb-1 block">
+                    Empresas Planejadas
+                  </label>
+                  <Input
+                    value={plannedCompanies}
+                    onChange={(e) => setPlannedCompanies(e.target.value)}
+                    type="number"
+                    placeholder="Ex: 40"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground mb-1 block">
+                    Empresas Visitadas
+                  </label>
+                  <Input
+                    value={visitedCompanies}
+                    onChange={(e) => setVisitedCompanies(e.target.value)}
+                    type="number"
+                    placeholder="Ex: 30"
+                  />
+                </div>
+              </div>
             </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-              <MetricCard title="Atingimento Base" act={aVal} tgt={loadedGoal.target_base} />
-              <MetricCard title="Atingimento Bronze" act={aVal} tgt={loadedGoal.target_bronze} />
-              <MetricCard title="Atingimento Prata" act={aVal} tgt={loadedGoal.target_prata} />
-              <MetricCard title="Atingimento Ouro" act={aVal} tgt={loadedGoal.target_ouro} />
+          ) : (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Target className="w-5 h-5 text-primary" />
+                Metas e Realizado
+              </h3>
+              <div className="border rounded-md overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Meta Base</TableHead>
+                      <TableHead>Meta Bronze</TableHead>
+                      <TableHead>Meta Prata</TableHead>
+                      <TableHead>Meta Ouro</TableHead>
+                      <TableHead className="bg-primary/5">Meta Atual (Realizado)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell>
+                        <Input
+                          value={targetBase}
+                          onChange={(e) =>
+                            setTargetBase(isCurrency ? maskMoney(e.target.value) : e.target.value)
+                          }
+                          placeholder="0"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={targetBronze}
+                          onChange={(e) =>
+                            setTargetBronze(isCurrency ? maskMoney(e.target.value) : e.target.value)
+                          }
+                          placeholder="0"
+                          className="text-amber-700 font-medium"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={targetPrata}
+                          onChange={(e) =>
+                            setTargetPrata(isCurrency ? maskMoney(e.target.value) : e.target.value)
+                          }
+                          placeholder="0"
+                          className="text-slate-500 font-medium"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={targetOuro}
+                          onChange={(e) =>
+                            setTargetOuro(isCurrency ? maskMoney(e.target.value) : e.target.value)
+                          }
+                          placeholder="0"
+                          className="text-yellow-600 font-medium"
+                        />
+                      </TableCell>
+                      <TableCell className="bg-primary/5">
+                        <Input
+                          value={atual}
+                          onChange={(e) =>
+                            setAtual(isCurrency ? maskMoney(e.target.value) : e.target.value)
+                          }
+                          placeholder="0"
+                          className="border-primary/50"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="flex justify-end">
             <Button onClick={savePerf} disabled={isSubmitting}>
-              Salvar Desempenho
+              {loadedGoal ? 'Salvar Alterações' : 'Criar Lançamento'}
             </Button>
           </div>
-        </>
+        </div>
       )}
 
-      {history.length > 0 && (
+      {auditLogs.length > 0 && (
         <div className="space-y-4 pt-6 border-t">
-          <h3 className="text-lg font-semibold">Histórico de Lançamentos de Desempenho</h3>
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <History className="w-5 h-5 text-muted-foreground" />
+            Histórico de Alterações (Metas)
+          </h3>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Data</TableHead>
-                <TableHead>Valor</TableHead>
-                <TableHead>% Atingimento (Base)</TableHead>
                 <TableHead>Usuário</TableHead>
+                <TableHead>Modificações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {auditLogs.map((log: any) => (
+                <TableRow key={log.id}>
+                  <TableCell className="font-medium text-muted-foreground">
+                    {new Date(log.created).toLocaleString('pt-BR')}
+                  </TableCell>
+                  <TableCell>{log.expand?.user_id?.name || 'Sistema'}</TableCell>
+                  <TableCell className="text-sm">
+                    {!log.old_values ? (
+                      'Meta criada na plataforma.'
+                    ) : (
+                      <div className="space-y-1">
+                        {Object.keys(log.new_values || {}).map((k) => (
+                          <div key={k}>
+                            <span className="font-medium">{k}:</span> {log.old_values[k]} ➔{' '}
+                            <span className="text-primary">{log.new_values[k]}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {history.length > 0 && (
+        <div className="space-y-4 pt-6 border-t">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <History className="w-5 h-5 text-muted-foreground" />
+            Lançamentos Anteriores (Desempenho Atual)
+          </h3>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Período</TableHead>
+                <TableHead>Valor Realizado</TableHead>
+                <TableHead>% Atingimento (Base)</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {history.map((h: any) => {
-                const sellerName = h.expand?.seller_id?.name || '-'
-                const pct = h.target > 0 ? ((h.actual_value / h.target) * 100).toFixed(1) : 0
+                const isCovHist = h.metric.toLowerCase().includes('cobertura')
+                const val = isCovHist ? h.actual_coverage : h.actual_value
+                const tgt = isCovHist ? h.target_monthly_coverage || 0 : h.target
+                const pct = tgt > 0 ? ((val / tgt) * 100).toFixed(1) : 0
                 return (
                   <TableRow key={h.id}>
-                    <TableCell className="font-medium">
-                      {new Date(h.created).toLocaleDateString('pt-BR')}
-                    </TableCell>
+                    <TableCell className="font-medium">{h.period}</TableCell>
                     <TableCell>
-                      {isCurrency ? maskMoney(h.actual_value * 100) : h.actual_value}
+                      {isCovHist ? `${val}%` : isCurrency ? maskMoney(val * 100) : val}
                     </TableCell>
                     <TableCell>
                       <span
@@ -506,22 +725,16 @@ export default function GoalManualEntry() {
                         {pct}%
                       </span>
                     </TableCell>
-                    <TableCell>{sellerName}</TableCell>
                     <TableCell className="text-right">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => {
                           setPeriod(h.period)
-                          setAtual(
-                            isCurrency
-                              ? maskMoney(h.actual_value * 100)
-                              : h.actual_value.toString(),
-                          )
-                          setPerfId(h.id)
+                          loadData()
                         }}
                       >
-                        Editar
+                        Selecionar Período
                       </Button>
                       <Button
                         variant="ghost"
@@ -529,7 +742,7 @@ export default function GoalManualEntry() {
                         className="text-red-500 hover:text-red-700 hover:bg-red-50"
                         onClick={() => handleDeletePerf(h.id)}
                       >
-                        Excluir
+                        Excluir Desempenho
                       </Button>
                     </TableCell>
                   </TableRow>

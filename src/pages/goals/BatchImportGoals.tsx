@@ -105,7 +105,7 @@ export default function BatchImportGoals({ user }: { user: any }) {
     <Table>
       <Row><Cell><Data ss:Type="String">Instruções de Preenchimento</Data></Cell></Row>
       <Row><Cell><Data ss:Type="String">1. As colunas de faturamento (7 a 10) devem estar no formato R$ X.XXX,XX.</Data></Cell></Row>
-      <Row><Cell><Data ss:Type="String">2. A coluna Família só aceita "F1", "F2" ou "Outros".</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">2. A coluna Família aceita "F1", "F2", "F3", etc., ou "Outros".</Data></Cell></Row>
       <Row><Cell><Data ss:Type="String">3. A ordem das 18 colunas não pode ser alterada.</Data></Cell></Row>
     </Table>
   </Worksheet>
@@ -202,8 +202,8 @@ export default function BatchImportGoals({ user }: { user: any }) {
           continue
         }
 
-        if (!['F1', 'F2', 'Outros'].includes(familia)) {
-          errs.push(`Erro na linha ${i + 1}: Família deve ser 'F1', 'F2' ou 'Outros'.`)
+        if (!/^F\d+$/i.test(familia) && familia.toLowerCase() !== 'outros') {
+          errs.push(`Erro na linha ${i + 1}: Família deve ser 'F1', 'F2', etc., ou 'Outros'.`)
           continue
         }
 

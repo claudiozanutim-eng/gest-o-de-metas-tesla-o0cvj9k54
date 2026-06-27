@@ -1,6 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import GoalManualEntry from './GoalManualEntry'
 import BatchImportGoals from './BatchImportGoals'
+import GoalDashboard from './GoalDashboard'
 import { useAuth } from '@/hooks/use-auth'
 
 export default function GoalEntry() {
@@ -15,11 +16,15 @@ export default function GoalEntry() {
         </p>
       </div>
 
-      <Tabs defaultValue="manual" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-6">
+      <Tabs defaultValue="dashboard" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsTrigger value="dashboard">Visualização</TabsTrigger>
           <TabsTrigger value="manual">Entrada Manual</TabsTrigger>
           <TabsTrigger value="lote">Importação em Lote</TabsTrigger>
         </TabsList>
+        <TabsContent value="dashboard" className="mt-0">
+          <GoalDashboard />
+        </TabsContent>
         <TabsContent value="manual" className="mt-0">
           <GoalManualEntry />
         </TabsContent>
