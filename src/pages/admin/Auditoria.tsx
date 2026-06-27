@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export default function Auditoria() {
   const [history, setHistory] = useState<any[]>([])
@@ -36,7 +37,7 @@ export default function Auditoria() {
       const res = await pb.send('/backend/v1/audit/diagnostic', { method: 'GET' })
       setDiagnostic(res)
     } catch (e) {
-      toast({ title: 'Erro', description: 'Erro ao carregar diagnóstico', variant: 'destructive' })
+      toast({ title: 'Erro', description: getErrorMessage(e), variant: 'destructive' })
     } finally {
       setLoading(false)
     }
@@ -56,7 +57,7 @@ export default function Auditoria() {
       toast({ title: 'Sucesso', description: 'Limpeza executada com sucesso.' })
       await loadDiagnostic()
     } catch (e) {
-      toast({ title: 'Erro', description: 'Falha ao executar limpeza', variant: 'destructive' })
+      toast({ title: 'Erro', description: getErrorMessage(e), variant: 'destructive' })
     } finally {
       setLoading(false)
     }
@@ -77,7 +78,7 @@ export default function Auditoria() {
       await loadDiagnostic()
       loadHistory()
     } catch (e) {
-      toast({ title: 'Erro', description: 'Falha ao executar reset', variant: 'destructive' })
+      toast({ title: 'Erro', description: getErrorMessage(e), variant: 'destructive' })
     } finally {
       setLoading(false)
     }
@@ -93,7 +94,7 @@ export default function Auditoria() {
       await loadDiagnostic()
       loadHistory()
     } catch (e) {
-      toast({ title: 'Erro', description: 'Falha ao executar reset', variant: 'destructive' })
+      toast({ title: 'Erro', description: getErrorMessage(e), variant: 'destructive' })
     } finally {
       setLoading(false)
     }
