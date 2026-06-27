@@ -34,6 +34,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/use-auth'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export const EXPLICIT_METRICS = [
   'Coverage',
@@ -203,10 +204,11 @@ export default function GoalManualEntry() {
 
     let gId = null
     try {
+      const mixFamily = isCoverage ? '' : metric
       const g = await pb
         .collection('goals')
         .getFirstListItem(
-          `seller_id="${seller.user_id}" && area_id="${areaId}" && period="${period}" && metric="${metric}"`,
+          `seller_id="${seller.user_id}" && area_id="${areaId}" && regional_id="${regId}" && period="${period}" && metric="${metric}" && mix_family="${mixFamily}"`,
         )
       setLoadedGoal(g)
       gId = g.id
@@ -297,14 +299,25 @@ export default function GoalManualEntry() {
     if (!seller?.user_id || !period || !metric || !regId || !areaId || !distId) {
       return toast({
         title: 'Atenção',
-        description: 'Preencha todos os seletores.',
+        description: 'Preencha todos os seletores obrigatórios.',
         variant: 'destructive',
       })
     }
 
     setIsSubmitting(true)
     try {
-      let currentGoalId = loadedGoal?.id
+      const mixFamily = isCoverage ? '' : metric
+
+      let existingGoal = null
+      try {
+        existingGoal = await pb
+          .collection('goals')
+          .getFirstListItem(
+            `seller_id="${seller.user_id}" && area_id="${areaId}" && regional_id="${regId}" && period="${period}" && metric="${metric}" && mix_family="${mixFamily}"`,
+          )
+      } catch (err) {
+        // Not found, will create
+      }
 
       const newGoalData = {
         target_base: calcBase,
@@ -314,11 +327,13 @@ export default function GoalManualEntry() {
         target_monthly_coverage: isCoverage ? calcBase : 0,
       }
 
+      let currentGoalId = existingGoal?.id
+
       if (currentGoalId) {
         const changes: any = {}
         let hasChanges = false
         for (const k of Object.keys(newGoalData)) {
-          if (newGoalData[k as keyof typeof newGoalData] !== loadedGoal[k]) {
+          if (newGoalData[k as keyof typeof newGoalData] !== existingGoal[k]) {
             hasChanges = true
             changes[k] = newGoalData[k as keyof typeof newGoalData]
           }
@@ -328,7 +343,7 @@ export default function GoalManualEntry() {
           await pb.collection('goal_audit_logs').create({
             goal_id: currentGoalId,
             user_id: user.id,
-            old_values: loadedGoal,
+            old_values: existingGoal,
             new_values: changes,
           })
         }
@@ -339,7 +354,7 @@ export default function GoalManualEntry() {
           regional_id: regId,
           period,
           metric,
-          mix_family: isCoverage ? '' : metric,
+          mix_family: mixFamily,
           ...newGoalData,
         })
         currentGoalId = g.id
@@ -353,13 +368,25 @@ export default function GoalManualEntry() {
 
       const newPerfData = { actual_value: calcActual, actual_coverage: isCoverage ? calcActual : 0 }
 
-      if (perfId) {
-        await pb.collection('actual_performance').update(perfId, newPerfData)
+      let existingPerf = null
+      try {
+        existingPerf = await pb
+          .collection('actual_performance')
+          .getFirstListItem(
+            `seller_id="${seller.user_id}" && period="${period}" && metric="${metric}"`,
+          )
+      } catch (err) {
+        // Not found
+      }
+
+      if (existingPerf) {
+        await pb.collection('actual_performance').update(existingPerf.id, newPerfData)
       } else {
         await pb.collection('actual_performance').create({
           seller_id: seller.user_id,
           period,
           metric,
+          mix_family: mixFamily,
           ...newPerfData,
         })
       }
@@ -371,8 +398,18 @@ export default function GoalManualEntry() {
       setTargetOuro('')
       setAtual('')
       setSellerId('')
+      setDistId('')
+      setRegId('')
+      setAreaId('')
+
+      // Let loadData handle refreshing the UI context if any remains
+      loadData()
     } catch (e) {
-      toast({ title: 'Erro', description: 'Não foi possível salvar.', variant: 'destructive' })
+      toast({
+        title: 'Erro ao salvar meta',
+        description: getErrorMessage(e),
+        variant: 'destructive',
+      })
     } finally {
       setIsSubmitting(false)
     }
