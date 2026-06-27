@@ -30,7 +30,7 @@ interface Seller {
   area_id: string
 }
 
-const METRICS = ['Faturamento F1', 'Volume F2', 'Positivação F3', 'Foco F4', 'Inadimplência F5']
+const METRICS = ['Coverage', 'Mix_F1', 'Mix_F2', 'Mix_F3', 'Mix_Outros', 'Faturamento (Geral)']
 
 function normalizeMetric(m: string) {
   return m.split('(')[0].trim()

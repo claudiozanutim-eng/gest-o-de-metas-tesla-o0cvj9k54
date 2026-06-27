@@ -12,7 +12,17 @@ import {
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { CalendarIcon, ChevronLeft, ChevronRight, History, Target } from 'lucide-react'
+import {
+  CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
+  History,
+  Target,
+  AlertTriangle,
+  TrendingUp,
+  TrendingDown,
+  CheckCircle2,
+} from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -23,6 +33,16 @@ import {
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/use-auth'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+
+export const EXPLICIT_METRICS = [
+  'Coverage',
+  'Mix_F1',
+  'Mix_F2',
+  'Mix_F3',
+  'Mix_Outros',
+  'Faturamento (Geral)',
+]
 
 const maskMoney = (v: any) => {
   const n = String(v).replace(/\D/g, '')
@@ -78,7 +98,6 @@ function MonthPicker({ value, onChange }: { value: string; onChange: (v: string)
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
-          type="button"
           variant="outline"
           className={cn(
             'w-full justify-start text-left font-normal',
@@ -91,21 +110,11 @@ function MonthPicker({ value, onChange }: { value: string; onChange: (v: string)
       </PopoverTrigger>
       <PopoverContent className="w-64 p-3" align="start">
         <div className="flex items-center justify-between space-x-2 pb-4">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={() => setDisplayYear(displayYear - 1)}
-          >
+          <Button variant="outline" size="icon" onClick={() => setDisplayYear(displayYear - 1)}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <div className="font-semibold">{displayYear}</div>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={() => setDisplayYear(displayYear + 1)}
-          >
+          <Button variant="outline" size="icon" onClick={() => setDisplayYear(displayYear + 1)}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
@@ -113,7 +122,6 @@ function MonthPicker({ value, onChange }: { value: string; onChange: (v: string)
           {shortMonths.map((m, i) => (
             <Button
               key={i}
-              type="button"
               variant={displayYear === selectedYear && i === selectedMonth ? 'default' : 'outline'}
               className="h-9 w-full"
               onClick={() => {
@@ -134,38 +142,29 @@ export default function GoalManualEntry() {
   const { toast } = useToast()
   const { user } = useAuth()
   const [data, setData] = useState<any>({ sellers: [], regionals: [], areas: [], districts: [] })
+
   const [distId, setDistId] = useState('')
   const [regId, setRegId] = useState('')
   const [areaId, setAreaId] = useState('')
   const [sellerId, setSellerId] = useState('')
   const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7))
-  const [metric, setMetric] = useState('')
-  const [metricsList, setMetricsList] = useState<string[]>([])
+  const [metric, setMetric] = useState(EXPLICIT_METRICS[0])
 
   const [loadedGoal, setLoadedGoal] = useState<any>(null)
   const [perfId, setPerfId] = useState<string | null>(null)
 
-  // States for Goal and Performance inputs
   const [targetBase, setTargetBase] = useState('')
   const [targetBronze, setTargetBronze] = useState('')
   const [targetPrata, setTargetPrata] = useState('')
   const [targetOuro, setTargetOuro] = useState('')
   const [atual, setAtual] = useState('')
 
-  // Coverage specific states
-  const [targetCoverage, setTargetCoverage] = useState('')
-  const [plannedCompanies, setPlannedCompanies] = useState('')
-  const [actualCoverage, setActualCoverage] = useState('')
-  const [visitedCompanies, setVisitedCompanies] = useState('')
-
   const [history, setHistory] = useState<any[]>([])
   const [auditLogs, setAuditLogs] = useState<any[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const isCoverage = metric.toLowerCase().includes('cobertura')
-  const isCurrency =
-    (metric.toLowerCase().includes('faturamento') || metric.toLowerCase().includes('f')) &&
-    !isCoverage
+  const isCoverage = metric === 'Coverage' || metric.toLowerCase().includes('cobertura')
+  const isCurrency = !isCoverage
 
   const formatVal = (v: any) => {
     if (v === undefined || v === null) return ''
@@ -173,7 +172,7 @@ export default function GoalManualEntry() {
   }
   const parseVal = (v: string) => {
     if (!v) return 0
-    return isCurrency ? unmaskMoney(v) : Number(v.replace(',', '.'))
+    return isCurrency ? unmaskMoney(v) : Number(v.toString().replace(',', '.'))
   }
 
   useEffect(() => {
@@ -182,18 +181,8 @@ export default function GoalManualEntry() {
       pb.collection('regionals').getFullList({ filter: 'is_active = true', sort: 'name' }),
       pb.collection('areas').getFullList({ filter: 'is_active = true', sort: 'name' }),
       pb.collection('districts').getFullList({ filter: 'is_active = true', sort: 'name' }),
-      pb.collection('goals').getFullList({ fields: 'metric' }),
-    ]).then(([s, r, a, d, g]) => {
+    ]).then(([s, r, a, d]) => {
       setData({ sellers: s, regionals: r, areas: a, districts: d })
-      const uniqueMetrics = Array.from(new Set(g.map((x) => x.metric))).filter(Boolean)
-      if (uniqueMetrics.length > 0) {
-        setMetricsList(uniqueMetrics)
-        if (!metric) setMetric(uniqueMetrics[0])
-      } else {
-        const fallbacks = ['Métrica Faturamento', 'Métrica Família', 'Cobertura Mensal']
-        setMetricsList(fallbacks)
-        if (!metric) setMetric(fallbacks[0])
-      }
     })
   }, [])
 
@@ -207,10 +196,6 @@ export default function GoalManualEntry() {
       setTargetPrata('')
       setTargetOuro('')
       setAtual('')
-      setTargetCoverage('')
-      setPlannedCompanies('')
-      setActualCoverage('')
-      setVisitedCompanies('')
       setHistory([])
       setAuditLogs([])
       return
@@ -225,20 +210,16 @@ export default function GoalManualEntry() {
         )
       setLoadedGoal(g)
       gId = g.id
-      setTargetBase(formatVal(g.target_base || 0))
+      setTargetBase(formatVal(g.target_base || g.target_monthly_coverage || 0))
       setTargetBronze(formatVal(g.target_bronze || 0))
       setTargetPrata(formatVal(g.target_prata || 0))
       setTargetOuro(formatVal(g.target_ouro || 0))
-      setTargetCoverage(g.target_monthly_coverage?.toString() || '')
-      setPlannedCompanies(g.focus_companies?.toString() || '')
     } catch {
       setLoadedGoal(null)
       setTargetBase('')
       setTargetBronze('')
       setTargetPrata('')
       setTargetOuro('')
-      setTargetCoverage('')
-      setPlannedCompanies('')
     }
 
     try {
@@ -248,21 +229,16 @@ export default function GoalManualEntry() {
           `seller_id="${seller.user_id}" && period="${period}" && metric="${metric}"`,
         )
       setPerfId(p.id)
-      setAtual(formatVal(p.actual_value || 0))
-      setActualCoverage(p.actual_coverage?.toString() || '')
-      setVisitedCompanies(p.focus_companies?.toString() || '')
+      setAtual(formatVal(p.actual_value || p.actual_coverage || 0))
     } catch {
       setPerfId(null)
       setAtual('')
-      setActualCoverage('')
-      setVisitedCompanies('')
     }
 
     try {
       const perfs = await pb.collection('actual_performance').getFullList({
         filter: `seller_id="${seller.user_id}" && metric="${metric}"`,
-        sort: '-created',
-        expand: 'seller_id',
+        sort: '-period',
       })
       const goals = await pb.collection('goals').getFullList({
         filter: `seller_id="${seller.user_id}" && area_id="${areaId}" && metric="${metric}"`,
@@ -295,6 +271,27 @@ export default function GoalManualEntry() {
     loadData()
   }, [sellerId, areaId, period, metric, data.sellers])
 
+  const calcBase = parseVal(targetBase)
+  const calcBronze = parseVal(targetBronze)
+  const calcPrata = parseVal(targetPrata)
+  const calcOuro = parseVal(targetOuro)
+  const calcActual = parseVal(atual)
+
+  const diff = calcActual - calcBase
+  const pct = calcBase > 0 ? (calcActual / calcBase) * 100 : 0
+
+  const getTier = () => {
+    if (calcActual >= calcOuro && calcOuro > 0)
+      return { name: 'Ouro', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' }
+    if (calcActual >= calcPrata && calcPrata > 0)
+      return { name: 'Prata', color: 'bg-slate-100 text-slate-800 border-slate-300' }
+    if (calcActual >= calcBronze && calcBronze > 0)
+      return { name: 'Bronze', color: 'bg-amber-100 text-amber-800 border-amber-300' }
+    return { name: 'Abaixo do Bronze', color: 'bg-red-100 text-red-800 border-red-300' }
+  }
+  const tier = getTier()
+  const isOverachieving = calcActual > calcOuro && calcOuro > 0
+
   const savePerf = async () => {
     const seller = data.sellers.find((s: any) => s.id === sellerId)
     if (!seller?.user_id || !period || !metric || !regId || !areaId || !distId) {
@@ -305,21 +302,32 @@ export default function GoalManualEntry() {
       })
     }
 
+    if (calcBronze >= calcPrata || calcPrata >= calcOuro) {
+      return toast({
+        title: 'Erro de Validação',
+        description: 'Hierarquia inválida: Bronze < Prata < Ouro.',
+        variant: 'destructive',
+      })
+    }
+    if (calcBase < calcBronze || calcBase > calcOuro) {
+      return toast({
+        title: 'Erro de Validação',
+        description: 'A Meta Base deve estar entre Bronze e Ouro.',
+        variant: 'destructive',
+      })
+    }
+
     setIsSubmitting(true)
     try {
       let currentGoalId = loadedGoal?.id
 
-      const newGoalData = isCoverage
-        ? {
-            target_monthly_coverage: Number(targetCoverage),
-            focus_companies: Number(plannedCompanies),
-          }
-        : {
-            target_base: parseVal(targetBase),
-            target_bronze: parseVal(targetBronze),
-            target_prata: parseVal(targetPrata),
-            target_ouro: parseVal(targetOuro),
-          }
+      const newGoalData = {
+        target_base: calcBase,
+        target_bronze: calcBronze,
+        target_prata: calcPrata,
+        target_ouro: calcOuro,
+        target_monthly_coverage: isCoverage ? calcBase : 0,
+      }
 
       if (currentGoalId) {
         const changes: any = {}
@@ -330,7 +338,6 @@ export default function GoalManualEntry() {
             changes[k] = newGoalData[k as keyof typeof newGoalData]
           }
         }
-
         if (hasChanges) {
           await pb.collection('goals').update(currentGoalId, changes)
           await pb.collection('goal_audit_logs').create({
@@ -359,15 +366,7 @@ export default function GoalManualEntry() {
         })
       }
 
-      const newPerfData = isCoverage
-        ? {
-            actual_coverage: Number(actualCoverage),
-            focus_companies: Number(visitedCompanies),
-            actual_value: 0,
-          }
-        : {
-            actual_value: parseVal(atual),
-          }
+      const newPerfData = { actual_value: calcActual, actual_coverage: isCoverage ? calcActual : 0 }
 
       if (perfId) {
         await pb.collection('actual_performance').update(perfId, newPerfData)
@@ -384,20 +383,6 @@ export default function GoalManualEntry() {
       loadData()
     } catch (e) {
       toast({ title: 'Erro', description: 'Não foi possível salvar.', variant: 'destructive' })
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleDeletePerf = async (id: string) => {
-    if (!confirm('Deseja realmente excluir este lançamento de desempenho?')) return
-    setIsSubmitting(true)
-    try {
-      await pb.collection('actual_performance').delete(id)
-      toast({ title: 'Sucesso', description: 'Desempenho excluído!' })
-      loadData()
-    } catch (e) {
-      toast({ title: 'Erro', description: 'Erro ao excluir.', variant: 'destructive' })
     } finally {
       setIsSubmitting(false)
     }
@@ -487,7 +472,7 @@ export default function GoalManualEntry() {
             <SelectValue placeholder="Métrica" />
           </SelectTrigger>
           <SelectContent>
-            {metricsList.map((m) => (
+            {EXPLICIT_METRICS.map((m) => (
               <SelectItem key={m} value={m}>
                 {m}
               </SelectItem>
@@ -504,133 +489,159 @@ export default function GoalManualEntry() {
         </div>
       ) : (
         <div className="space-y-6">
-          {isCoverage ? (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Target className="w-5 h-5 text-primary" />
-                Métricas de Cobertura
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 border p-4 rounded-md bg-muted/10">
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1 block">
-                    Meta Cobertura (%)
-                  </label>
-                  <Input
-                    value={targetCoverage}
-                    onChange={(e) => setTargetCoverage(e.target.value)}
-                    type="number"
-                    placeholder="Ex: 80"
-                  />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card className="bg-primary/5 border-primary/20">
+              <CardHeader className="py-3 px-4">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Meta Base {isCoverage && '(%)'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <div className="text-2xl font-bold">
+                  {isCurrency ? maskMoney(calcBase * 100) : calcBase}
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1 block">
-                    Cobertura Atual (%)
-                  </label>
-                  <Input
-                    value={actualCoverage}
-                    onChange={(e) => setActualCoverage(e.target.value)}
-                    type="number"
-                    placeholder="Ex: 75"
-                  />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="py-3 px-4">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Realizada {isCoverage && '(%)'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <div className="text-2xl font-bold">
+                  {isCurrency ? maskMoney(calcActual * 100) : calcActual}
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1 block">
-                    Empresas Planejadas
-                  </label>
-                  <Input
-                    value={plannedCompanies}
-                    onChange={(e) => setPlannedCompanies(e.target.value)}
-                    type="number"
-                    placeholder="Ex: 40"
-                  />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="py-3 px-4">
+                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                  Diferença{' '}
+                  {diff > 0 ? (
+                    <TrendingUp className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <TrendingDown className="w-4 h-4 text-red-500" />
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <div
+                  className={cn(
+                    'text-2xl font-bold',
+                    diff >= 0 ? 'text-green-600' : 'text-red-500',
+                  )}
+                >
+                  {diff >= 0 ? '+' : ''}
+                  {isCurrency ? maskMoney(diff * 100) : diff}
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1 block">
-                    Empresas Visitadas
-                  </label>
-                  <Input
-                    value={visitedCompanies}
-                    onChange={(e) => setVisitedCompanies(e.target.value)}
-                    type="number"
-                    placeholder="Ex: 30"
-                  />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="py-3 px-4">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  % Atingimento
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <div className="text-2xl font-bold text-primary">{pct.toFixed(1)}%</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-muted/30 p-4 rounded-lg border">
+            <div className="flex items-center gap-3">
+              <Target className="w-6 h-6 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Nível Atual de Atingimento
+                </p>
+                <div
+                  className={cn(
+                    'inline-flex items-center px-3 py-1 rounded-full text-sm font-bold border mt-1',
+                    tier.color,
+                  )}
+                >
+                  {tier.name}
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Target className="w-5 h-5 text-primary" />
-                Metas e Realizado
-              </h3>
-              <div className="border rounded-md overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Meta Base</TableHead>
-                      <TableHead>Meta Bronze</TableHead>
-                      <TableHead>Meta Prata</TableHead>
-                      <TableHead>Meta Ouro</TableHead>
-                      <TableHead className="bg-primary/5">Meta Atual (Realizado)</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell>
-                        <Input
-                          value={targetBase}
-                          onChange={(e) =>
-                            setTargetBase(isCurrency ? maskMoney(e.target.value) : e.target.value)
-                          }
-                          placeholder="0"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={targetBronze}
-                          onChange={(e) =>
-                            setTargetBronze(isCurrency ? maskMoney(e.target.value) : e.target.value)
-                          }
-                          placeholder="0"
-                          className="text-amber-700 font-medium"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={targetPrata}
-                          onChange={(e) =>
-                            setTargetPrata(isCurrency ? maskMoney(e.target.value) : e.target.value)
-                          }
-                          placeholder="0"
-                          className="text-slate-500 font-medium"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={targetOuro}
-                          onChange={(e) =>
-                            setTargetOuro(isCurrency ? maskMoney(e.target.value) : e.target.value)
-                          }
-                          placeholder="0"
-                          className="text-yellow-600 font-medium"
-                        />
-                      </TableCell>
-                      <TableCell className="bg-primary/5">
-                        <Input
-                          value={atual}
-                          onChange={(e) =>
-                            setAtual(isCurrency ? maskMoney(e.target.value) : e.target.value)
-                          }
-                          placeholder="0"
-                          className="border-primary/50"
-                        />
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          )}
+            {isOverachieving && (
+              <Alert className="bg-yellow-50 border-yellow-200 w-auto py-2">
+                <CheckCircle2 className="w-4 h-4 text-yellow-600" />
+                <AlertTitle className="text-yellow-800 text-sm mb-0 ml-2 font-bold">
+                  Meta Ouro Superada!
+                </AlertTitle>
+              </Alert>
+            )}
+          </div>
+
+          <div className="border rounded-md overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Meta Base {isCoverage && '(%)'}</TableHead>
+                  <TableHead>Meta Bronze {isCoverage && '(%)'}</TableHead>
+                  <TableHead>Meta Prata {isCoverage && '(%)'}</TableHead>
+                  <TableHead>Meta Ouro {isCoverage && '(%)'}</TableHead>
+                  <TableHead className="bg-primary/5">Realizado {isCoverage && '(%)'}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell>
+                    <Input
+                      value={targetBase}
+                      onChange={(e) =>
+                        setTargetBase(isCurrency ? maskMoney(e.target.value) : e.target.value)
+                      }
+                      placeholder="0"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      value={targetBronze}
+                      onChange={(e) =>
+                        setTargetBronze(isCurrency ? maskMoney(e.target.value) : e.target.value)
+                      }
+                      placeholder="0"
+                      className="text-amber-700 font-medium"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      value={targetPrata}
+                      onChange={(e) =>
+                        setTargetPrata(isCurrency ? maskMoney(e.target.value) : e.target.value)
+                      }
+                      placeholder="0"
+                      className="text-slate-500 font-medium"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      value={targetOuro}
+                      onChange={(e) =>
+                        setTargetOuro(isCurrency ? maskMoney(e.target.value) : e.target.value)
+                      }
+                      placeholder="0"
+                      className="text-yellow-600 font-medium"
+                    />
+                  </TableCell>
+                  <TableCell className="bg-primary/5">
+                    <Input
+                      value={atual}
+                      onChange={(e) =>
+                        setAtual(isCurrency ? maskMoney(e.target.value) : e.target.value)
+                      }
+                      placeholder="0"
+                      className="border-primary/50"
+                    />
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
 
           <div className="flex justify-end">
             <Button onClick={savePerf} disabled={isSubmitting}>
@@ -643,8 +654,7 @@ export default function GoalManualEntry() {
       {auditLogs.length > 0 && (
         <div className="space-y-4 pt-6 border-t">
           <h3 className="text-lg font-semibold flex items-center gap-2">
-            <History className="w-5 h-5 text-muted-foreground" />
-            Histórico de Alterações (Metas)
+            <History className="w-5 h-5 text-muted-foreground" /> Histórico de Alterações
           </h3>
           <Table>
             <TableHeader>
@@ -657,95 +667,22 @@ export default function GoalManualEntry() {
             <TableBody>
               {auditLogs.map((log: any) => (
                 <TableRow key={log.id}>
-                  <TableCell className="font-medium text-muted-foreground">
+                  <TableCell className="text-sm">
                     {new Date(log.created).toLocaleString('pt-BR')}
                   </TableCell>
                   <TableCell>{log.expand?.user_id?.name || 'Sistema'}</TableCell>
                   <TableCell className="text-sm">
-                    {!log.old_values ? (
-                      'Meta criada na plataforma.'
-                    ) : (
-                      <div className="space-y-1">
-                        {Object.keys(log.new_values || {}).map((k) => (
+                    {!log.old_values
+                      ? 'Meta criada.'
+                      : Object.keys(log.new_values || {}).map((k) => (
                           <div key={k}>
                             <span className="font-medium">{k}:</span> {log.old_values[k]} ➔{' '}
                             <span className="text-primary">{log.new_values[k]}</span>
                           </div>
                         ))}
-                      </div>
-                    )}
                   </TableCell>
                 </TableRow>
               ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-
-      {history.length > 0 && (
-        <div className="space-y-4 pt-6 border-t">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <History className="w-5 h-5 text-muted-foreground" />
-            Lançamentos Anteriores (Desempenho Atual)
-          </h3>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Período</TableHead>
-                <TableHead>Valor Realizado</TableHead>
-                <TableHead>% Atingimento (Base)</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {history.map((h: any) => {
-                const isCovHist = h.metric.toLowerCase().includes('cobertura')
-                const val = isCovHist ? h.actual_coverage : h.actual_value
-                const tgt = isCovHist ? h.target_monthly_coverage || 0 : h.target
-                const pct = tgt > 0 ? ((val / tgt) * 100).toFixed(1) : 0
-                return (
-                  <TableRow key={h.id}>
-                    <TableCell className="font-medium">{h.period}</TableCell>
-                    <TableCell>
-                      {isCovHist ? `${val}%` : isCurrency ? maskMoney(val * 100) : val}
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={cn(
-                          'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold',
-                          Number(pct) >= 100
-                            ? 'bg-green-100 text-green-800'
-                            : Number(pct) >= 80
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-red-100 text-red-800',
-                        )}
-                      >
-                        {pct}%
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setPeriod(h.period)
-                          loadData()
-                        }}
-                      >
-                        Selecionar Período
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => handleDeletePerf(h.id)}
-                      >
-                        Excluir Desempenho
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
             </TableBody>
           </Table>
         </div>

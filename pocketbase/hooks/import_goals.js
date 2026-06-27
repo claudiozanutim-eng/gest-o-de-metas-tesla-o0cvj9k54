@@ -2,95 +2,84 @@ routerAdd(
   'POST',
   '/backend/v1/import-goals',
   (e) => {
-    const body = e.requestInfo().body || {}
+    const body = e.requestInfo().body
     const rows = body.rows || []
+    let created = 0
+    let updated = 0
 
-    if (!rows || rows.length === 0) {
-      return e.badRequestError('Nenhuma linha enviada para importação.')
-    }
-
-    let totalUpserts = 0
-
-    try {
-      $app.runInTransaction((txApp) => {
-        const goalsCol = txApp.findCollectionByNameOrId('goals')
-
-        for (const row of rows) {
-          // Record 1: Faturamento
-          let rec1 = null
+    $app.runInTransaction((txApp) => {
+      for (const row of rows) {
+        try {
+          let goal
           try {
-            rec1 = txApp.findFirstRecordByFilter(
+            goal = txApp.findFirstRecordByFilter(
               'goals',
-              'seller_id = {:seller_id} && period = {:period} && metric = {:metric}',
-              { seller_id: row.seller_id, period: row.period, metric: row.metrica1 },
-            )
-          } catch (_) {}
-
-          if (!rec1) {
-            rec1 = new Record(goalsCol)
-            rec1.set('seller_id', row.seller_id)
-            rec1.set('period', row.period)
-            rec1.set('metric', row.metrica1)
-            rec1.set('regional_id', row.regional_id)
-            rec1.set('area_id', row.area_id)
-          }
-          rec1.set('target_base', row.base1)
-          rec1.set('target_bronze', row.bronze1)
-          rec1.set('target_prata', row.prata1)
-          rec1.set('target_ouro', row.ouro1)
-          txApp.save(rec1)
-          totalUpserts++
-
-          // Record 2: Família
-          let rec2 = null
-          try {
-            rec2 = txApp.findFirstRecordByFilter(
-              'goals',
-              'seller_id = {:seller_id} && period = {:period} && metric = {:metric} && mix_family = {:mix_family}',
+              'seller_id={:seller} && period={:period} && metric={:metric} && area_id={:area} && regional_id={:regional} && mix_family={:mix}',
               {
-                seller_id: row.seller_id,
+                seller: row.seller_id,
                 period: row.period,
-                metric: row.metrica2,
-                mix_family: row.familia,
+                metric: row.metric,
+                area: row.area_id,
+                regional: row.regional_id,
+                mix: row.familia || '',
               },
             )
           } catch (_) {}
 
-          if (!rec2) {
-            rec2 = new Record(goalsCol)
-            rec2.set('seller_id', row.seller_id)
-            rec2.set('period', row.period)
-            rec2.set('metric', row.metrica2)
-            rec2.set('mix_family', row.familia)
-            rec2.set('regional_id', row.regional_id)
-            rec2.set('area_id', row.area_id)
+          const isCoverage =
+            row.metric === 'Coverage' || String(row.metric).toLowerCase().includes('cobertura')
+
+          if (goal) {
+            goal.set('target_base', row.base)
+            goal.set('target_bronze', row.bronze)
+            goal.set('target_prata', row.prata)
+            goal.set('target_ouro', row.ouro)
+            goal.set('focus_fleet', row.frotas || 0)
+            goal.set('focus_companies', row.cnpjs || 0)
+            if (isCoverage) {
+              goal.set('target_monthly_coverage', row.base)
+            }
+            txApp.save(goal)
+            updated++
+          } else {
+            const col = txApp.findCollectionByNameOrId('goals')
+            const newGoal = new Record(col)
+            newGoal.set('seller_id', row.seller_id)
+            newGoal.set('period', row.period)
+            newGoal.set('metric', row.metric)
+            newGoal.set('area_id', row.area_id)
+            newGoal.set('regional_id', row.regional_id)
+            newGoal.set('mix_family', row.familia || '')
+            newGoal.set('target_base', row.base)
+            newGoal.set('target_bronze', row.bronze)
+            newGoal.set('target_prata', row.prata)
+            newGoal.set('target_ouro', row.ouro)
+            newGoal.set('focus_fleet', row.frotas || 0)
+            newGoal.set('focus_companies', row.cnpjs || 0)
+            if (isCoverage) {
+              newGoal.set('target_monthly_coverage', row.base)
+            }
+            txApp.save(newGoal)
+            created++
           }
-          rec2.set('target_base', row.base2)
-          rec2.set('target_bronze', row.bronze2)
-          rec2.set('target_prata', row.prata2)
-          rec2.set('target_ouro', row.ouro2)
-          rec2.set('focus_fleet', row.frotas)
-          rec2.set('focus_companies', row.cnpjs)
-          txApp.save(rec2)
-          totalUpserts++
+        } catch (err) {
+          $app.logger().error('import error', 'row', JSON.stringify(row), 'err', err.message)
         }
-      })
+      }
+    })
 
-      try {
-        const histCol = $app.findCollectionByNameOrId('import_history')
-        const histRec = new Record(histCol)
-        histRec.set('user_id', e.auth?.id)
-        histRec.set('source', body.source || 'Batch Import (18 Colunas)')
-        histRec.set('file_name', body.fileName || 'import.csv')
-        histRec.set('status', 'success')
-        histRec.set('stats', JSON.stringify({ upserted: totalUpserts }))
-        $app.save(histRec)
-      } catch (_) {}
+    try {
+      const histCol = $app.findCollectionByNameOrId('import_history')
+      const histRecord = new Record(histCol)
+      histRecord.set('user_id', e.auth?.id)
+      histRecord.set('source', body.source || 'Manual API')
+      histRecord.set('file_name', body.fileName || 'unknown')
+      histRecord.set('stats', { created, updated })
+      histRecord.set('status', 'success')
+      $app.save(histRecord)
+    } catch (err) {}
 
-      return e.json(200, { created: totalUpserts, updated: 0 })
-    } catch (err) {
-      return e.badRequestError('Erro na importação transacional: ' + err.message)
-    }
+    return e.json(200, { created, updated })
   },
   $apis.requireAuth(),
 )

@@ -4,48 +4,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
-import { CheckCircle2, UploadCloud, Download, ExternalLink } from 'lucide-react'
+import { CheckCircle2, UploadCloud, Download, AlertTriangle, ExternalLink } from 'lucide-react'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { cn } from '@/lib/utils'
 
-const expected = [
-  'Vendedor',
-  'Área',
-  'Regional',
-  'Distrito',
-  'Período',
-  'Métrica Faturamento',
-  'Meta Base Faturamento',
-  'Meta Bronze Faturamento',
-  'Meta Prata Faturamento',
-  'Meta Ouro Faturamento',
-  'Família',
-  'Frota Foco',
-  'Empresa Foco',
-  'Métrica Família',
-  'Meta Base Família',
-  'Meta Bronze Família',
-  'Meta Prata Família',
-  'Meta Ouro Família',
-]
-
-const sampleRow = [
-  'João Silva',
-  'Minas Gerais',
-  'Regional Sudeste',
-  'Distrito 1',
-  '2026-06',
-  'Faturamento Geral',
-  'R$ 100.000,00',
-  'R$ 90.000,00',
-  'R$ 110.000,00',
-  'R$ 120.000,00',
-  'F1',
-  '10',
-  '5',
-  'Família',
-  'R$ 50.000,00',
-  'R$ 45.000,00',
-  'R$ 55.000,00',
-  'R$ 60.000,00',
+const EXPECTED_HEADERS = [
+  'Distrito', 'Regional', 'Área', 'Vendedor', 'Período', 'Métrica',
+  'Família', 'Frota Foco', 'Empresa Foco', 'Meta Base', 'Meta Bronze', 'Meta Prata', 'Meta Ouro'
 ]
 
 const parseCsvLine = (line: string, delim: string) => {
@@ -55,10 +20,8 @@ const parseCsvLine = (line: string, delim: string) => {
   for (let i = 0; i < line.length; i++) {
     const char = line[i]
     if (char === '"') inQuotes = !inQuotes
-    else if (char === delim && !inQuotes) {
-      result.push(current.trim())
-      current = ''
-    } else current += char
+    else if (char === delim && !inQuotes) { result.push(current.trim()); current = '' }
+    else current += char
   }
   result.push(current.trim())
   return result.map((s) => s.replace(/^"|"$/g, '').trim())
@@ -66,412 +29,290 @@ const parseCsvLine = (line: string, delim: string) => {
 
 const parseNum = (v: string) => {
   if (!v) return 0
-  const str = v.replace('R$', '').trim()
-  const parsed = Number(str.replace(/\./g, '').replace(',', '.'))
-  return isNaN(parsed) ? 0 : parsed
-}
+  const str = v.toString().replace('R
 
-export default function BatchImportGoals({ user }: { user: any }) {
-  const { toast } = useToast()
-  const [step, setStep] = useState(1)
-  const [file, setFile] = useState<File | null>(null)
-  const [errors, setErrors] = useState<string[]>([])
-  const [preview, setPreview] = useState<any[]>([])
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [lookups, setLookups] = useState<any>({})
+<skip-file path="src/pages/goals/GoalDashboard.tsx" type="typescript">
+import { useState, useEffect } from 'react'
+import pb from '@/lib/pocketbase/client'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Button } from '@/components/ui/button'
+import { CalendarIcon, ChevronLeft, ChevronRight, TrendingUp, Target, Award, BarChart3, LineChart as LineChartIcon } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { EXPLICIT_METRICS } from './GoalManualEntry'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, ResponsiveContainer } from 'recharts'
 
-  useEffect(() => {
-    if (user?.role !== 'Administrador') return
-    Promise.all([
-      pb.collection('sellers').getFullList({ filter: 'is_active = true' }),
-      pb.collection('regionals').getFullList({ filter: 'is_active = true' }),
-      pb.collection('areas').getFullList({ filter: 'is_active = true' }),
-      pb.collection('districts').getFullList({ filter: 'is_active = true' }),
-    ]).then(([s, r, a, d]) => setLookups({ sellers: s, regionals: r, areas: a, districts: d }))
-  }, [user])
+const maskMoney = (v: number) => `R$ ${(v / 100).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`
 
-  const downloadExcel = () => {
-    const date = new Date().toISOString().split('T')[0]
-    const filename = `Modelo_Metas_${date}.xls`
-    const xml = `<?xml version="1.0"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
-  <Worksheet ss:Name="Metas">
-    <Table>
-      <Row>${expected.map((h) => `<Cell><Data ss:Type="String">${h}</Data></Cell>`).join('')}</Row>
-      <Row>${sampleRow.map((v) => `<Cell><Data ss:Type="String">${v}</Data></Cell>`).join('')}</Row>
-    </Table>
-  </Worksheet>
-  <Worksheet ss:Name="Instruções">
-    <Table>
-      <Row><Cell><Data ss:Type="String">Instruções de Preenchimento</Data></Cell></Row>
-      <Row><Cell><Data ss:Type="String">1. As colunas de faturamento (7 a 10) devem estar no formato R$ X.XXX,XX.</Data></Cell></Row>
-      <Row><Cell><Data ss:Type="String">2. A coluna Família aceita "F1", "F2", "F3", etc., ou "Outros".</Data></Cell></Row>
-      <Row><Cell><Data ss:Type="String">3. A ordem das 18 colunas não pode ser alterada.</Data></Cell></Row>
-    </Table>
-  </Worksheet>
-</Workbook>`
+function MonthPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const selectedYear = value ? parseInt(value.split('-')[0], 10) : new Date().getFullYear()
+  const selectedMonth = value ? parseInt(value.split('-')[1], 10) - 1 : new Date().getMonth()
+  const [displayYear, setDisplayYear] = useState(selectedYear)
 
-    const blob = new Blob([xml], { type: 'application/vnd.ms-excel' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.click()
-    URL.revokeObjectURL(url)
-  }
+  useEffect(() => { if (open) setDisplayYear(selectedYear) }, [open, selectedYear])
 
-  const downloadCsv = () => {
-    const date = new Date().toISOString().split('T')[0]
-    const filename = `Modelo_Metas_${date}.csv`
-    const csv = expected.join(';') + '\n' + sampleRow.join(';')
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  const openGoogleSheets = () => {
-    window.open('https://docs.google.com/spreadsheets/create', '_blank')
-  }
-
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0]
-    if (!selected) return
-    setFile(selected)
-    setStep(2)
-    try {
-      const text = await selected.text()
-      const lines = text.split(/\r?\n/).filter((l) => l.trim())
-      if (lines.length < 2) throw new Error('Arquivo vazio ou sem dados.')
-
-      const delimiter = lines[0].includes(';') ? ';' : ','
-      const headers = parseCsvLine(lines[0], delimiter)
-
-      if (headers.length !== 18 || !expected.every((h, i) => headers[i] === h)) {
-        throw new Error(
-          `Erro: Planilha inválida. Esperado 18 colunas com nomes EXATOS. Sua planilha tem ${headers.length} colunas.`,
-        )
-      }
-
-      const errs: string[] = []
-      const data: any[] = []
-      const keys = new Set<string>()
-      const currRegex = /^R\$\s?\d{1,3}(\.\d{3})*,\d{2}$/
-
-      for (let i = 1; i < lines.length; i++) {
-        const row = parseCsvLine(lines[i], delimiter)
-
-        while (row.length < 18) row.push('')
-
-        if (row.some((c) => !c)) {
-          errs.push(`Erro na linha ${i + 1}: Todos os 18 campos são obrigatórios.`)
-          continue
-        }
-
-        const [
-          vendedor,
-          area,
-          reg,
-          dist,
-          periodo,
-          metricaFat,
-          baseFat,
-          broFat,
-          praFat,
-          ouroFat,
-          familia,
-          frota,
-          emp,
-          metricaFam,
-          baseFam,
-          broFam,
-          praFam,
-          ouroFam,
-        ] = row
-
-        if (
-          !currRegex.test(baseFat) ||
-          !currRegex.test(broFat) ||
-          !currRegex.test(praFat) ||
-          !currRegex.test(ouroFat)
-        ) {
-          errs.push(`Erro na linha ${i + 1}: Colunas 7 a 10 devem estar no formato R$ X.XXX,XX.`)
-          continue
-        }
-
-        if (!/^F\d+$/i.test(familia) && familia.toLowerCase() !== 'outros') {
-          errs.push(`Erro na linha ${i + 1}: Família deve ser 'F1', 'F2', etc., ou 'Outros'.`)
-          continue
-        }
-
-        const nBaseFat = parseNum(baseFat),
-          nBroFat = parseNum(broFat),
-          nPraFat = parseNum(praFat),
-          nOuroFat = parseNum(ouroFat)
-        const nBaseFam = parseNum(baseFam),
-          nBroFam = parseNum(broFam),
-          nPraFam = parseNum(praFam),
-          nOuroFam = parseNum(ouroFam)
-        const nFrota = parseNum(frota),
-          nEmp = parseNum(emp)
-
-        if (
-          [
-            nBaseFat,
-            nBroFat,
-            nPraFat,
-            nOuroFat,
-            nBaseFam,
-            nBroFam,
-            nPraFam,
-            nOuroFam,
-            nFrota,
-            nEmp,
-          ].some(isNaN)
-        ) {
-          errs.push(`Erro na linha ${i + 1}: Valores numéricos inválidos.`)
-          continue
-        }
-
-        if (nBaseFat <= 0 || nBroFat <= 0 || nPraFat <= 0 || nOuroFat <= 0)
-          errs.push(`Erro na linha ${i + 1}: Metas de Faturamento devem ser maiores que 0.`)
-        if (nBaseFam <= 0 || nBroFam <= 0 || nPraFam <= 0 || nOuroFam <= 0)
-          errs.push(`Erro na linha ${i + 1}: Metas de Família devem ser maiores que 0.`)
-        if (nFrota < 0 || nEmp < 0)
-          errs.push(`Erro na linha ${i + 1}: Frotas e Empresas foco devem ser >= 0.`)
-
-        if (!(nBroFat < nPraFat && nPraFat < nOuroFat))
-          errs.push(
-            `Erro na linha ${i + 1}: Lógica de metas de faturamento inválida (Bronze < Prata < Ouro).`,
-          )
-        if (!(nBroFam < nPraFam && nPraFam < nOuroFam))
-          errs.push(
-            `Erro na linha ${i + 1}: Lógica de metas de família inválida (Bronze < Prata < Ouro).`,
-          )
-
-        if (metricaFat === metricaFam) {
-          errs.push(
-            `Erro na linha ${i + 1}: Os nomes das métricas (Faturamento e Família) devem ser diferentes entre si.`,
-          )
-        }
-
-        const key = `${vendedor}-${area}-${reg}-${dist}-${periodo}-${familia}`
-        if (keys.has(key)) {
-          errs.push(
-            `Erro na linha ${i + 1}: Duplicidade encontrada para a combinação (Vendedor, Área, Regional, Distrito, Período, Família).`,
-          )
-          continue
-        }
-        keys.add(key)
-
-        const rObj = lookups.regionals?.find((x: any) => x.name.toLowerCase() === reg.toLowerCase())
-        const dObj = lookups.districts?.find(
-          (x: any) => x.name.toLowerCase() === dist.toLowerCase(),
-        )
-        const aObj = lookups.areas?.find((x: any) => x.name.toLowerCase() === area.toLowerCase())
-        const sObj = lookups.sellers?.find(
-          (x: any) => x.name.toLowerCase() === vendedor.toLowerCase(),
-        )
-
-        if (!sObj)
-          errs.push(`Erro na linha ${i + 1}: Vendedor '${vendedor}' não encontrado no sistema.`)
-        if (!rObj) errs.push(`Erro na linha ${i + 1}: Regional '${reg}' não encontrada no sistema.`)
-        if (!dObj)
-          errs.push(`Erro na linha ${i + 1}: Distrito '${dist}' não encontrado no sistema.`)
-        if (!aObj) errs.push(`Erro na linha ${i + 1}: Área '${area}' não encontrada no sistema.`)
-
-        if (sObj && !sObj.user_id) {
-          errs.push(
-            `Erro na linha ${i + 1}: Vendedor '${vendedor}' não possui um usuário associado.`,
-          )
-        }
-
-        if (!rObj || !dObj || !aObj || !sObj || !sObj.user_id) {
-          continue
-        }
-
-        data.push({
-          vendedor,
-          area,
-          regional: reg,
-          distrito: dist,
-          seller_id: sObj.user_id,
-          regional_id: rObj.id,
-          area_id: aObj.id,
-          periodo,
-          metricaFat,
-          baseFat: nBaseFat,
-          broFat: nBroFat,
-          praFat: nPraFat,
-          ouroFat: nOuroFat,
-          metricaFam,
-          baseFam: nBaseFam,
-          broFam: nBroFam,
-          praFam: nPraFam,
-          ouroFam: nOuroFam,
-          familia,
-          frota: nFrota,
-          emp: nEmp,
-        })
-      }
-
-      setErrors(errs)
-      setPreview(errs.length ? [] : data)
-      setStep(3)
-    } catch (e: any) {
-      toast({ title: 'Erro', description: e.message, variant: 'destructive' })
-      setStep(1)
-    }
-  }
-
-  const confirmImport = async () => {
-    setIsSubmitting(true)
-    try {
-      const payloadRows = preview.map((p: any) => ({
-        seller_id: p.seller_id,
-        regional_id: p.regional_id,
-        area_id: p.area_id,
-        period: p.periodo,
-        metrica1: p.metricaFat,
-        base1: p.baseFat,
-        bronze1: p.broFat,
-        prata1: p.praFat,
-        ouro1: p.ouroFat,
-        metrica2: p.metricaFam,
-        base2: p.baseFam,
-        bronze2: p.broFam,
-        prata2: p.praFam,
-        ouro2: p.ouroFam,
-        familia: p.familia,
-        frotas: p.frota,
-        cnpjs: p.emp,
-      }))
-
-      const res = await pb.send('/backend/v1/import-goals', {
-        method: 'POST',
-        body: JSON.stringify({
-          rows: payloadRows,
-          fileName: file?.name,
-          source: 'Lote (18 Colunas)',
-        }),
-      })
-
-      toast({
-        title: 'Sucesso',
-        description: `${res.created + res.updated} metas importadas/atualizadas com sucesso para ${preview.length} linhas de contexto.`,
-      })
-      setStep(1)
-      setFile(null)
-      setPreview([])
-    } catch (e: any) {
-      toast({
-        title: 'Erro ao importar',
-        description: `Erro ao salvar no banco: ${e.message}`,
-        variant: 'destructive',
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  if (user?.role !== 'Administrador') {
-    return (
-      <div className="bg-card border rounded-xl p-12 text-center shadow-sm">
-        <UploadCloud className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-        <h2 className="text-xl font-semibold mb-2">Acesso Restrito</h2>
-        <p className="text-muted-foreground text-sm max-w-md mx-auto">
-          A importação em lote está disponível apenas para Administradores.
-        </p>
-      </div>
-    )
-  }
+  const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+  const shortMonths = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 
   return (
-    <div className="bg-card rounded-xl p-6 shadow-sm border space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h2 className="text-xl font-semibold">Importar Metas (18 Colunas)</h2>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className={cn('w-full justify-start text-left font-normal', !value && 'text-muted-foreground')}>
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {value ? `${months[selectedMonth]} ${selectedYear}` : <span>Selecione o período</span>}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-3" align="start">
+        <div className="flex items-center justify-between space-x-2 pb-4">
+          <Button variant="outline" size="icon" onClick={() => setDisplayYear(displayYear - 1)}><ChevronLeft className="h-4 w-4" /></Button>
+          <div className="font-semibold">{displayYear}</div>
+          <Button variant="outline" size="icon" onClick={() => setDisplayYear(displayYear + 1)}><ChevronRight className="h-4 w-4" /></Button>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {shortMonths.map((m, i) => (
+            <Button key={i} variant={displayYear === selectedYear && i === selectedMonth ? 'default' : 'outline'} className="h-9 w-full" onClick={() => { onChange(`${displayYear}-${String(i + 1).padStart(2, '0')}`); setOpen(false) }}>{m}</Button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+export default function GoalDashboard() {
+  const [data, setData] = useState<any>({ sellers: [], regionals: [], areas: [], districts: [] })
+  const [distId, setDistId] = useState('')
+  const [regId, setRegId] = useState('')
+  const [areaId, setAreaId] = useState('')
+  const [sellerId, setSellerId] = useState('')
+  const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7))
+  const [metric, setMetric] = useState(EXPLICIT_METRICS[0])
+
+  const [agg, setAgg] = useState<any>(null)
+  const [regionalData, setRegionalData] = useState<any[]>([])
+  const [sellerRanking, setSellerRanking] = useState<any[]>([])
+  const [historicalData, setHistoricalData] = useState<any[]>([])
+
+  useEffect(() => {
+    Promise.all([
+      pb.collection('sellers').getFullList({ filter: 'is_active = true', sort: 'name' }),
+      pb.collection('regionals').getFullList({ filter: 'is_active = true', sort: 'name' }),
+      pb.collection('areas').getFullList({ filter: 'is_active = true', sort: 'name' }),
+      pb.collection('districts').getFullList({ filter: 'is_active = true', sort: 'name' }),
+    ]).then(([s, r, a, d]) => setData({ sellers: s, regionals: r, areas: a, districts: d }))
+  }, [])
+
+  useEffect(() => {
+    const load = async () => {
+      if (!period || !metric || data.sellers.length === 0) return
+
+      let baseFilter = `metric="${metric}"`
+      if (sellerId && sellerId !== 'all') {
+        const seller = data.sellers.find((s: any) => s.id === sellerId)
+        if (seller) baseFilter += ` && seller_id="${seller.user_id}"`
+      } else if (areaId && areaId !== 'all') {
+        const sIds = data.sellers.filter((s: any) => s.area_id === areaId).map((s:any) => s.user_id).filter(Boolean)
+        baseFilter += sIds.length ? ` && seller_id in ('${sIds.join("','")}')` : ` && id="0"`
+      } else if (regId && regId !== 'all') {
+        const sIds = data.sellers.filter((s: any) => s.regional_id === regId).map((s:any) => s.user_id).filter(Boolean)
+        baseFilter += sIds.length ? ` && seller_id in ('${sIds.join("','")}')` : ` && id="0"`
+      }
+
+      try {
+        // Fetch current period
+        const goals = await pb.collection('goals').getFullList({ filter: `${baseFilter} && period="${period}"` })
+        const perfs = await pb.collection('actual_performance').getFullList({ filter: `${baseFilter} && period="${period}"` })
+
+        if (goals.length === 0) {
+          setAgg(null); setRegionalData([]); setSellerRanking([]); setHistoricalData([])
+          return
+        }
+
+        const isCoverage = metric === 'Coverage' || metric.toLowerCase().includes('cobertura')
+
+        // Aggregate main KPIs
+        const totalBase = goals.reduce((sum, g) => sum + (g.target_base || g.target_monthly_coverage || 0), 0)
+        const totalAtual = perfs.reduce((sum, p) => sum + (p.actual_value || p.actual_coverage || 0), 0)
+        setAgg({ base: totalBase, atual: totalAtual, pct: totalBase > 0 ? (totalAtual / totalBase) * 100 : 0 })
+
+        // Regional Data
+        const regMap = new Map()
+        data.regionals.forEach((r: any) => regMap.set(r.id, { name: r.name, base: 0, atual: 0 }))
+        goals.forEach(g => {
+          const seller = data.sellers.find((s:any) => s.user_id === g.seller_id)
+          if (seller && regMap.has(seller.regional_id)) {
+            regMap.get(seller.regional_id).base += (g.target_base || g.target_monthly_coverage || 0)
+          }
+        })
+        perfs.forEach(p => {
+          const seller = data.sellers.find((s:any) => s.user_id === p.seller_id)
+          if (seller && regMap.has(seller.regional_id)) {
+            regMap.get(seller.regional_id).atual += (p.actual_value || p.actual_coverage || 0)
+          }
+        })
+        setRegionalData(Array.from(regMap.values()).filter(r => r.base > 0).map(r => ({
+          name: r.name,
+          base: r.base,
+          atual: r.atual,
+          pct: r.base > 0 ? (r.atual / r.base) * 100 : 0
+        })))
+
+        // Seller Ranking
+        const selMap = new Map()
+        data.sellers.forEach((s: any) => selMap.set(s.user_id, { name: s.name, base: 0, atual: 0 }))
+        goals.forEach(g => { if (selMap.has(g.seller_id)) selMap.get(g.seller_id).base += (g.target_base || g.target_monthly_coverage || 0) })
+        perfs.forEach(p => { if (selMap.has(p.seller_id)) selMap.get(p.seller_id).atual += (p.actual_value || p.actual_coverage || 0) })
+        const ranked = Array.from(selMap.values())
+          .filter(s => s.base > 0)
+          .map(s => ({ ...s, pct: s.base > 0 ? (s.atual / s.base) * 100 : 0 }))
+          .sort((a, b) => b.pct - a.pct)
+        setSellerRanking(ranked)
+
+        // Historical Data (fetch all matching baseFilter)
+        const histGoals = await pb.collection('goals').getFullList({ filter: baseFilter })
+        const histPerfs = await pb.collection('actual_performance').getFullList({ filter: baseFilter })
+        const histMap = new Map()
+        histGoals.forEach(g => {
+          if (!histMap.has(g.period)) histMap.set(g.period, { period: g.period, base: 0, atual: 0 })
+          histMap.get(g.period).base += (g.target_base || g.target_monthly_coverage || 0)
+        })
+        histPerfs.forEach(p => {
+          if (!histMap.has(p.period)) histMap.set(p.period, { period: p.period, base: 0, atual: 0 })
+          histMap.get(p.period).atual += (p.actual_value || p.actual_coverage || 0)
+        })
+        const histArr = Array.from(histMap.values())
+          .sort((a, b) => a.period.localeCompare(b.period))
+          .slice(-6) // last 6 periods
+        setHistoricalData(histArr)
+
+      } catch (e) {
+        setAgg(null)
+      }
+    }
+    load()
+  }, [distId, regId, areaId, sellerId, period, metric, data.sellers])
+
+  const isCoverage = metric === 'Coverage' || metric.toLowerCase().includes('cobertura')
+  const formatVal = (v: number) => (isCoverage ? v.toLocaleString('pt-BR') : maskMoney(v * 100))
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-card rounded-xl p-6 shadow-sm border grid grid-cols-1 md:grid-cols-6 gap-4">
+        <Select value={distId} onValueChange={v => { setDistId(v); setRegId(''); setAreaId(''); setSellerId('') }}>
+          <SelectTrigger><SelectValue placeholder="Distrito (Todos)" /></SelectTrigger>
+          <SelectContent><SelectItem value="all">Todos</SelectItem>{data.districts.map((d: any) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
+        </Select>
+        <Select value={regId} onValueChange={v => { setRegId(v); setAreaId(''); setSellerId('') }}>
+          <SelectTrigger><SelectValue placeholder="Regional (Todas)" /></SelectTrigger>
+          <SelectContent><SelectItem value="all">Todas</SelectItem>{data.regionals.filter((r: any) => !distId || distId === 'all' || r.district_id === distId).map((r: any) => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}</SelectContent>
+        </Select>
+        <Select value={areaId} onValueChange={v => { setAreaId(v); setSellerId('') }}>
+          <SelectTrigger><SelectValue placeholder="Área (Todas)" /></SelectTrigger>
+          <SelectContent><SelectItem value="all">Todas</SelectItem>{data.areas.filter((a: any) => !regId || regId === 'all' || a.regional_id === regId).map((a: any) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
+        </Select>
+        <Select value={sellerId} onValueChange={setSellerId}>
+          <SelectTrigger><SelectValue placeholder="Vendedor (Todos)" /></SelectTrigger>
+          <SelectContent><SelectItem value="all">Todos</SelectItem>{data.sellers.filter((s: any) => !areaId || areaId === 'all' || s.area_id === areaId).map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+        </Select>
+        <MonthPicker value={period} onChange={setPeriod} />
+        <Select value={metric} onValueChange={setMetric}>
+          <SelectTrigger><SelectValue placeholder="Métrica" /></SelectTrigger>
+          <SelectContent>{EXPLICIT_METRICS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+        </Select>
       </div>
 
-      {step === 1 && (
+      {agg ? (
         <div className="space-y-6">
-          <div className="bg-muted/30 p-6 rounded-lg border border-dashed">
-            <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
-              <Download className="w-4 h-4 text-primary" />
-              MODELO PADRÃO DA PLANILHA
-            </h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Baixe o modelo de planilha com as 18 colunas exatas. A ordem e o nome das colunas não
-              devem ser alterados. Valores de faturamento exigem formato R$ X.XXX,XX.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={downloadExcel} className="gap-2">
-                <Download className="w-4 h-4" /> Baixar em Excel
-              </Button>
-              <Button variant="outline" size="sm" onClick={downloadCsv} className="gap-2">
-                <Download className="w-4 h-4" /> Baixar em CSV
-              </Button>
-              <Button variant="outline" size="sm" onClick={openGoogleSheets} className="gap-2">
-                <ExternalLink className="w-4 h-4" /> Abrir Google Sheets
-              </Button>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between"><CardTitle className="text-sm font-medium">Meta Base {isCoverage && '(%)'}</CardTitle><Target className="w-4 h-4 text-muted-foreground" /></CardHeader>
+              <CardContent><div className="text-3xl font-bold">{formatVal(agg.base)}</div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between"><CardTitle className="text-sm font-medium">Realizado {isCoverage && '(%)'}</CardTitle><TrendingUp className="w-4 h-4 text-muted-foreground" /></CardHeader>
+              <CardContent><div className="text-3xl font-bold">{formatVal(agg.atual)}</div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between"><CardTitle className="text-sm font-medium">% Atingimento</CardTitle><Award className="w-4 h-4 text-muted-foreground" /></CardHeader>
+              <CardContent><div className={cn("text-3xl font-bold", agg.pct >= 100 ? "text-green-600" : "text-primary")}>{agg.pct.toFixed(1)}%</div></CardContent>
+            </Card>
           </div>
 
-          <div>
-            <h3 className="text-sm font-semibold mb-2">Selecione o arquivo preenchido (.csv)</h3>
-            <Input type="file" accept=".csv" onChange={handleFile} />
-            <p className="text-sm text-muted-foreground mt-2">
-              A planilha deve conter exatas 18 colunas, conforme o template acima. Cada linha gerará
-              automaticamente 2 registros de meta (Faturamento Geral e Família).
-            </p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><BarChart3 className="w-5 h-5 text-primary"/> Performance por Regional</CardTitle>
+                <CardDescription>Atingimento consolidado por regional no período selecionado</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[300px]">
+                <ChartContainer config={{ pct: { label: '% Atingimento', color: 'hsl(var(--primary))' } }} className="h-full w-full">
+                  <BarChart data={regionalData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                    <XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={12} />
+                    <YAxis tickLine={false} axisLine={false} fontSize={12} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="pct" fill="var(--color-pct)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><LineChartIcon className="w-5 h-5 text-primary"/> Tendência Histórica</CardTitle>
+                <CardDescription>Comparativo Base x Realizado nos últimos 6 meses</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[300px]">
+                <ChartContainer config={{ base: { label: 'Base', color: 'hsl(var(--muted-foreground))' }, atual: { label: 'Realizado', color: 'hsl(var(--primary))' } }} className="h-full w-full">
+                  <LineChart data={historicalData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                    <XAxis dataKey="period" tickLine={false} axisLine={false} fontSize={12} />
+                    <YAxis tickLine={false} axisLine={false} fontSize={12} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Line type="monotone" dataKey="base" stroke="var(--color-base)" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="atual" stroke="var(--color-atual)" strokeWidth={2} dot={{ r: 4 }} />
+                  </LineChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
           </div>
-        </div>
-      )}
 
-      {step === 2 && <p className="text-muted-foreground animate-pulse">Analisando arquivo...</p>}
-
-      {step === 3 && (
-        <div className="space-y-4">
-          {errors.length > 0 ? (
-            <Alert variant="destructive">
-              <AlertTitle>Erros Encontrados ({errors.length})</AlertTitle>
-              <AlertDescription className="max-h-64 overflow-y-auto mt-2">
-                <ul className="list-disc pl-5 space-y-1">
-                  {errors.map((e, i) => (
-                    <li key={i}>{e}</li>
-                  ))}
-                </ul>
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <>
-              <Alert className="bg-green-50 text-green-900 border-green-200">
-                <CheckCircle2 className="h-4 w-4 !text-green-600" />
-                <AlertTitle>Arquivo Válido</AlertTitle>
-                <AlertDescription>
-                  {preview.length} linhas analisadas prontas para gerar/atualizar{' '}
-                  {preview.length * 2} registros de meta.
-                </AlertDescription>
-              </Alert>
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setStep(1)
-                    setFile(null)
-                  }}
-                  disabled={isSubmitting}
-                >
-                  Cancelar
-                </Button>
-                <Button onClick={confirmImport} disabled={isSubmitting}>
-                  {isSubmitting ? 'Importando...' : 'Confirmar Importação'}
-                </Button>
+          <Card>
+            <CardHeader><CardTitle>Ranking de Vendedores</CardTitle><CardDescription>Baseado no % de atingimento da meta atual</CardDescription></CardHeader>
+            <CardContent>
+              <div className="border rounded-md max-h-[400px] overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-16">Pos</TableHead>
+                      <TableHead>Vendedor</TableHead>
+                      <TableHead className="text-right">Meta Base</TableHead>
+                      <TableHead className="text-right">Realizado</TableHead>
+                      <TableHead className="text-right">% Ating.</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sellerRanking.map((s, i) => (
+                      <TableRow key={s.name}>
+                        <TableCell className="font-bold text-muted-foreground">{i + 1}º</TableCell>
+                        <TableCell className="font-medium">{s.name}</TableCell>
+                        <TableCell className="text-right">{formatVal(s.base)}</TableCell>
+                        <TableCell className="text-right">{formatVal(s.atual)}</TableCell>
+                        <TableCell className="text-right font-bold text-primary">{s.pct.toFixed(1)}%</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
-            </>
-          )}
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <div className="p-12 text-center border rounded-lg bg-muted/20 text-muted-foreground">
+          Nenhuma meta encontrada para os filtros selecionados.
         </div>
       )}
     </div>
