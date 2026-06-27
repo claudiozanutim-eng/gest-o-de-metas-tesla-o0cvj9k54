@@ -37,8 +37,16 @@ const unmaskMoney = (v: any) => parseInt(String(v).replace(/\D/g, '') || '0') / 
 function MonthPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false)
 
-  const currentYear = value ? parseInt(value.split('-')[0], 10) : new Date().getFullYear()
-  const currentMonth = value ? parseInt(value.split('-')[1], 10) - 1 : new Date().getMonth()
+  const selectedYear = value ? parseInt(value.split('-')[0], 10) : new Date().getFullYear()
+  const selectedMonth = value ? parseInt(value.split('-')[1], 10) - 1 : new Date().getMonth()
+
+  const [displayYear, setDisplayYear] = useState(selectedYear)
+
+  useEffect(() => {
+    if (open) {
+      setDisplayYear(selectedYear)
+    }
+  }, [open, selectedYear])
 
   const months = [
     'Janeiro',
@@ -73,6 +81,7 @@ function MonthPicker({ value, onChange }: { value: string; onChange: (v: string)
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          type="button"
           variant="outline"
           className={cn(
             'w-full justify-start text-left font-normal',
@@ -80,27 +89,25 @@ function MonthPicker({ value, onChange }: { value: string; onChange: (v: string)
           )}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
-          {value ? `${months[currentMonth]} ${currentYear}` : <span>Selecione o período</span>}
+          {value ? `${months[selectedMonth]} ${selectedYear}` : <span>Selecione o período</span>}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-64 p-3" align="start">
         <div className="flex items-center justify-between space-x-2 pb-4">
           <Button
+            type="button"
             variant="outline"
             size="icon"
-            onClick={() =>
-              onChange(`${currentYear - 1}-${String(currentMonth + 1).padStart(2, '0')}`)
-            }
+            onClick={() => setDisplayYear(displayYear - 1)}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <div className="font-semibold">{currentYear}</div>
+          <div className="font-semibold">{displayYear}</div>
           <Button
+            type="button"
             variant="outline"
             size="icon"
-            onClick={() =>
-              onChange(`${currentYear + 1}-${String(currentMonth + 1).padStart(2, '0')}`)
-            }
+            onClick={() => setDisplayYear(displayYear + 1)}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -109,10 +116,11 @@ function MonthPicker({ value, onChange }: { value: string; onChange: (v: string)
           {shortMonths.map((m, i) => (
             <Button
               key={i}
-              variant={i === currentMonth ? 'default' : 'outline'}
+              type="button"
+              variant={displayYear === selectedYear && i === selectedMonth ? 'default' : 'outline'}
               className="h-9 w-full"
               onClick={() => {
-                onChange(`${currentYear}-${String(i + 1).padStart(2, '0')}`)
+                onChange(`${displayYear}-${String(i + 1).padStart(2, '0')}`)
                 setOpen(false)
               }}
             >
