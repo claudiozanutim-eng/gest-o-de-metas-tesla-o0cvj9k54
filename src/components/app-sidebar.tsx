@@ -126,7 +126,7 @@ export function AppSidebar() {
                   >
                     <div className="relative shrink-0">
                       <img
-                        src={mascotUrl}
+                        src="/visual-edits/38862e50-51db-4e02-ab4a-7a840155e5ff-b09fce2d.webp"
                         alt="Nico IA"
                         className="h-10 w-10 rounded-xl object-cover ring-2 ring-primary/20"
                       />
