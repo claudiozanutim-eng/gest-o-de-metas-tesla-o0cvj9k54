@@ -15,7 +15,7 @@ export function ProductsRanking() {
       }
     })
     return Array.from(products.entries())
-      .map(([name, value]) => ({ name, value }))
+      .map(([name, value], idx) => ({ name, value, _key: `${name}-${idx}` }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 5)
   }, [filteredActuals])
@@ -33,6 +33,7 @@ export function ProductsRanking() {
             <BarChart
               data={data}
               layout="vertical"
+              key="products-ranking-chart"
               margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
             >
               <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />

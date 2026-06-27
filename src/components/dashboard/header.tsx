@@ -49,13 +49,21 @@ export function DashboardHeader() {
   } = useDashboard()
 
   const { regionals, areas, sellers } = useMemo(() => {
-    const availableRegionals = dbRegionals.map((r) => ({ id: r.id, name: r.name }))
+    const dedupRegionals = new Map<string, { id: string; name: string }>()
+    dbRegionals.forEach((r) => {
+      if (r.id && !dedupRegionals.has(r.id)) dedupRegionals.set(r.id, { id: r.id, name: r.name })
+    })
+    const availableRegionals = Array.from(dedupRegionals.values())
 
     let availableAreas = dbAreas
     if (filters.regional !== 'All') {
       availableAreas = availableAreas.filter((a) => a.regional_id === filters.regional)
     }
-    const areasMapped = availableAreas.map((a) => ({ id: a.id, name: a.name }))
+    const dedupAreas = new Map<string, { id: string; name: string }>()
+    availableAreas.forEach((a) => {
+      if (a.id && !dedupAreas.has(a.id)) dedupAreas.set(a.id, { id: a.id, name: a.name })
+    })
+    const areasMapped = Array.from(dedupAreas.values())
 
     let availableSellers = dbSellers
     if (filters.area !== 'All') {
@@ -66,9 +74,14 @@ export function DashboardHeader() {
         return area?.regional_id === filters.regional
       })
     }
-    const sellersMapped = availableSellers
+    const dedupSellers = new Map<string, { id: string; name: string }>()
+    availableSellers
       .filter((s) => s.user_id)
-      .map((s) => ({ id: s.user_id, name: s.name }))
+      .forEach((s) => {
+        if (s.user_id && !dedupSellers.has(s.user_id))
+          dedupSellers.set(s.user_id, { id: s.user_id, name: s.name })
+      })
+    const sellersMapped = Array.from(dedupSellers.values())
 
     return { regionals: availableRegionals, areas: areasMapped, sellers: sellersMapped }
   }, [dbRegionals, dbAreas, dbSellers, filters.regional, filters.area])
@@ -180,8 +193,8 @@ function FilterSelect({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="All">Todos</SelectItem>
-          {options.map((o) => (
-            <SelectItem key={o.id} value={o.id}>
+          {options.map((o, idx) => (
+            <SelectItem key={`${o.id}-${idx}`} value={o.id}>
               {o.name}
             </SelectItem>
           ))}

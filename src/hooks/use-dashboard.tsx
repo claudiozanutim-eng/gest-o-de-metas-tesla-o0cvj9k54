@@ -2,6 +2,16 @@ import { createContext, useContext, useEffect, useState, useMemo, ReactNode } fr
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 
+function dedupById(records: any[]): any[] {
+  const seen = new Set<string>()
+  return records.filter((r) => {
+    if (!r?.id) return true
+    if (seen.has(r.id)) return false
+    seen.add(r.id)
+    return true
+  })
+}
+
 export const STATE_TO_REG_NUMBER: Record<string, string> = {
   SP: '1',
   RS: '2',
@@ -99,12 +109,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         pb.collection('areas').getFullList({ filter: 'is_active = true' }),
         pb.collection('sellers').getFullList({ filter: 'is_active = true' }),
       ])
-      setActuals(acts)
-      setGoals(gls)
-      setProductFamilies(fams)
-      setRegionals(regs)
-      setAreas(ars)
-      setSellers(sels)
+      setActuals(dedupById(acts))
+      setGoals(dedupById(gls))
+      setProductFamilies(dedupById(fams))
+      setRegionals(dedupById(regs))
+      setAreas(dedupById(ars))
+      setSellers(dedupById(sels))
     } catch (e) {
       console.error(e)
     } finally {

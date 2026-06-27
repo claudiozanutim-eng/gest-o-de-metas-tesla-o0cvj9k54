@@ -101,7 +101,7 @@ export function DashboardKPIs() {
           </p>
           <div className="grid grid-cols-2 gap-x-2 gap-y-3 mt-1">
             {metrics.phases.map((p, i) => (
-              <div key={i} className="flex flex-col">
+              <div key={`phase-${p.name}-${i}`} className="flex flex-col">
                 <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">
                   {p.name}
                 </span>

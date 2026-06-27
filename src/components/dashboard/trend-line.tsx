@@ -22,7 +22,7 @@ export function TrendLineChart() {
 
     const sortedPeriods = Array.from(periods).sort()
 
-    return sortedPeriods.map((p) => {
+    return sortedPeriods.map((p, idx) => {
       const acts = filteredActuals.filter(
         (a) => a.period === p && ['Faturamento', 'Revenue'].includes(a.metric),
       )
@@ -32,6 +32,7 @@ export function TrendLineChart() {
 
       return {
         period: p,
+        _key: `period-${p}-${idx}`,
         Realizado: acts.reduce((sum, a) => sum + (a.actual_value || 0), 0),
         Meta: gls.reduce((sum, g) => sum + (g.target_base || 0), 0),
       }
@@ -48,7 +49,11 @@ export function TrendLineChart() {
       <CardContent className="flex-1 min-h-[250px]">
         {data.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+            <LineChart
+              data={data}
+              margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+              key="trend-line-chart"
+            >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
               <XAxis dataKey="period" fontSize={10} tickLine={false} axisLine={false} />
               <YAxis

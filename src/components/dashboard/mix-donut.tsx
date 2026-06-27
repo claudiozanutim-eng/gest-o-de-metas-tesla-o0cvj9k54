@@ -26,7 +26,7 @@ export function MixDonutChart() {
       }
     })
     return Array.from(fams.entries())
-      .map(([name, value]) => ({ name, value }))
+      .map(([name, value], idx) => ({ name, value, _key: `${name}-${idx}` }))
       .sort((a, b) => b.value - a.value)
   }, [filteredActuals])
 

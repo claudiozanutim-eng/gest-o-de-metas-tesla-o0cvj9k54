@@ -113,7 +113,7 @@ export function BrazilMap() {
         <div className="flex flex-col gap-2 justify-center w-full sm:w-1/3 order-2 sm:order-1">
           {Object.entries(REG_COLORS)
             .sort((a, b) => a[0].localeCompare(b[0]))
-            .map(([num, defaultColor]) => {
+            .map(([num, defaultColor], _legendIdx) => {
               const rData = regionalData[num]
               const color = rData?.color || defaultColor
               const isSelected =
@@ -163,7 +163,7 @@ export function BrazilMap() {
                 const stroke = isActive ? '#002147' : '#ffffff'
 
                 return (
-                  <Tooltip key={uf}>
+                  <Tooltip key={`state-${uf}`}>
                     <TooltipTrigger asChild>
                       <path
                         d={path}
