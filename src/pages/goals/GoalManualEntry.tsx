@@ -89,7 +89,7 @@ export default function GoalManualEntry() {
       const g = await pb
         .collection('goals')
         .getFirstListItem(
-          `seller_id="${seller.user_id}" && period="${period}" && metric="${metric}"`,
+          `seller_id="${seller.user_id}" && area_id="${areaId}" && period="${period}" && metric="${metric}"`,
         )
       setLoadedGoal(g)
     } catch {
@@ -116,7 +116,7 @@ export default function GoalManualEntry() {
         expand: 'seller_id',
       })
       const goals = await pb.collection('goals').getFullList({
-        filter: `seller_id="${seller.user_id}" && metric="${metric}"`,
+        filter: `seller_id="${seller.user_id}" && area_id="${areaId}" && metric="${metric}"`,
       })
       setHistory(
         perfs.map((p) => ({
