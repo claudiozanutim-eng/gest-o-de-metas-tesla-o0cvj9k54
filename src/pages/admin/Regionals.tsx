@@ -58,9 +58,6 @@ export default function Regionals() {
   const [regionalToDelete, setRegionalToDelete] = useState<any>(null)
   const { toast } = useToast()
   const { user } = useAuth()
-  const isAllowedToDelete = ['Administrator', 'National Manager', 'Gerente Nacional'].includes(
-    user?.role || '',
-  )
 
   const loadData = async () => {
     const r = await pb.collection('regionals').getFullList({ expand: 'district_id' })
@@ -186,7 +183,6 @@ export default function Regionals() {
                             setRegionalToDelete(r)
                             setDeleteDialog(true)
                           }}
-                          disabled={!isAllowedToDelete}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>

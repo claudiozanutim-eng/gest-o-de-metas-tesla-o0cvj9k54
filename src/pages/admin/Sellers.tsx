@@ -67,11 +67,6 @@ export default function Sellers() {
 
   const { toast } = useToast()
   const { user } = useAuth()
-  const isAllowedToDelete = [
-    'Administrador',
-    'Gestor da Empresa',
-    'Gerente Nacional de Vendas',
-  ].includes(user?.role || '')
 
   const loadData = async () => {
     setSellers(
@@ -256,7 +251,6 @@ export default function Sellers() {
                             setSellerToDelete(s)
                             setDeleteDialog(true)
                           }}
-                          disabled={!isAllowedToDelete}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>

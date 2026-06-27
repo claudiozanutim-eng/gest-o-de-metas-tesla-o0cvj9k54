@@ -73,9 +73,6 @@ export default function Areas() {
 
   const { toast } = useToast()
   const { user } = useAuth()
-  const isAllowedToDelete = ['Administrator', 'National Manager', 'Gerente Nacional'].includes(
-    user?.role || '',
-  )
 
   useRealtime('areas', () => {
     loadData()
@@ -332,7 +329,6 @@ export default function Areas() {
                             setAreaToDelete(a)
                             setDeleteDialog(true)
                           }}
-                          disabled={!isAllowedToDelete}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>

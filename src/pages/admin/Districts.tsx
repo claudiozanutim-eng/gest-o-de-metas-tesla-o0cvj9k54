@@ -47,11 +47,6 @@ export default function Districts() {
   const [districtToDelete, setDistrictToDelete] = useState<any>(null)
   const { toast } = useToast()
   const { user } = useAuth()
-  const isAllowedToDelete = [
-    'Administrador',
-    'Gestor da Empresa',
-    'Gerente Nacional de Vendas',
-  ].includes(user?.role || '')
 
   const loadData = async () => {
     const dists = await pb.collection('districts').getFullList()
@@ -192,7 +187,6 @@ export default function Districts() {
                             setDistrictToDelete(d)
                             setDeleteDialog(true)
                           }}
-                          disabled={!isAllowedToDelete}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
