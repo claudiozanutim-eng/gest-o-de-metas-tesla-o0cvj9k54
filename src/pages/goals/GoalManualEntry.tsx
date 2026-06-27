@@ -302,21 +302,6 @@ export default function GoalManualEntry() {
       })
     }
 
-    if (calcBronze >= calcPrata || calcPrata >= calcOuro) {
-      return toast({
-        title: 'Erro de Validação',
-        description: 'Hierarquia inválida: Bronze < Prata < Ouro.',
-        variant: 'destructive',
-      })
-    }
-    if (calcBase < calcBronze || calcBase > calcOuro) {
-      return toast({
-        title: 'Erro de Validação',
-        description: 'A Meta Base deve estar entre Bronze e Ouro.',
-        variant: 'destructive',
-      })
-    }
-
     setIsSubmitting(true)
     try {
       let currentGoalId = loadedGoal?.id
@@ -379,8 +364,13 @@ export default function GoalManualEntry() {
         })
       }
 
-      toast({ title: 'Sucesso', description: 'Valores salvos com sucesso!' })
-      loadData()
+      toast({ title: 'Sucesso', description: 'Meta lançada com sucesso' })
+      setTargetBase('')
+      setTargetBronze('')
+      setTargetPrata('')
+      setTargetOuro('')
+      setAtual('')
+      setSellerId('')
     } catch (e) {
       toast({ title: 'Erro', description: 'Não foi possível salvar.', variant: 'destructive' })
     } finally {
