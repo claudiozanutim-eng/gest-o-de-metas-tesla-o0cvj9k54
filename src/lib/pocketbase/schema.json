@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-27T16:59:46.950Z",
+  "generatedAt": "2026-06-27T17:11:42.273Z",
   "collections": [
     {
       "name": "users",
@@ -805,6 +805,76 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_goal_audit_goal_id ON goal_audit_logs (goal_id)"]
+    },
+    {
+      "name": "notifications",
+      "type": "base",
+      "apiRules": {
+        "list": "user_id = @request.auth.id",
+        "view": "user_id = @request.auth.id",
+        "create": "",
+        "update": "user_id = @request.auth.id",
+        "delete": "user_id = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "message",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["info", "success", "warning", "error"]
+        },
+        {
+          "name": "is_read",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "link",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_notifications_user_id ON notifications (user_id)",
+        "CREATE INDEX idx_notifications_is_read ON notifications (is_read)",
+        "CREATE INDEX idx_notifications_user_read ON notifications (user_id, is_read)"
+      ]
     }
   ]
 }

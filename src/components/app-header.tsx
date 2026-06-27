@@ -1,5 +1,5 @@
 import { SidebarTrigger } from '@/components/ui/sidebar'
-import { Bell, Search, LogOut, User, Moon, Sun } from 'lucide-react'
+import { Search, LogOut, User, Moon, Sun } from 'lucide-react'
 import { useTheme } from './theme-provider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useAuthStore } from '@/stores/use-auth-store'
 import { useAuth } from '@/hooks/use-auth'
+import { NotificationPopover } from './notification-popover'
 import pb from '@/lib/pocketbase/client'
 
 export function AppHeader() {
@@ -63,10 +64,7 @@ export function AppHeader() {
             <span className="sr-only">Toggle theme</span>
           </Button>
 
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-5 w-5 text-muted-foreground" />
-            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive"></span>
-          </Button>
+          <NotificationPopover />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
