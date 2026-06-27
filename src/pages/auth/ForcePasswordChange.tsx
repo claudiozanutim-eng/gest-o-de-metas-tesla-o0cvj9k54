@@ -43,14 +43,14 @@ export default function ForcePasswordChange() {
     try {
       if (!user) throw new Error('Usuário não autenticado.')
 
-      await pb.collection('users').update(user.id, {
+      const updated = await pb.collection('users').update(user.id, {
         oldPassword: oldPassword,
         password: password,
         passwordConfirm: confirmPassword,
         force_password_change: false,
       })
 
-      await pb.collection('users').authRefresh()
+      pb.authStore.save(pb.authStore.token, updated)
 
       toast({ title: 'Sucesso', description: 'Senha atualizada com sucesso!' })
       navigate('/', { replace: true })

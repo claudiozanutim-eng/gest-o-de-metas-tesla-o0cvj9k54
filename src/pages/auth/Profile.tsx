@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage, extractFieldErrors } from '@/lib/pocketbase/errors'
-import { Camera, Save, KeyRound, Shield, MapPin, Loader2, User } from 'lucide-react'
+import { Camera, Save, KeyRound, Shield, MapPin, Loader2, User, Check } from 'lucide-react'
 
 export default function Profile() {
   const { user } = useAuth()
@@ -22,6 +22,7 @@ export default function Profile() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [savingProfile, setSavingProfile] = useState(false)
+  const [profileSaved, setProfileSaved] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const [passwordData, setPasswordData] = useState({
@@ -30,6 +31,7 @@ export default function Profile() {
     passwordConfirm: '',
   })
   const [savingPassword, setSavingPassword] = useState(false)
+  const [passwordSaved, setPasswordSaved] = useState(false)
   const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
@@ -92,8 +94,14 @@ export default function Profile() {
 
       const updated = await pb.collection('users').update(user.id, formData)
       setProfileData((prev: any) => ({ ...prev, name: updated.name, avatar: updated.avatar }))
+      if (updated.avatar) {
+        setAvatarPreview(pb.files.getUrl(updated, updated.avatar, { thumb: '100x100' }))
+      }
+      setAvatarFile(null)
       pb.authStore.save(pb.authStore.token, updated)
       toast({ title: 'Sucesso', description: 'Perfil atualizado com sucesso.' })
+      setProfileSaved(true)
+      setTimeout(() => setProfileSaved(false), 2000)
     } catch (error) {
       setFieldErrors(extractFieldErrors(error))
       toast({
@@ -132,6 +140,8 @@ export default function Profile() {
       })
       setPasswordData({ oldPassword: '', password: '', passwordConfirm: '' })
       toast({ title: 'Sucesso', description: 'Senha atualizada com sucesso.' })
+      setPasswordSaved(true)
+      setTimeout(() => setPasswordSaved(false), 2000)
     } catch (error) {
       setPasswordErrors(extractFieldErrors(error))
       toast({
@@ -224,10 +234,12 @@ export default function Profile() {
                 <Button onClick={handleSaveProfile} disabled={savingProfile}>
                   {savingProfile ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : profileSaved ? (
+                    <Check className="w-4 h-4 mr-2 text-green-500" />
                   ) : (
                     <Save className="w-4 h-4 mr-2" />
                   )}
-                  Salvar Perfil
+                  {profileSaved ? 'Salvo!' : 'Salvar Perfil'}
                 </Button>
               </div>
             </CardContent>
@@ -288,14 +300,21 @@ export default function Profile() {
                 <Button
                   variant="secondary"
                   onClick={handleSavePassword}
-                  disabled={savingPassword || !passwordData.oldPassword || !passwordData.password}
+                  disabled={
+                    savingPassword ||
+                    !passwordData.oldPassword ||
+                    !passwordData.password ||
+                    !passwordData.passwordConfirm
+                  }
                 >
                   {savingPassword ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : passwordSaved ? (
+                    <Check className="w-4 h-4 mr-2 text-green-500" />
                   ) : (
                     <KeyRound className="w-4 h-4 mr-2" />
                   )}
-                  Atualizar Senha
+                  {passwordSaved ? 'Atualizada!' : 'Atualizar Senha'}
                 </Button>
               </div>
             </CardContent>

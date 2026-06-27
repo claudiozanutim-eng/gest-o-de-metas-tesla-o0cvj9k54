@@ -7,12 +7,12 @@ interface User {
   name: string
   avatar?: string
   role:
-    | 'Administrator'
-    | 'National Manager'
-    | 'District Manager'
-    | 'Regional Manager'
-    | 'Seller'
-    | 'Sales Assistant'
+    | 'Administrador'
+    | 'Gestor da Empresa'
+    | 'Gerente Nacional de Vendas'
+    | 'Gerente Distrital'
+    | 'Gerente Regional'
+    | 'Vendedor'
   district_id?: string
   regional_id?: string
   area_id?: string

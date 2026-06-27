@@ -87,6 +87,7 @@ export default function Users() {
 
   const [resetDialog, setResetDialog] = useState(false)
   const [userToReset, setUserToReset] = useState<any>(null)
+  const [saving, setSaving] = useState(false)
 
   const [filters, setFilters] = useLocalStorage('users-filters', {
     search: '',
@@ -181,6 +182,7 @@ export default function Users() {
       })
       return
     }
+    setSaving(true)
     try {
       const data = { ...formData, emailVisibility: true }
 
@@ -240,13 +242,19 @@ export default function Users() {
       if (!data.area_id || data.area_id === 'none') data.area_id = null
 
       if (data.id) {
-        await pb.collection('users').update(data.id, data)
+        const updateData = { ...data }
+        delete updateData.id
+        delete updateData.password
+        delete updateData.passwordConfirm
+        await pb.collection('users').update(data.id, updateData)
         toast({ title: 'Sucesso', description: 'Usuário atualizado com sucesso' })
       } else {
-        data.password = 'Tesla@2026!'
-        data.passwordConfirm = 'Tesla@2026!'
-        data.force_password_change = true
-        await pb.collection('users').create(data)
+        const createData = { ...data }
+        delete createData.id
+        createData.password = 'Tesla@2026!'
+        createData.passwordConfirm = 'Tesla@2026!'
+        createData.force_password_change = true
+        await pb.collection('users').create(createData)
         toast({
           title: 'Sucesso',
           description:
@@ -283,6 +291,8 @@ export default function Users() {
           variant: 'destructive',
         })
       }
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -651,7 +661,9 @@ export default function Users() {
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleSave}>Salvar</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? 'Salvando...' : 'Salvar'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
