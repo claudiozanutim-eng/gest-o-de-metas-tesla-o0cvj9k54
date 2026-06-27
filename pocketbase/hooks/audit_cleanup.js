@@ -2,6 +2,10 @@ routerAdd(
   'POST',
   '/backend/v1/audit/cleanup',
   (e) => {
+    if (!e.auth || e.auth.getString('role') !== 'Administrador') {
+      return e.forbiddenError('Acesso restrito a administradores.')
+    }
+
     try {
       $app.runInTransaction((txApp) => {
         const db = txApp.db()
@@ -50,5 +54,5 @@ routerAdd(
       return e.badRequestError(err.message)
     }
   },
-  $apis.requireSuperuserAuth(),
+  $apis.requireAuth(),
 )
