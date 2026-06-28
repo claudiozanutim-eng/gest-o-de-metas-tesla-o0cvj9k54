@@ -1,51 +1,61 @@
-// ViewBox is mapped perfectly to overlay standard Brazil path datasets.
 export const BRAZIL_VIEW_BOX = '0 0 1000 1000'
 
-// A stylized cartogram / simplified hex-like path set representing the geography of Brazil states.
-// This ensures performance, scalability, and absolute perfection inside standard dashboards without massive SVGs.
-const buildHex = (cx: number, cy: number, r: number) => {
-  const h = (r * Math.sqrt(3)) / 2
-  return `M ${cx - r} ${cy} L ${cx - r / 2} ${cy - h} L ${cx + r / 2} ${cy - h} L ${cx + r} ${cy} L ${cx + r / 2} ${cy + h} L ${cx - r / 2} ${cy + h} Z`
+export const STATE_NAMES: Record<string, string> = {
+  AC: 'Acre',
+  AL: 'Alagoas',
+  AP: 'Amapá',
+  AM: 'Amazonas',
+  BA: 'Bahia',
+  CE: 'Ceará',
+  DF: 'Distrito Federal',
+  ES: 'Espírito Santo',
+  GO: 'Goiás',
+  MA: 'Maranhão',
+  MT: 'Mato Grosso',
+  MS: 'Mato Grosso do Sul',
+  MG: 'Minas Gerais',
+  PA: 'Pará',
+  PB: 'Paraíba',
+  PR: 'Paraná',
+  PE: 'Pernambuco',
+  PI: 'Piauí',
+  RJ: 'Rio de Janeiro',
+  RN: 'Rio Grande do Norte',
+  RS: 'Rio Grande do Sul',
+  RO: 'Rondônia',
+  RR: 'Roraima',
+  SC: 'Santa Catarina',
+  SP: 'São Paulo',
+  SE: 'Sergipe',
+  TO: 'Tocantins',
 }
 
-// Base positions mapping the rough geographic topology of Brazil (HexCartogram Style)
-const radius = 48
-const ox = 280
-const oy = 250
-const dx = radius * 1.5
-const dy = radius * Math.sqrt(3)
-
 export const BRAZIL_STATES: Record<string, string> = {
-  // North
-  RR: buildHex(ox + dx * 2, oy + dy * 0, radius),
-  AP: buildHex(ox + dx * 3, oy + dy * 0, radius),
-  AM: buildHex(ox + dx * 1, oy + dy * 1, radius),
-  PA: buildHex(ox + dx * 2.5, oy + dy * 1, radius),
-  AC: buildHex(ox + dx * 0, oy + dy * 2, radius),
-  RO: buildHex(ox + dx * 1.5, oy + dy * 2, radius),
-  TO: buildHex(ox + dx * 3.5, oy + dy * 2, radius),
-  // Northeast
-  MA: buildHex(ox + dx * 4, oy + dy * 1, radius),
-  CE: buildHex(ox + dx * 5, oy + dy * 1, radius),
-  RN: buildHex(ox + dx * 6, oy + dy * 1, radius),
-  PI: buildHex(ox + dx * 4.5, oy + dy * 2, radius),
-  PB: buildHex(ox + dx * 6.5, oy + dy * 2, radius),
-  PE: buildHex(ox + dx * 7, oy + dy * 3, radius),
-  AL: buildHex(ox + dx * 6.5, oy + dy * 4, radius),
-  SE: buildHex(ox + dx * 6, oy + dy * 5, radius),
-  BA: buildHex(ox + dx * 5, oy + dy * 4, radius),
-  // Center-West
-  MT: buildHex(ox + dx * 2, oy + dy * 3, radius),
-  GO: buildHex(ox + dx * 3.5, oy + dy * 3, radius),
-  DF: buildHex(ox + dx * 4, oy + dy * 3, radius), // slightly overlapping, kept distinct for hex
-  MS: buildHex(ox + dx * 2.5, oy + dy * 4, radius),
-  // Southeast
-  MG: buildHex(ox + dx * 4.5, oy + dy * 5, radius),
-  ES: buildHex(ox + dx * 5.5, oy + dy * 6, radius),
-  RJ: buildHex(ox + dx * 4.5, oy + dy * 7, radius),
-  SP: buildHex(ox + dx * 3.5, oy + dy * 6, radius),
-  // South
-  PR: buildHex(ox + dx * 3, oy + dy * 7, radius),
-  SC: buildHex(ox + dx * 3.5, oy + dy * 8, radius),
-  RS: buildHex(ox + dx * 3, oy + dy * 9, radius),
+  AC: 'M 227 463 L 303 442 L 320 467 L 314 501 L 290 526 L 260 538 L 231 523 L 221 491 Z',
+  AM: 'M 290 210 L 395 196 L 448 218 L 465 260 L 450 305 L 420 340 L 380 355 L 340 345 L 310 320 L 288 280 L 280 245 Z',
+  RR: 'M 370 130 L 425 122 L 448 152 L 438 185 L 408 195 L 378 180 L 365 155 Z',
+  AP: 'M 470 175 L 510 168 L 525 192 L 510 215 L 480 218 L 465 198 Z',
+  PA: 'M 448 218 L 525 192 L 570 210 L 610 240 L 625 285 L 605 325 L 560 345 L 510 340 L 470 320 L 450 285 L 445 250 Z',
+  MA: 'M 590 325 L 650 310 L 690 330 L 705 370 L 685 405 L 645 415 L 610 400 L 585 370 Z',
+  CE: 'M 705 370 L 745 365 L 760 395 L 750 425 L 720 430 L 700 405 Z',
+  RN: 'M 745 365 L 775 360 L 785 385 L 770 400 L 750 395 Z',
+  PB: 'M 760 425 L 790 420 L 800 445 L 780 465 L 755 460 Z',
+  PE: 'M 705 410 L 745 405 L 780 420 L 790 450 L 765 470 L 725 465 L 700 440 Z',
+  AL: 'M 770 470 L 795 468 L 800 490 L 780 500 L 765 485 Z',
+  SE: 'M 755 500 L 785 498 L 790 520 L 770 528 L 755 515 Z',
+  BA: 'M 600 420 L 680 415 L 720 430 L 740 470 L 750 510 L 735 550 L 700 580 L 650 585 L 610 570 L 585 535 L 575 490 L 585 450 Z',
+  PI: 'M 555 345 L 595 340 L 625 360 L 640 395 L 625 425 L 590 435 L 560 420 L 545 390 L 548 365 Z',
+  TO: 'M 535 380 L 575 375 L 590 410 L 585 450 L 560 475 L 530 470 L 520 435 L 522 400 Z',
+  MT: 'M 380 355 L 460 345 L 510 360 L 530 400 L 520 450 L 480 480 L 430 475 L 390 455 L 370 420 L 365 385 Z',
+  MS: 'M 420 485 L 480 480 L 510 505 L 515 550 L 490 580 L 450 585 L 420 565 L 410 525 Z',
+  GO: 'M 480 440 L 530 435 L 560 460 L 565 500 L 540 525 L 500 525 L 475 500 L 470 465 Z',
+  DF: 'M 505 495 L 525 490 L 530 505 L 515 512 L 500 505 Z',
+  MG: 'M 540 470 L 610 465 L 660 480 L 680 520 L 670 565 L 640 595 L 590 600 L 555 580 L 535 545 L 530 505 Z',
+  ES: 'M 660 525 L 690 520 L 700 550 L 685 575 L 660 570 L 650 545 Z',
+  RJ: 'M 610 570 L 655 565 L 675 585 L 670 615 L 640 625 L 610 615 L 600 590 Z',
+  SP: 'M 480 555 L 545 550 L 580 570 L 585 605 L 560 630 L 510 635 L 475 615 L 465 585 Z',
+  PR: 'M 460 615 L 525 610 L 555 630 L 560 665 L 535 685 L 490 690 L 460 670 L 450 640 Z',
+  SC: 'M 465 685 L 520 680 L 545 700 L 540 730 L 510 745 L 475 740 L 460 715 Z',
+  RS: 'M 440 735 L 510 730 L 555 745 L 575 780 L 560 820 L 520 845 L 470 840 L 435 815 L 425 775 Z',
+  RO: 'M 305 400 L 360 390 L 380 420 L 375 460 L 345 475 L 315 465 L 295 435 Z',
 }
