@@ -126,7 +126,7 @@ export function AppSidebar() {
                   >
                     <div className="relative shrink-0">
                       <img
-                        src="https://img.usecurling.com/p/200/200?q=friendly%20robot%20mascot"
+                        src="/visual-edits/nico-396b594e.webp"
                         alt="Nico IA"
                         className="h-10 w-10 rounded-xl object-cover ring-2 ring-primary/20"
                       />
