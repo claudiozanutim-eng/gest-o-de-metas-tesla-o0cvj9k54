@@ -331,8 +331,7 @@ export default function GoalDashboard() {
   const isCoverage = isCoverageMetric(metric)
   const isCurrency = !isCoverage
 
-  const formatVal = (v: number) =>
-    isCurrency ? maskMoney(v * 100) : `${v.toLocaleString('pt-BR')}${isCoverage ? '%' : ''}`
+  const formatVal = (v: number) => (isCurrency ? maskMoney(v * 100) : v.toLocaleString('pt-BR'))
 
   const exportData = () => {
     if (sellerRanking.length === 0) return
@@ -477,7 +476,8 @@ export default function GoalDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-primary">
-                  {aggData.target > 0 ? ((aggData.actual / aggData.target) * 100).toFixed(1) : 0}%
+                  {aggData.target > 0 ? ((aggData.actual / aggData.target) * 100).toFixed(1) : 0}
+                  {!isCoverage && '%'}
                 </div>
               </CardContent>
             </Card>
@@ -487,7 +487,7 @@ export default function GoalDashboard() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <BarChart2 className="w-4 h-4" /> Atingimento por Regional (%)
+                  <BarChart2 className="w-4 h-4" /> Atingimento por Regional{!isCoverage && ' (%)'}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -503,11 +503,14 @@ export default function GoalDashboard() {
                         fontSize={12}
                         tickLine={false}
                         axisLine={false}
-                        tickFormatter={(v) => `${v}%`}
+                        tickFormatter={(v) => (isCoverage ? `${v}` : `${v}%`)}
                       />
                       <RechartsTooltip
                         cursor={{ fill: 'rgba(0,0,0,0.05)' }}
-                        formatter={(v: number) => [`${v.toFixed(1)}%`, 'Atingimento']}
+                        formatter={(v: number) => [
+                          isCoverage ? v.toFixed(1) : `${v.toFixed(1)}%`,
+                          'Atingimento',
+                        ]}
                       />
                       <Bar
                         dataKey="pct"
@@ -590,7 +593,8 @@ export default function GoalDashboard() {
                       <TableCell className="text-right">{formatVal(s.target)}</TableCell>
                       <TableCell className="text-right">{formatVal(s.actual)}</TableCell>
                       <TableCell className="text-right font-bold text-primary">
-                        {s.pct.toFixed(1)}%
+                        {s.pct.toFixed(1)}
+                        {!isCoverage && '%'}
                       </TableCell>
                     </TableRow>
                   ))}

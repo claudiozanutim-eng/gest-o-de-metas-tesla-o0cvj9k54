@@ -17,7 +17,7 @@ const currencyFormatter = new Intl.NumberFormat('pt-BR', {
 
 export function formatMetricValue(value: number, metric: string): string {
   if (isCoverageMetric(metric)) {
-    return `${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
+    return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   }
   return currencyFormatter.format(value)
 }
@@ -31,7 +31,7 @@ const trackingCurrencyFormatter = new Intl.NumberFormat('pt-BR', {
 
 export function formatTrackingValue(value: number, metric: string): string {
   if (isCoverageMetric(metric)) {
-    return `${value.toLocaleString('pt-BR')}%`
+    return value.toLocaleString('pt-BR')
   }
   return trackingCurrencyFormatter.format(value)
 }

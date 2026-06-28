@@ -175,7 +175,7 @@ export function ConsolidatedCoverage() {
                           <p className="text-sm font-bold text-foreground">{row.name}</p>
                         </div>
                         <span className={cn('text-lg font-extrabold', colors.text)}>
-                          {row.achievement.toFixed(1)}%
+                          {row.achievement.toFixed(1)}
                         </span>
                       </div>
                       <div className="h-2 rounded-full bg-muted overflow-hidden">
@@ -192,14 +192,14 @@ export function ConsolidatedCoverage() {
                   <TooltipContent>
                     <div className="space-y-1 text-xs">
                       <p>
-                        <span className="font-semibold">Meta Base:</span> {row.target.toFixed(1)}%
+                        <span className="font-semibold">Meta Base:</span> {row.target.toFixed(1)}
                       </p>
                       <p>
-                        <span className="font-semibold">Realizada:</span> {row.actual.toFixed(1)}%
+                        <span className="font-semibold">Realizada:</span> {row.actual.toFixed(1)}
                       </p>
                       <p>
                         <span className="font-semibold">Atingimento:</span>{' '}
-                        {row.achievement.toFixed(1)}%
+                        {row.achievement.toFixed(1)}
                       </p>
                     </div>
                   </TooltipContent>

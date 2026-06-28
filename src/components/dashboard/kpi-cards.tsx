@@ -92,12 +92,12 @@ export function DashboardKPIs() {
       />
       <KPICard
         title="Atingimento de Cobertura"
-        value={`${metrics.covAchievement.toFixed(1)}%`}
+        value={metrics.covAchievement.toFixed(1)}
         icon={Building2}
         color={metrics.covAchievement >= 100 ? 'text-emerald-600' : 'text-[#003DA5]'}
         bgAccent={metrics.covAchievement >= 100 ? 'bg-emerald-600/10' : 'bg-[#003DA5]/10'}
         borderColor={metrics.covAchievement >= 100 ? 'border-l-emerald-600' : 'border-l-[#003DA5]'}
-        subtitle={`Realizado: ${metrics.covActual.toFixed(1)}% | Meta: ${metrics.covGoal.toFixed(1)}%`}
+        subtitle={`Realizado: ${metrics.covActual.toFixed(1)} | Meta: ${metrics.covGoal.toFixed(1)}`}
         delay={225}
       />
       <Card

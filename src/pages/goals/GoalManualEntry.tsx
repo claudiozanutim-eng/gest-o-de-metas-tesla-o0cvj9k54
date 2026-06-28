@@ -588,28 +588,34 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
             <Card className="bg-primary/5 border-primary/20">
               <CardHeader className="py-3 px-4">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Meta Base {isCoverage && '(%)'}
+                  Meta Base
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-4">
                 <div className="text-2xl font-bold">
                   {isCurrency
                     ? formatCurrency(calcBase)
-                    : `${calcBase.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`}
+                    : calcBase.toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
                 </div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="py-3 px-4">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Realizada {isCoverage && '(%)'}
+                  Realizada
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-4">
                 <div className="text-2xl font-bold">
                   {isCurrency
                     ? formatCurrency(calcActual)
-                    : `${calcActual.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`}
+                    : calcActual.toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
                 </div>
               </CardContent>
             </Card>
@@ -634,7 +640,10 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
                   {diff >= 0 ? '+' : '-'}
                   {isCurrency
                     ? formatCurrency(Math.abs(diff))
-                    : `${Math.abs(diff).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`}
+                    : Math.abs(diff).toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
                 </div>
               </CardContent>
             </Card>
@@ -659,7 +668,10 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
                   {ouroDiff >= 0 ? '+' : '-'}
                   {isCurrency
                     ? formatCurrency(Math.abs(ouroDiff))
-                    : `${Math.abs(ouroDiff).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`}
+                    : Math.abs(ouroDiff).toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
                 </div>
               </CardContent>
             </Card>
@@ -670,7 +682,10 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                <div className="text-2xl font-bold text-primary">{pct.toFixed(1)}%</div>
+                <div className="text-2xl font-bold text-primary">
+                  {pct.toFixed(1)}
+                  {!isCoverage && '%'}
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -706,11 +721,11 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Meta Base {isCoverage && '(%)'}</TableHead>
-                  <TableHead>Meta Bronze {isCoverage && '(%)'}</TableHead>
-                  <TableHead>Meta Prata {isCoverage && '(%)'}</TableHead>
-                  <TableHead>Meta Ouro {isCoverage && '(%)'}</TableHead>
-                  <TableHead className="bg-primary/5">Realizado {isCoverage && '(%)'}</TableHead>
+                  <TableHead>Meta Base</TableHead>
+                  <TableHead>Meta Bronze</TableHead>
+                  <TableHead>Meta Prata</TableHead>
+                  <TableHead>Meta Ouro</TableHead>
+                  <TableHead className="bg-primary/5">Realizado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -774,7 +789,7 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
               <Card>
                 <CardHeader className="py-3 px-4">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Meta Cobertura Diária (%)
+                    Meta Cobertura Diária
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="px-4 pb-4">
@@ -789,7 +804,7 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
               <Card>
                 <CardHeader className="py-3 px-4">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Meta Cobertura Semanal (%)
+                    Meta Cobertura Semanal
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="px-4 pb-4">
@@ -804,7 +819,7 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
               <Card>
                 <CardHeader className="py-3 px-4">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Meta Cobertura Mensal (%)
+                    Meta Cobertura Mensal
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="px-4 pb-4">

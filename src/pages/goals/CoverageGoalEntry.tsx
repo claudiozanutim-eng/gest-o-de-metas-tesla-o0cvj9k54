@@ -133,7 +133,7 @@ export default function CoverageGoalEntry() {
       ['covPrata', prata, 'Prata'],
       ['covOuro', ouro, 'Ouro'],
     ] as const) {
-      if (val < 0 || val > 100) errs[field] = `${label} deve estar entre 0% e 100%`
+      if (val < 0 || val > 100) errs[field] = `${label} deve estar entre 0 e 100`
     }
 
     if (bronze <= base && !errs.covBronze)
@@ -318,27 +318,27 @@ export default function CoverageGoalEntry() {
           <div className="space-y-4 border-t pt-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <CoverageField
-                label="Meta Base (%)"
+                label="Meta Base"
                 value={covBase}
                 onChange={setCovBase}
                 error={errors.covBase}
               />
               <CoverageField
-                label="Meta Bronze (%)"
+                label="Meta Bronze"
                 value={covBronze}
                 onChange={setCovBronze}
                 error={errors.covBronze}
                 color="amber"
               />
               <CoverageField
-                label="Meta Prata (%)"
+                label="Meta Prata"
                 value={covPrata}
                 onChange={setCovPrata}
                 error={errors.covPrata}
                 color="slate"
               />
               <CoverageField
-                label="Meta Ouro (%)"
+                label="Meta Ouro"
                 value={covOuro}
                 onChange={setCovOuro}
                 error={errors.covOuro}
@@ -346,9 +346,7 @@ export default function CoverageGoalEntry() {
               />
             </div>
             <div className="max-w-xs">
-              <Label className="text-xs font-semibold text-muted-foreground">
-                Cobertura Atual (%)
-              </Label>
+              <Label className="text-xs font-semibold text-muted-foreground">Cobertura Atual</Label>
               <Input
                 type="number"
                 min={0}

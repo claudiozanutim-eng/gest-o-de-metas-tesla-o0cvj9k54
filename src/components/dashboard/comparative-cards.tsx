@@ -61,6 +61,7 @@ export function ComparativeCards() {
         data={pillars.coverage}
         formatFn={fmtNum}
         delay={150}
+        isCoverage
       />
     </div>
   )
@@ -72,12 +73,14 @@ function PillarCard({
   data,
   formatFn,
   delay,
+  isCoverage,
 }: {
   title: string
   icon: any
   data: { target: number; actual: number; diff: number; pct: number }
   formatFn: (v: number) => string
   delay: number
+  isCoverage?: boolean
 }) {
   const isPositive = data.pct >= 100
   return (
@@ -106,7 +109,8 @@ function PillarCard({
             ) : (
               <TrendingDown className="w-3.5 h-3.5" />
             )}
-            {data.pct.toFixed(1)}%
+            {data.pct.toFixed(1)}
+            {!isCoverage && '%'}
           </div>
         </div>
         <div className="grid grid-cols-3 gap-3">
