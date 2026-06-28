@@ -4,18 +4,14 @@ routerAdd(
   (e) => {
     const body = e.requestInfo().body
     const rows = body.rows || []
-    let created = 0
-    let updated = 0
-    let errors = 0
-    const errorDetails = []
 
     function parseNum(val) {
       if (!val || val === '') return 0
-      let s = String(val).replace(/R\$/gi, '').replace(/\s/g, '')
+      var s = String(val).replace(/R\$/gi, '').replace(/%/g, '').replace(/\s/g, '')
       if (s === '') return 0
       if (s.indexOf(',') > -1 && s.indexOf('.') > -1) s = s.replace(/\./g, '').replace(',', '.')
       else if (s.indexOf(',') > -1) s = s.replace(',', '.')
-      const n = parseFloat(s)
+      var n = parseFloat(s)
       return isNaN(n) ? 0 : n
     }
 
@@ -29,222 +25,386 @@ routerAdd(
         .replace(/\s+/g, ' ')
     }
 
-    const users = $app.findRecordsByFilter('users', '1=1', '', 10000, 0)
-    const sellers = $app.findRecordsByFilter('sellers', '1=1', '', 10000, 0)
-    const regionals = $app.findRecordsByFilter('regionals', '1=1', '', 10000, 0)
-    const areas = $app.findRecordsByFilter('areas', '1=1', '', 10000, 0)
-
-    const userMap = {}
-    for (const u of users) {
-      const n = norm(u.getString('name'))
-      if (n) userMap[n] = u.id
-    }
-    const sellerMap = {}
-    const sellerByCode = {}
-    for (const s of sellers) {
-      const n = norm(s.getString('name'))
-      if (n) sellerMap[n] = s
-      const c = norm(s.getString('code'))
-      if (c) sellerByCode[c] = s
-    }
-    const regionalMap = {}
-    for (const r of regionals) {
-      const n = norm(r.getString('name'))
-      if (n) regionalMap[n] = r.id
-    }
-    const areaMap = {}
-    for (const a of areas) {
-      const n = norm(a.getString('name'))
-      if (n) areaMap[n] = a
+    function normPeriod(p) {
+      if (!p) return ''
+      p = String(p).trim()
+      if (/^\d{4}-\d{2}$/.test(p)) return p
+      var m = p.match(/^(\d{1,2})\/(\d{4})$/)
+      if (m) return m[2] + '-' + m[1].padStart(2, '0')
+      var parts = p.split('/')
+      if (parts.length === 2) return parts[1] + '-' + parts[0].padStart(2, '0')
+      return p
     }
 
-    function findUserId(name) {
-      if (!name) return ''
-      const n = norm(name)
-      if (userMap[n]) return userMap[n]
-      if (sellerMap[n] && sellerMap[n].getString('user_id'))
-        return sellerMap[n].getString('user_id')
-      if (sellerByCode[n] && sellerByCode[n].getString('user_id'))
-        return sellerByCode[n].getString('user_id')
-      for (const k in userMap) {
-        if (k.indexOf(n) > -1 || n.indexOf(k) > -1) return userMap[k]
+    var districts = $app.findRecordsByFilter('districts', '1=1', '', 10000, 0)
+    var regionals = $app.findRecordsByFilter('regionals', '1=1', '', 10000, 0)
+    var areas = $app.findRecordsByFilter('areas', '1=1', '', 10000, 0)
+    var sellers = $app.findRecordsByFilter('sellers', '1=1', '', 10000, 0)
+    var users = $app.findRecordsByFilter('users', '1=1', '', 10000, 0)
+
+    var dMap = {},
+      rMap = {},
+      aMap = {},
+      sMap = {},
+      sCodeMap = {},
+      uMap = {}
+    for (var d of districts) {
+      var dn = norm(d.getString('name'))
+      if (dn) dMap[dn] = d
+    }
+    for (var r of regionals) {
+      var rn = norm(r.getString('name'))
+      if (rn) rMap[rn] = r
+    }
+    for (var a of areas) {
+      var an = norm(a.getString('name'))
+      if (an) aMap[an] = a
+    }
+    for (var s of sellers) {
+      var sn = norm(s.getString('name'))
+      if (sn) sMap[sn] = s
+      var sc = norm(s.getString('code'))
+      if (sc) sCodeMap[sc] = s
+    }
+    for (var u of users) {
+      var un = norm(u.getString('name'))
+      if (un) uMap[un] = u.id
+    }
+
+    var valid = [],
+      errs = []
+
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i]
+      var lineNum = i + 2
+
+      var vendedor = (row.vendedor || '').trim()
+      var distritoName = (row.distrito || '').trim()
+      var regionalName = (row.regional || '').trim()
+      var areaName = (row.area || '').trim()
+      var familia = (row.familia || row.mix_family || '').trim().toUpperCase()
+      var periodoRaw = (row.periodo || '').trim()
+      var metaBase = parseNum(row.meta_base || row.base)
+      var metaBronze = parseNum(row.meta_bronze || row.bronze)
+      var metaPrata = parseNum(row.meta_prata || row.prata)
+      var metaOuro = parseNum(row.meta_ouro || row.ouro)
+      var cobertura = parseNum(row.cobertura || row.cobertura_mensal)
+      var frota = parseNum(row.frota || row.frota_foco)
+      var cnpjs = parseNum(row.cnpjs || row.empresa_foco)
+
+      if (!periodoRaw) {
+        errs.push({ line: lineNum, field: 'periodo', value: '', message: 'Período é obrigatório' })
+        continue
       }
-      for (const k in sellerMap) {
-        if ((k.indexOf(n) > -1 || n.indexOf(k) > -1) && sellerMap[k].getString('user_id'))
-          return sellerMap[k].getString('user_id')
+      var periodo = normPeriod(periodoRaw)
+      if (!/^\d{4}-\d{2}$/.test(periodo)) {
+        errs.push({
+          line: lineNum,
+          field: 'periodo',
+          value: periodoRaw,
+          message: 'Período deve estar no formato MM/AAAA',
+        })
+        continue
       }
-      return ''
-    }
 
-    function findRegionalId(name) {
-      if (!name) return ''
-      const n = norm(name)
-      if (regionalMap[n]) return regionalMap[n]
-      for (const k in regionalMap) {
-        if (k.indexOf(n) > -1 || n.indexOf(k) > -1) return regionalMap[k]
+      var district = null
+      if (distritoName) {
+        district = dMap[norm(distritoName)] || null
+        if (!district) {
+          errs.push({
+            line: lineNum,
+            field: 'distrito',
+            value: distritoName,
+            message: 'Distrito "' + distritoName + '" não encontrado',
+          })
+          continue
+        }
       }
-      return ''
-    }
 
-    function findAreaId(name) {
-      if (!name) return ''
-      const n = norm(name)
-      if (areaMap[n]) return areaMap[n].id
-      for (const k in areaMap) {
-        if (k.indexOf(n) > -1 || n.indexOf(k) > -1) return areaMap[k].id
+      var regional = null
+      if (regionalName) {
+        regional = rMap[norm(regionalName)] || null
+        if (!regional) {
+          errs.push({
+            line: lineNum,
+            field: 'regional',
+            value: regionalName,
+            message: 'Regional "' + regionalName + '" não encontrada',
+          })
+          continue
+        }
+        if (district && regional.getString('district_id') !== district.id) {
+          errs.push({
+            line: lineNum,
+            field: 'regional',
+            value: regionalName,
+            message:
+              'Regional "' + regionalName + '" não pertence ao Distrito "' + distritoName + '"',
+          })
+          continue
+        }
       }
-      return ''
+
+      var area = null
+      if (areaName) {
+        area = aMap[norm(areaName)] || null
+        if (!area) {
+          errs.push({
+            line: lineNum,
+            field: 'area',
+            value: areaName,
+            message: 'Área "' + areaName + '" não encontrada',
+          })
+          continue
+        }
+        if (regional && area.getString('regional_id') !== regional.id) {
+          errs.push({
+            line: lineNum,
+            field: 'area',
+            value: areaName,
+            message: 'Área "' + areaName + '" não pertence à Regional "' + regionalName + '"',
+          })
+          continue
+        }
+      }
+
+      var sellerId = ''
+      if (!vendedor) {
+        errs.push({
+          line: lineNum,
+          field: 'vendedor',
+          value: '',
+          message: 'Vendedor é obrigatório',
+        })
+        continue
+      }
+      var vn = norm(vendedor)
+      if (uMap[vn]) sellerId = uMap[vn]
+      else if (sMap[vn] && sMap[vn].getString('user_id')) sellerId = sMap[vn].getString('user_id')
+      else if (sCodeMap[vn] && sCodeMap[vn].getString('user_id'))
+        sellerId = sCodeMap[vn].getString('user_id')
+      if (!sellerId) {
+        for (var k in uMap) {
+          if (k.indexOf(vn) > -1 || vn.indexOf(k) > -1) {
+            sellerId = uMap[k]
+            break
+          }
+        }
+      }
+      if (!sellerId) {
+        errs.push({
+          line: lineNum,
+          field: 'vendedor',
+          value: vendedor,
+          message: 'Vendedor "' + vendedor + '" não encontrado',
+        })
+        continue
+      }
+
+      var validFamilies = ['F1', 'F2', 'F3', 'F4', 'F5', 'OUTROS', '']
+      if (familia && validFamilies.indexOf(familia) === -1) {
+        errs.push({
+          line: lineNum,
+          field: 'familia',
+          value: familia,
+          message: 'Família "' + familia + '" inválida. Use F1, F2, F3 ou deixe em branco',
+        })
+        continue
+      }
+
+      if (metaBase <= 0) {
+        errs.push({
+          line: lineNum,
+          field: 'meta_base',
+          value: String(row.meta_base || row.base || ''),
+          message: 'Meta Base deve ser maior que zero',
+        })
+        continue
+      }
+      if (metaBronze > 0 && metaPrata > 0 && metaOuro > 0) {
+        if (metaBronze >= metaPrata) {
+          errs.push({
+            line: lineNum,
+            field: 'meta_bronze',
+            value: String(metaBronze),
+            message: 'Meta Bronze deve ser menor que Meta Prata',
+          })
+          continue
+        }
+        if (metaPrata >= metaOuro) {
+          errs.push({
+            line: lineNum,
+            field: 'meta_prata',
+            value: String(metaPrata),
+            message: 'Meta Prata deve ser menor que Meta Ouro',
+          })
+          continue
+        }
+      }
+
+      if (cobertura < 0 || cobertura > 100) {
+        errs.push({
+          line: lineNum,
+          field: 'cobertura',
+          value: String(cobertura),
+          message: 'Cobertura deve estar entre 0 e 100',
+        })
+        continue
+      }
+
+      valid.push({
+        sellerId: sellerId,
+        periodo: periodo,
+        familia: familia,
+        regionalId: regional ? regional.id : '',
+        areaId: area ? area.id : '',
+        metaBase: metaBase,
+        metaBronze: metaBronze,
+        metaPrata: metaPrata,
+        metaOuro: metaOuro,
+        cobertura: cobertura,
+        frota: frota,
+        cnpjs: cnpjs,
+      })
     }
 
-    function getDefaultPeriod() {
-      const d = new Date()
-      return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2)
+    if (errs.length > 0) {
+      return e.json(400, {
+        success: false,
+        errors: errs,
+        created: 0,
+        faturamentoCount: 0,
+        coberturaCount: 0,
+        totalRows: rows.length,
+      })
     }
 
-    $app.runInTransaction((txApp) => {
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i]
-        const lineNum = i + 2
-        try {
-          const vendedor = (row.vendedor || '').trim()
-          const periodo = (row.periodo || '').trim() || getDefaultPeriod()
-          const familia = (row.familia || '').trim()
-          const base = parseNum(row.meta_base)
-          const bronze = parseNum(row.meta_bronze)
-          const prata = parseNum(row.meta_prata)
-          const ouro = parseNum(row.meta_ouro)
-          const frota = parseNum(row.frota)
-          const cnpjs = parseNum(row.cnpjs)
-          const covD = parseNum(row.cobertura_diaria)
-          const covW = parseNum(row.cobertura_semanal)
-          const covM = parseNum(row.cobertura_mensal)
+    var fatCount = 0,
+      covCount = 0
 
-          const sellerId = findUserId(vendedor)
-          if (!sellerId) {
-            errors++
-            errorDetails.push({
-              line: lineNum,
-              error: 'Vendedor "' + vendedor + '" nao encontrado',
-            })
-            continue
-          }
+    try {
+      $app.runInTransaction(function (txApp) {
+        var col = txApp.findCollectionByNameOrId('goals')
 
-          let regionalId = findRegionalId((row.regional || '').trim())
-          if (!regionalId) {
-            const u = users.find((x) => x.id === sellerId)
-            if (u && u.getString('regional_id')) regionalId = u.getString('regional_id')
-          }
-          if (!regionalId) {
-            errors++
-            errorDetails.push({
-              line: lineNum,
-              error: 'Regional nao encontrada para o vendedor "' + vendedor + '"',
-            })
-            continue
-          }
-
-          let areaId = findAreaId((row.area || '').trim())
-          if (!areaId) {
-            const u = users.find((x) => x.id === sellerId)
-            if (u && u.getString('area_id')) areaId = u.getString('area_id')
-          }
-
-          let metric = (row.metrica || '').trim()
-          if (!metric) {
-            if (covD > 0 || covW > 0 || covM > 0) metric = 'Coverage'
-            else if (familia) metric = 'Mix'
-            else metric = 'Faturamento'
-          } else {
-            const ml = metric.toLowerCase()
-            if (ml.indexOf('fatur') > -1) metric = 'Faturamento'
-            else if (ml.indexOf('mix') > -1) metric = 'Mix'
-            else if (ml.indexOf('cobert') > -1 || ml.indexOf('coverage') > -1) metric = 'Coverage'
-          }
-
-          let goal = null
+        for (var v of valid) {
+          var fatGoal = null
           try {
-            goal = txApp.findFirstRecordByFilter(
+            fatGoal = txApp.findFirstRecordByFilter(
               'goals',
-              'seller_id={:s} && period={:p} && metric={:m} && area_id={:a} && regional_id={:r} && mix_family={:f}',
-              {
-                s: sellerId,
-                p: periodo,
-                m: metric,
-                a: areaId || '',
-                r: regionalId || '',
-                f: familia || '',
-              },
+              'seller_id={:s} && period={:p} && metric="Faturamento" && area_id={:a} && regional_id={:r} && mix_family={:f}',
+              { s: v.sellerId, p: v.periodo, a: v.areaId, r: v.regionalId, f: v.familia },
             )
           } catch (_) {}
 
-          const isCov = metric.toLowerCase().indexOf('cov') > -1
-
-          if (goal) {
-            goal.set('target_base', isCov && covM > 0 ? covM : base)
-            goal.set('target_bronze', bronze)
-            goal.set('target_prata', prata)
-            goal.set('target_ouro', ouro)
-            goal.set('focus_fleet', frota)
-            goal.set('focus_companies', cnpjs)
-            if (covD > 0) goal.set('target_daily_coverage', covD)
-            if (covW > 0) goal.set('target_weekly_coverage', covW)
-            if (covM > 0) goal.set('target_monthly_coverage', covM)
-            txApp.save(goal)
-            updated++
+          if (fatGoal) {
+            fatGoal.set('target_base', v.metaBase)
+            fatGoal.set('target_bronze', v.metaBronze)
+            fatGoal.set('target_prata', v.metaPrata)
+            fatGoal.set('target_ouro', v.metaOuro)
+            fatGoal.set('focus_fleet', v.frota)
+            fatGoal.set('focus_companies', v.cnpjs)
+            txApp.save(fatGoal)
           } else {
-            const col = txApp.findCollectionByNameOrId('goals')
-            const g = new Record(col)
-            g.set('seller_id', sellerId)
-            g.set('period', periodo)
-            g.set('metric', metric)
-            g.set('area_id', areaId || '')
-            g.set('regional_id', regionalId || '')
-            g.set('mix_family', familia || '')
-            g.set('target_base', isCov && covM > 0 ? covM : base)
-            g.set('target_bronze', bronze)
-            g.set('target_prata', prata)
-            g.set('target_ouro', ouro)
-            g.set('focus_fleet', frota)
-            g.set('focus_companies', cnpjs)
-            if (covD > 0) g.set('target_daily_coverage', covD)
-            if (covW > 0) g.set('target_weekly_coverage', covW)
-            if (covM > 0) g.set('target_monthly_coverage', covM)
-            txApp.save(g)
-            created++
+            var g1 = new Record(col)
+            g1.set('seller_id', v.sellerId)
+            g1.set('period', v.periodo)
+            g1.set('metric', 'Faturamento')
+            g1.set('area_id', v.areaId)
+            g1.set('regional_id', v.regionalId)
+            g1.set('mix_family', v.familia)
+            g1.set('target_base', v.metaBase)
+            g1.set('target_bronze', v.metaBronze)
+            g1.set('target_prata', v.metaPrata)
+            g1.set('target_ouro', v.metaOuro)
+            g1.set('focus_fleet', v.frota)
+            g1.set('focus_companies', v.cnpjs)
+            txApp.save(g1)
           }
-        } catch (err) {
-          errors++
-          errorDetails.push({ line: lineNum, error: err.message })
+          fatCount++
+
+          var covBase = v.cobertura,
+            covBronze = v.cobertura * 0.8,
+            covPrata = v.cobertura * 0.9,
+            covOuro = v.cobertura
+          var covGoal = null
+          try {
+            covGoal = txApp.findFirstRecordByFilter(
+              'goals',
+              'seller_id={:s} && period={:p} && metric="Cobertura" && area_id={:a} && regional_id={:r} && mix_family=""',
+              { s: v.sellerId, p: v.periodo, a: v.areaId, r: v.regionalId },
+            )
+          } catch (_) {}
+
+          if (covGoal) {
+            covGoal.set('target_base', covBase)
+            covGoal.set('target_bronze', covBronze)
+            covGoal.set('target_prata', covPrata)
+            covGoal.set('target_ouro', covOuro)
+            covGoal.set('target_monthly_coverage', covBase)
+            covGoal.set('target_daily_coverage', covBase > 0 ? covBase / 30 : 0)
+            covGoal.set('target_weekly_coverage', covBase > 0 ? covBase / 4 : 0)
+            txApp.save(covGoal)
+          } else {
+            var g2 = new Record(col)
+            g2.set('seller_id', v.sellerId)
+            g2.set('period', v.periodo)
+            g2.set('metric', 'Cobertura')
+            g2.set('area_id', v.areaId)
+            g2.set('regional_id', v.regionalId)
+            g2.set('mix_family', '')
+            g2.set('target_base', covBase)
+            g2.set('target_bronze', covBronze)
+            g2.set('target_prata', covPrata)
+            g2.set('target_ouro', covOuro)
+            g2.set('target_monthly_coverage', covBase)
+            g2.set('target_daily_coverage', covBase > 0 ? covBase / 30 : 0)
+            g2.set('target_weekly_coverage', covBase > 0 ? covBase / 4 : 0)
+            txApp.save(g2)
+          }
+          covCount++
         }
-      }
-    })
+      })
+    } catch (err) {
+      return e.json(400, {
+        success: false,
+        errors: [{ line: 0, field: 'transaction', value: '', message: err.message }],
+        created: 0,
+        faturamentoCount: 0,
+        coberturaCount: 0,
+        totalRows: rows.length,
+      })
+    }
+
+    var totalGoals = fatCount + covCount
+    var expectedGoals = rows.length * 2
 
     if (!body.skipHistory) {
       try {
-        const hc = $app.findCollectionByNameOrId('import_history')
-        const hr = new Record(hc)
+        var hc = $app.findCollectionByNameOrId('import_history')
+        var hr = new Record(hc)
         hr.set('user_id', body.userId || (e.auth ? e.auth.id : ''))
         hr.set('source', body.source || 'Manual API')
         hr.set('file_name', body.fileName || 'unknown')
         hr.set('stats', {
-          created: created,
-          updated: updated,
-          errors: errors,
-          errorDetails: errorDetails.slice(0, 100),
+          created: totalGoals,
+          faturamentoCount: fatCount,
+          coberturaCount: covCount,
+          totalRows: rows.length,
         })
-        let st = 'Sucesso'
-        if (errors > 0 && created === 0 && updated === 0) st = 'Falha'
-        else if (errors > 0) st = 'Parcial'
-        hr.set('status', st)
+        hr.set('status', 'Sucesso')
         $app.save(hr)
       } catch (_) {}
     }
 
     return e.json(200, {
-      created: created,
-      updated: updated,
-      errors: errors,
-      errorDetails: errorDetails,
+      success: true,
+      created: totalGoals,
+      faturamentoCount: fatCount,
+      coberturaCount: covCount,
+      totalRows: rows.length,
+      totalGoals: totalGoals,
+      expectedGoals: expectedGoals,
+      countVerified: totalGoals === expectedGoals,
     })
   },
   $apis.requireAuth(),

@@ -1,10 +1,17 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import pb from '@/lib/pocketbase/client'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
-import { CheckCircle2, UploadCloud, AlertTriangle } from 'lucide-react'
+import {
+  CheckCircle2,
+  UploadCloud,
+  AlertTriangle,
+  XCircle,
+  FileSpreadsheet,
+  Download,
+} from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -13,204 +20,336 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Progress } from '@/components/ui/progress'
+import { cn } from '@/lib/utils'
+import {
+  parseCSV,
+  mapRowsToStandard,
+  normalizeHeader,
+  HEADER_MAP,
+  TEMPLATE_HEADERS,
+  REQUIRED_HEADERS,
+} from '@/lib/csv-utils'
 
-const EXPECTED_HEADERS = [
-  'Distrito',
-  'Regional',
-  'Área',
-  'Vendedor',
-  'Período',
-  'Métrica',
-  'Família',
-  'Frota Foco',
-  'Empresa Foco',
-  'Meta Base',
-  'Meta Bronze',
-  'Meta Prata',
-  'Meta Ouro',
-]
-
-const parseCsvLine = (line: string, delim: string) => {
-  const result = []
-  let current = ''
-  let inQuotes = false
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i]
-    if (char === '"') inQuotes = !inQuotes
-    else if (char === delim && !inQuotes) {
-      result.push(current.trim())
-      current = ''
-    } else current += char
-  }
-  result.push(current.trim())
-  return result.map((s) => s.replace(/^"|"$/g, '').trim())
+interface ImportResult {
+  success: boolean
+  totalRows?: number
+  faturamentoCount?: number
+  coberturaCount?: number
+  totalGoals?: number
+  expectedGoals?: number
+  countVerified?: boolean
+  errors?: Array<{ line: number; field: string; value: string; message: string }>
 }
 
-const parseNum = (v: string) => {
-  if (!v) return 0
-  const str = v.toString().replace('R$', '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.')
-  const num = parseFloat(str)
-  return isNaN(num) ? 0 : num
-}
-
-export default function BatchImportGoals() {
-  const [file, setFile] = useState<File | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle')
-  const [preview, setPreview] = useState<any[]>([])
+export default function BatchImportGoals({ onImportSuccess }: { onImportSuccess?: () => void }) {
   const { toast } = useToast()
+  const [loading, setLoading] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
+  const [result, setResult] = useState<ImportResult | null>(null)
+  const [preview, setPreview] = useState<any[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0]
-    setFile(f || null)
+  const downloadTemplate = () => {
+    const example = [
+      'Distrito 1',
+      'Regional Sul',
+      'Area 1',
+      'João Silva',
+      '06/2026',
+      'F1',
+      '50',
+      '100',
+      '1000',
+      '1500',
+      '2000',
+      '2500',
+      '80',
+    ]
+    const header = TEMPLATE_HEADERS.join(';')
+    const blob = new Blob(['\ufeff' + header + '\n' + example.join(';')], {
+      type: 'text/csv;charset=utf-8;',
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'modelo_metas.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleFile = async (file: File) => {
+    setLoading(true)
+    setResult(null)
     setPreview([])
-    setStatus('idle')
+    try {
+      let headers: string[] = []
+      let data: Record<string, string>[] = []
 
-    if (f) {
-      const text = await f.text()
-      const lines = text.split('\n').filter((l) => l.trim())
-      if (lines.length > 1) {
-        const delim = lines[0].includes(';') ? ';' : ','
-        const headers = parseCsvLine(lines[0], delim)
-
-        const previewData = lines.slice(1, 6).map((line) => {
-          const vals = parseCsvLine(line, delim)
-          const row: any = {}
-          headers.forEach((h, i) => {
-            row[h] = vals[i]
-          })
-          return row
+      if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        const reader = new FileReader()
+        const base64 = await new Promise<string>((resolve, reject) => {
+          reader.onload = (e) => resolve(e.target?.result as string)
+          reader.onerror = reject
+          reader.readAsDataURL(file)
         })
-        setPreview(previewData)
+        const cleanBase64 = base64.split(',')[1]
+        const res = await pb.send('/backend/v1/parse-excel', {
+          method: 'POST',
+          body: JSON.stringify({ data: cleanBase64 }),
+          headers: { 'Content-Type': 'application/json' },
+        })
+        headers = res.headers
+        data = res.data
+      } else {
+        const text = await file.text()
+        const parsed = parseCSV(text)
+        headers = parsed.headers
+        data = parsed.data
+      }
+
+      const mappedHeaders = headers.map((h) => HEADER_MAP[normalizeHeader(h)] || normalizeHeader(h))
+      const missing = REQUIRED_HEADERS.filter((r) => !mappedHeaders.includes(r))
+      if (missing.length > 0) {
+        throw new Error(`Colunas obrigatórias faltando: ${missing.join(', ')}`)
+      }
+
+      const rows = mapRowsToStandard(headers, data)
+      setPreview(rows.slice(0, 5))
+
+      const res = await pb.send('/backend/v1/import-goals', {
+        method: 'POST',
+        body: JSON.stringify({
+          rows,
+          fileName: file.name,
+          source: file.name.endsWith('.csv') ? 'CSV' : 'Excel',
+        }),
+      })
+
+      setResult({
+        success: true,
+        totalRows: res.totalRows,
+        faturamentoCount: res.faturamentoCount,
+        coberturaCount: res.coberturaCount,
+        totalGoals: res.totalGoals,
+        expectedGoals: res.expectedGoals,
+        countVerified: res.countVerified,
+      })
+      toast({ title: 'Sucesso', description: 'Metas importadas com sucesso!' })
+      onImportSuccess?.()
+    } catch (err: any) {
+      const errResponse = err?.response || {}
+      if (
+        errResponse.errors &&
+        Array.isArray(errResponse.errors) &&
+        errResponse.errors.length > 0
+      ) {
+        setResult({ success: false, errors: errResponse.errors })
+      } else {
+        toast({
+          title: 'Erro',
+          description: err.message || 'Falha ao importar.',
+          variant: 'destructive',
+        })
+      }
+    } finally {
+      setLoading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) handleFile(file)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) {
+      if (file.name.endsWith('.csv') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        handleFile(file)
+      } else {
+        toast({
+          title: 'Arquivo inválido',
+          description: 'Envie um arquivo .csv ou .xlsx',
+          variant: 'destructive',
+        })
       }
     }
   }
 
-  const handleImport = async () => {
-    if (!file) return
-    setLoading(true)
-    setStatus('idle')
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('file_name', file.name)
-      formData.append('source', 'goals')
-      formData.append('status', 'pending')
-      formData.append('user_id', pb.authStore.record?.id || '')
-
-      await pb.collection('import_history').create(formData)
-
-      setStatus('success')
-      toast({ title: 'Sucesso', description: 'Arquivo enviado para processamento.' })
-      setFile(null)
-      setPreview([])
-
-      // Reset the file input element visually
-      const input = document.getElementById('csv-upload') as HTMLInputElement
-      if (input) input.value = ''
-    } catch (e: any) {
-      console.error(e)
-      setStatus('error')
-      toast({
-        title: 'Erro',
-        description: e.message || 'Falha ao importar.',
-        variant: 'destructive',
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Importação em Lote</h1>
-      </div>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Importação em Lote</span>
+            <Button variant="outline" size="sm" onClick={downloadTemplate} className="gap-2">
+              <Download className="w-4 h-4" /> Modelo
+            </Button>
+          </CardTitle>
+          <CardDescription>
+            Envie uma planilha CSV ou Excel para lançar metas de Faturamento e Cobertura
+            automaticamente.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div
+            className={cn(
+              'border-2 border-dashed rounded-lg p-10 flex flex-col items-center justify-center transition-colors cursor-pointer text-center',
+              isDragging
+                ? 'border-primary bg-primary/10'
+                : 'border-muted-foreground/30 hover:bg-muted/50',
+              loading && 'opacity-50 pointer-events-none',
+            )}
+            onDragOver={(e) => {
+              e.preventDefault()
+              setIsDragging(true)
+            }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={handleDrop}
+            onClick={() => !loading && fileInputRef.current?.click()}
+          >
+            {loading ? (
+              <div className="space-y-4 w-full max-w-xs">
+                <Progress value={undefined} className="h-2 w-full animate-pulse" />
+                <p className="text-sm font-medium text-primary">Processando arquivo...</p>
+              </div>
+            ) : (
+              <>
+                <UploadCloud className="w-12 h-12 text-muted-foreground mb-4" />
+                <p className="font-medium text-lg">Arraste e solte sua planilha aqui</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  ou clique para procurar (.csv, .xlsx)
+                </p>
+              </>
+            )}
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              accept=".csv,.xlsx,.xls"
+              onChange={handleFileInput}
+            />
+          </div>
 
-      <div className="grid gap-6 grid-cols-1">
-        <div className="p-6 border rounded-lg bg-card text-card-foreground shadow-sm">
-          <h3 className="text-lg font-medium mb-4">Upload de Metas (CSV)</h3>
-
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <Input
-                id="csv-upload"
-                type="file"
-                accept=".csv"
-                onChange={handleFileChange}
-                disabled={loading}
-              />
+          {preview.length > 0 && !result && (
+            <div className="border rounded-md overflow-x-auto">
+              <p className="text-sm font-medium text-muted-foreground p-2">
+                Pré-visualização (5 primeiras linhas)
+              </p>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {Object.keys(preview[0])
+                      .slice(0, 6)
+                      .map((k) => (
+                        <TableHead key={k}>{k}</TableHead>
+                      ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {preview.map((row, i) => (
+                    <TableRow key={i}>
+                      {Object.keys(row)
+                        .slice(0, 6)
+                        .map((k) => (
+                          <TableCell key={k} className="whitespace-nowrap truncate max-w-[150px]">
+                            {row[k]}
+                          </TableCell>
+                        ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
+          )}
 
-            {preview.length > 0 && (
-              <div className="mt-4">
-                <h4 className="text-sm font-medium mb-2 text-muted-foreground">
-                  Pré-visualização (5 primeiras linhas)
-                </h4>
-                <div className="border rounded-md overflow-x-auto">
+          {result && result.success && (
+            <Alert className="bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <AlertTitle className="text-green-800 dark:text-green-400">
+                Importação Concluída com Sucesso!
+              </AlertTitle>
+              <AlertDescription className="text-green-700 dark:text-green-500">
+                <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                  <div>
+                    <strong>{result.totalRows}</strong> linhas processadas
+                  </div>
+                  <div>
+                    <strong>{result.faturamentoCount}</strong> metas de Faturamento
+                  </div>
+                  <div>
+                    <strong>{result.coberturaCount}</strong> metas de Cobertura
+                  </div>
+                  <div>
+                    <strong>Total: {result.totalGoals}</strong> metas no sistema
+                  </div>
+                </div>
+                {result.countVerified && (
+                  <p className="mt-2 text-xs">
+                    ✓ Verificação: {result.totalGoals} = {result.expectedGoals} esperadas
+                  </p>
+                )}
+                <p className="mt-2 text-xs">
+                  As metas estão disponíveis em: Painel de Entrada Manual e Dashboard.
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {result && !result.success && (
+            <>
+              <Alert variant="destructive">
+                <XCircle className="h-4 w-4" />
+                <AlertTitle>Erro ao Lançar Metas. Nenhuma meta foi salva no sistema.</AlertTitle>
+                <AlertDescription>
+                  {result.errors && result.errors.length > 0 && (
+                    <div className="mt-2 space-y-1 text-sm">
+                      <div>
+                        <strong>Motivo:</strong> {result.errors[0].message}
+                      </div>
+                      <div>
+                        <strong>Linha afetada:</strong> {result.errors[0].line}
+                      </div>
+                      <div>
+                        <strong>Campo com problema:</strong> {result.errors[0].field}
+                      </div>
+                      <div>
+                        <strong>Valor recebido:</strong> {result.errors[0].value || '(vazio)'}
+                      </div>
+                    </div>
+                  )}
+                </AlertDescription>
+              </Alert>
+              {result.errors && result.errors.length > 1 && (
+                <div className="max-h-[300px] overflow-y-auto rounded-md border">
                   <Table>
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 bg-background">
                       <TableRow>
-                        {Object.keys(preview[0])
-                          .slice(0, 8)
-                          .map((k) => (
-                            <TableHead key={k}>{k}</TableHead>
-                          ))}
+                        <TableHead className="w-20">Linha</TableHead>
+                        <TableHead className="w-32">Campo</TableHead>
+                        <TableHead>Motivo</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {preview.map((row, i) => (
-                        <TableRow key={i}>
-                          {Object.keys(row)
-                            .slice(0, 8)
-                            .map((k) => (
-                              <TableCell
-                                key={k}
-                                className="whitespace-nowrap truncate max-w-[150px]"
-                              >
-                                {row[k]}
-                              </TableCell>
-                            ))}
+                      {result.errors.map((err, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell className="font-mono">{err.line}</TableCell>
+                          <TableCell className="font-medium">{err.field}</TableCell>
+                          <TableCell className="text-sm">{err.message}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                 </div>
-              </div>
-            )}
-
-            <Button
-              onClick={handleImport}
-              disabled={!file || loading}
-              className="w-full md:w-auto mt-4"
-            >
-              <UploadCloud className="w-4 h-4 mr-2" />
-              {loading ? 'Enviando...' : 'Importar Arquivo'}
-            </Button>
-
-            {status === 'success' && (
-              <Alert className="bg-green-50 text-green-900 border-green-200 mt-4">
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
-                <AlertTitle>Arquivo recebido</AlertTitle>
-                <AlertDescription>
-                  A importação está sendo processada em segundo plano. Verifique o histórico de
-                  importações para acompanhar o status.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {status === 'error' && (
-              <Alert variant="destructive" className="mt-4">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Erro</AlertTitle>
-                <AlertDescription>
-                  Ocorreu um erro ao enviar o arquivo. Tente novamente.
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
-        </div>
-      </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

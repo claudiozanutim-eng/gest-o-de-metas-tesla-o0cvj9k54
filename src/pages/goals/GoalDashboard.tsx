@@ -50,6 +50,8 @@ const maskMoney = (v: number) =>
     .replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`
 
 const METRICS_DEFAULT = [
+  'Faturamento',
+  'Cobertura',
   'Coverage',
   'Mix_F1',
   'Mix_F2',

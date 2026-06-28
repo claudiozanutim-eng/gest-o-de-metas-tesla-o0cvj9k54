@@ -17,29 +17,39 @@ export const HEADER_MAP: Record<string, string> = {
   'cobertura mensal': 'cobertura_mensal',
   cnpjs: 'cnpjs',
   'empresa foco': 'cnpjs',
+  empresa: 'cnpjs',
   'frota foco': 'frota',
+  cobertura: 'cobertura',
 }
 
 export const TEMPLATE_HEADERS = [
-  'Regional',
   'Distrito',
+  'Regional',
   'Área',
   'Vendedor',
   'Período',
-  'Métrica',
   'Família',
   'Frota',
+  'Empresa',
   'Meta Base',
   'Meta Bronze',
   'Meta Prata',
   'Meta Ouro',
-  'Cobertura Diária',
-  'Cobertura Semanal',
-  'Cobertura Mensal',
-  'CNPJs',
+  'Cobertura',
 ]
 
-export const REQUIRED_HEADERS = ['vendedor']
+export const REQUIRED_HEADERS = [
+  'vendedor',
+  'distrito',
+  'regional',
+  'area',
+  'periodo',
+  'meta_base',
+  'meta_bronze',
+  'meta_prata',
+  'meta_ouro',
+  'cobertura',
+]
 
 export function normalizeHeader(h: string): string {
   return h

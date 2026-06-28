@@ -19,6 +19,7 @@ import {
   Trash2,
   UploadCloud,
   FileText,
+  XCircle,
 } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
@@ -34,22 +35,25 @@ import {
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
 import { Progress } from '@/components/ui/progress'
+import {
+  parseCSV,
+  mapRowsToStandard,
+  normalizeHeader,
+  HEADER_MAP,
+  TEMPLATE_HEADERS,
+  REQUIRED_HEADERS,
+} from '@/lib/csv-utils'
 
-const EXPECTED_HEADERS = [
-  'vendedor',
-  'area',
-  'regional',
-  'distrito',
-  'periodo',
-  'metrica',
-  'base',
-  'bronze',
-  'prata',
-  'ouro',
-  'familia',
-  'frotas',
-  'cnpjs',
-]
+interface ImportResult {
+  success: boolean
+  totalRows?: number
+  faturamentoCount?: number
+  coberturaCount?: number
+  totalGoals?: number
+  expectedGoals?: number
+  countVerified?: boolean
+  errors?: Array<{ line: number; field: string; value: string; message: string }>
+}
 
 export default function Importacao() {
   const { user } = useAuth()
@@ -58,11 +62,8 @@ export default function Importacao() {
   const [loading, setLoading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const [stats, setStats] = useState({ updated: 0, created: 0, errors: 0 })
-  const [errorDetails, setErrorDetails] = useState<any[]>([])
+  const [result, setResult] = useState<ImportResult | null>(null)
   const [importHistory, setImportHistory] = useState<any[]>([])
-
   const [deleteDialog, setDeleteDialog] = useState(false)
   const [historyToDelete, setHistoryToDelete] = useState<any>(null)
 
@@ -82,24 +83,24 @@ export default function Importacao() {
   }, [])
 
   const downloadTemplate = (format: 'csv' | 'xlsx') => {
+    const example = [
+      'Distrito 1',
+      'Regional Sul',
+      'Area 1',
+      'João Silva',
+      '06/2026',
+      'F1',
+      '50',
+      '100',
+      '1000',
+      '1500',
+      '2000',
+      '2500',
+      '80',
+    ]
     if (format === 'csv') {
-      const header = EXPECTED_HEADERS.join(';')
-      const example = [
-        'João Silva',
-        'Area 1',
-        'Regional Sul',
-        'Distrito 1',
-        'Janeiro',
-        'Faturamento',
-        '1000',
-        '1500',
-        '2000',
-        '2500',
-        '',
-        '0',
-        '0',
-      ].join(';')
-      const blob = new Blob(['\ufeff' + header + '\n' + example], {
+      const header = TEMPLATE_HEADERS.join(';')
+      const blob = new Blob(['\ufeff' + header + '\n' + example.join(';')], {
         type: 'text/csv;charset=utf-8;',
       })
       const url = URL.createObjectURL(blob)
@@ -109,20 +110,7 @@ export default function Importacao() {
       link.click()
       URL.revokeObjectURL(url)
     } else {
-      const headers = EXPECTED_HEADERS
-      const xml = `<?xml version="1.0"?>
-      <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
-       xmlns:o="urn:schemas-microsoft-com:office:office"
-       xmlns:x="urn:schemas-microsoft-com:office:excel"
-       xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
-       <Worksheet ss:Name="Modelo">
-        <Table>
-         <Row>${headers.map((h) => `<Cell><Data ss:Type="String">${h}</Data></Cell>`).join('')}</Row>
-         <Row>${['João Silva', 'Area 1', 'Regional Sul', 'Distrito 1', 'Janeiro', 'Faturamento', '1000', '1500', '2000', '2500', '', '0', '0'].map((v) => `<Cell><Data ss:Type="String">${v}</Data></Cell>`).join('')}</Row>
-        </Table>
-       </Worksheet>
-      </Workbook>`
-
+      const xml = `<?xml version="1.0"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Modelo"><Table><Row>${TEMPLATE_HEADERS.map((h) => `<Cell><Data ss:Type="String">${h}</Data></Cell>`).join('')}</Row><Row>${example.map((v) => `<Cell><Data ss:Type="String">${v}</Data></Cell>`).join('')}</Row></Table></Worksheet></Workbook>`
       const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8;' })
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
@@ -133,67 +121,11 @@ export default function Importacao() {
     }
   }
 
-  const detectSeparator = (text: string) => {
-    const firstLine = text.split('\n')[0] || ''
-    const commas = (firstLine.match(/,/g) || []).length
-    const semicolons = (firstLine.match(/;/g) || []).length
-    return semicolons > commas ? ';' : ','
-  }
-
-  const parseCSV = (text: string) => {
-    const lines = []
-    let currentLine = []
-    let currentCell = ''
-    let insideQuotes = false
-    const separator = detectSeparator(text)
-
-    for (let i = 0; i < text.length; i++) {
-      const char = text[i]
-      const nextChar = text[i + 1]
-
-      if (char === '"' && insideQuotes && nextChar === '"') {
-        currentCell += '"'
-        i++
-      } else if (char === '"') {
-        insideQuotes = !insideQuotes
-      } else if (char === separator && !insideQuotes) {
-        currentLine.push(currentCell)
-        currentCell = ''
-      } else if ((char === '\n' || (char === '\r' && nextChar === '\n')) && !insideQuotes) {
-        if (char === '\r') i++
-        currentLine.push(currentCell)
-        lines.push(currentLine)
-        currentLine = []
-        currentCell = ''
-      } else {
-        currentCell += char
-      }
-    }
-    if (currentCell || currentLine.length > 0) {
-      currentLine.push(currentCell)
-      lines.push(currentLine)
-    }
-
-    const validLines = lines.filter((l) => l.some((cell) => cell.trim().length > 0))
-    if (validLines.length < 2) throw new Error('Arquivo vazio ou sem dados')
-
-    const headers = validLines[0].map((h) => h.trim())
-    const data = validLines.slice(1).map((line) => {
-      const row: any = {}
-      headers.forEach((h, idx) => {
-        row[h] = line[idx] !== undefined ? line[idx].trim() : ''
-      })
-      return row
-    })
-
-    return { headers, data }
-  }
-
   const processFile = async (file: File) => {
     setLoading(true)
     try {
       let headers: string[] = []
-      let data: any[] = []
+      let data: Record<string, string>[] = []
 
       if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
         const reader = new FileReader()
@@ -222,24 +154,13 @@ export default function Importacao() {
         data = parsed.data
       }
 
-      const normalizedHeaders = headers.map((h) => h.trim().toLowerCase())
-      const missing = EXPECTED_HEADERS.filter((eh) => !normalizedHeaders.includes(eh))
+      const mappedHeaders = headers.map((h) => HEADER_MAP[normalizeHeader(h)] || normalizeHeader(h))
+      const missing = REQUIRED_HEADERS.filter((r) => !mappedHeaders.includes(r))
       if (missing.length > 0) {
-        throw new Error(
-          `A planilha não está no formato padrão. Colunas faltando: ${missing.join(', ')}`,
-        )
+        throw new Error(`Colunas obrigatórias faltando: ${missing.join(', ')}`)
       }
 
-      const rows = data.map((row) => {
-        const out: any = {}
-        headers.forEach((h) => {
-          const hNorm = h.trim().toLowerCase()
-          if (EXPECTED_HEADERS.includes(hNorm)) {
-            out[hNorm] = row[h]
-          }
-        })
-        return out
-      })
+      const rows = mapRowsToStandard(headers, data)
 
       const res = await pb.send('/backend/v1/import-goals', {
         method: 'POST',
@@ -250,20 +171,33 @@ export default function Importacao() {
         }),
       })
 
-      setStats({
-        created: res.created || 0,
-        updated: res.updated || 0,
-        errors: res.errors || 0,
+      setResult({
+        success: true,
+        totalRows: res.totalRows,
+        faturamentoCount: res.faturamentoCount,
+        coberturaCount: res.coberturaCount,
+        totalGoals: res.totalGoals,
+        expectedGoals: res.expectedGoals,
+        countVerified: res.countVerified,
       })
-      setErrorDetails(res.errorDetails || [])
       setStep(2)
       loadHistory()
     } catch (err: any) {
-      toast({
-        title: 'Erro na importação',
-        description: err.message || 'Falha ao processar arquivo.',
-        variant: 'destructive',
-      })
+      const errResponse = err?.response || {}
+      if (
+        errResponse.errors &&
+        Array.isArray(errResponse.errors) &&
+        errResponse.errors.length > 0
+      ) {
+        setResult({ success: false, errors: errResponse.errors })
+        setStep(2)
+      } else {
+        toast({
+          title: 'Erro na importação',
+          description: err.message || 'Falha ao processar arquivo.',
+          variant: 'destructive',
+        })
+      }
     } finally {
       setLoading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -311,8 +245,8 @@ export default function Importacao() {
           Importação de Metas
         </h1>
         <p className="text-muted-foreground">
-          Faça o download do modelo padrão, preencha com seus dados e envie para atualizar as metas
-          do sistema.
+          Baixe o modelo padrão, preencha com seus dados e envie para lançar metas de Faturamento e
+          Cobertura.
         </p>
       </div>
 
@@ -328,10 +262,10 @@ export default function Importacao() {
             </CardHeader>
             <CardContent className="flex flex-wrap gap-4">
               <Button onClick={() => downloadTemplate('xlsx')} className="gap-2">
-                <FileSpreadsheet className="w-4 h-4" /> Download Modelo Oficial (.xlsx)
+                <FileSpreadsheet className="w-4 h-4" /> Download Modelo (.xlsx)
               </Button>
               <Button variant="outline" onClick={() => downloadTemplate('csv')} className="gap-2">
-                <FileText className="w-4 h-4" /> Modelo Alternativo (.csv)
+                <FileText className="w-4 h-4" /> Modelo (.csv)
               </Button>
             </CardContent>
           </Card>
@@ -340,7 +274,8 @@ export default function Importacao() {
             <CardHeader>
               <CardTitle className="text-lg">2. Envie o Arquivo Preenchido</CardTitle>
               <CardDescription>
-                O sistema validará as informações e lançará as metas automaticamente.
+                O sistema validará as informações e lançará metas de Faturamento e Cobertura
+                automaticamente.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -426,16 +361,20 @@ export default function Importacao() {
                           <TableCell>{h.expand?.user_id?.name || '-'}</TableCell>
                           <TableCell className="text-xs">
                             <span className="text-green-600 font-medium">
-                              Criadas: {h.stats?.created || 0}
-                            </span>{' '}
-                            |{' '}
-                            <span className="text-blue-600 font-medium">
-                              Atualizadas: {h.stats?.updated || 0}
-                            </span>{' '}
-                            |{' '}
-                            <span className="text-red-600 font-medium">
-                              Erros: {h.stats?.errors || 0}
+                              Fat: {h.stats?.faturamentoCount ?? h.stats?.created ?? 0}
                             </span>
+                            {' | '}
+                            <span className="text-blue-600 font-medium">
+                              Cob: {h.stats?.coberturaCount ?? 0}
+                            </span>
+                            {h.stats?.errors?.length > 0 && (
+                              <>
+                                {' | '}
+                                <span className="text-red-600 font-medium">
+                                  Erros: {h.stats.errors.length}
+                                </span>
+                              </>
+                            )}
                           </TableCell>
                           <TableCell>
                             <span
@@ -460,7 +399,7 @@ export default function Importacao() {
                                   target="_blank"
                                   rel="noreferrer"
                                   className="text-muted-foreground hover:text-primary transition-colors inline-flex items-center justify-center p-2"
-                                  title="Baixar arquivo original"
+                                  title="Baixar arquivo"
                                 >
                                   <Download className="h-4 w-4" />
                                 </a>
@@ -491,82 +430,151 @@ export default function Importacao() {
         </div>
       )}
 
-      {step === 2 && (
+      {step === 2 && result && (
         <div className="space-y-4 animate-fade-in-up">
-          <Card>
-            <CardContent className="py-12 text-center">
-              <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                <CheckCircle className="w-10 h-10 text-primary" />
-              </div>
-              <h2 className="text-2xl font-bold">Importação Processada</h2>
-              <p className="text-muted-foreground mt-2 max-w-md mx-auto">
-                O arquivo foi analisado e o banco de dados atualizado com as novas metas.
-              </p>
-
-              <div className="grid grid-cols-3 gap-4 mt-8 max-w-xl mx-auto">
-                <div className="bg-muted rounded-lg p-4 text-center border">
-                  <div className="text-3xl font-bold text-green-600">{stats.created}</div>
-                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mt-1">
-                    Metas Criadas
+          {result.success ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <CheckCircle className="w-10 h-10 text-green-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-green-700 dark:text-green-400">
+                  Importação Concluída com Sucesso!
+                </h2>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 max-w-2xl mx-auto">
+                  <div className="bg-muted rounded-lg p-4 text-center border">
+                    <div className="text-3xl font-bold text-primary">{result.totalRows}</div>
+                    <div className="text-xs font-medium text-muted-foreground uppercase mt-1">
+                      Linhas Processadas
+                    </div>
+                  </div>
+                  <div className="bg-muted rounded-lg p-4 text-center border">
+                    <div className="text-3xl font-bold text-green-600">
+                      {result.faturamentoCount}
+                    </div>
+                    <div className="text-xs font-medium text-muted-foreground uppercase mt-1">
+                      Metas Faturamento
+                    </div>
+                  </div>
+                  <div className="bg-muted rounded-lg p-4 text-center border">
+                    <div className="text-3xl font-bold text-blue-600">{result.coberturaCount}</div>
+                    <div className="text-xs font-medium text-muted-foreground uppercase mt-1">
+                      Metas Cobertura
+                    </div>
+                  </div>
+                  <div className="bg-primary/10 rounded-lg p-4 text-center border border-primary/20">
+                    <div className="text-3xl font-bold text-primary">{result.totalGoals}</div>
+                    <div className="text-xs font-medium text-muted-foreground uppercase mt-1">
+                      Total no Sistema
+                    </div>
                   </div>
                 </div>
-                <div className="bg-muted rounded-lg p-4 text-center border">
-                  <div className="text-3xl font-bold text-blue-600">{stats.updated}</div>
-                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mt-1">
-                    Atualizadas
-                  </div>
-                </div>
-                <div className="bg-red-50 dark:bg-red-950/20 rounded-lg p-4 text-center border border-red-100 dark:border-red-900">
-                  <div className="text-3xl font-bold text-red-600">{stats.errors}</div>
-                  <div className="text-xs font-medium text-red-600/70 uppercase tracking-wider mt-1">
-                    Erros
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-8">
-                <Button onClick={() => setStep(1)} size="lg" className="px-8">
-                  Nova Importação
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {errorDetails.length > 0 && (
-            <Card className="border-red-200 bg-red-50/50 dark:bg-red-950/20">
-              <CardHeader>
-                <CardTitle className="text-red-600 dark:text-red-400 flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5" /> Registros com Falha
-                </CardTitle>
-                <CardDescription className="text-red-600/80">
-                  As seguintes linhas da planilha não puderam ser importadas devido a
-                  inconsistências. Verifique se os dados de hierarquia (Distrito, Regional, Área,
-                  Vendedor) estão corretos:
-                </CardDescription>{' '}
-              </CardHeader>
-              <CardContent>
-                <div className="max-h-[400px] overflow-y-auto rounded-md border border-red-100 dark:border-red-900 bg-background">
-                  <Table>
-                    <TableHeader className="bg-red-50/50 dark:bg-red-900/10 sticky top-0">
-                      <TableRow>
-                        <TableHead className="w-24">Linha (Excel)</TableHead>
-                        <TableHead>Motivo da Falha</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {errorDetails.map((e, idx) => (
-                        <TableRow key={idx}>
-                          <TableCell className="font-mono">{e.line}</TableCell>
-                          <TableCell className="text-red-600 dark:text-red-400 font-medium text-sm">
-                            {e.error}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                {result.countVerified && (
+                  <p className="text-sm text-green-600 mt-4">
+                    ✓ Verificação de contagem: {result.totalGoals} metas = {result.expectedGoals}{' '}
+                    esperadas
+                  </p>
+                )}
+                <p className="text-muted-foreground mt-6">
+                  As metas estão disponíveis em: <strong>Painel de Entrada Manual</strong> e{' '}
+                  <strong>Dashboard</strong>.
+                </p>
+                <div className="mt-8">
+                  <Button
+                    onClick={() => {
+                      setStep(1)
+                      setResult(null)
+                    }}
+                    size="lg"
+                    className="px-8"
+                  >
+                    Nova Importação
+                  </Button>
                 </div>
               </CardContent>
             </Card>
+          ) : (
+            <>
+              <Card className="border-red-200 bg-red-50/50 dark:bg-red-950/20">
+                <CardContent className="py-12 text-center">
+                  <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <XCircle className="w-10 h-10 text-red-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-red-700 dark:text-red-400">
+                    Erro ao Lançar Metas
+                  </h2>
+                  <p className="text-muted-foreground mt-2">Nenhuma meta foi salva no sistema.</p>
+                  {result.errors && result.errors.length > 0 && (
+                    <div className="mt-6 max-w-md mx-auto text-left bg-background rounded-lg border p-4 space-y-2">
+                      <div>
+                        <span className="font-semibold">Motivo:</span> {result.errors[0].message}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Linha afetada:</span>{' '}
+                        {result.errors[0].line}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Campo com problema:</span>{' '}
+                        {result.errors[0].field}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Valor recebido:</span>{' '}
+                        {result.errors[0].value || '(vazio)'}
+                      </div>
+                    </div>
+                  )}
+                  <div className="mt-8">
+                    <Button
+                      onClick={() => {
+                        setStep(1)
+                        setResult(null)
+                      }}
+                      size="lg"
+                      className="px-8"
+                    >
+                      Tentar Novamente
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+              {result.errors && result.errors.length > 0 && (
+                <Card className="border-red-200 bg-red-50/50 dark:bg-red-950/20">
+                  <CardHeader>
+                    <CardTitle className="text-red-600 dark:text-red-400 flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5" /> Todos os Erros de Validação
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="max-h-[400px] overflow-y-auto rounded-md border border-red-100 dark:border-red-900 bg-background">
+                      <Table>
+                        <TableHeader className="bg-red-50/50 dark:bg-red-900/10 sticky top-0">
+                          <TableRow>
+                            <TableHead className="w-24">Linha</TableHead>
+                            <TableHead className="w-32">Campo</TableHead>
+                            <TableHead>Valor</TableHead>
+                            <TableHead>Motivo da Falha</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {result.errors.map((err, idx) => (
+                            <TableRow key={idx}>
+                              <TableCell className="font-mono">{err.line}</TableCell>
+                              <TableCell className="font-medium">{err.field}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {err.value || '(vazio)'}
+                              </TableCell>
+                              <TableCell className="text-red-600 dark:text-red-400 font-medium text-sm">
+                                {err.message}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </>
           )}
         </div>
       )}

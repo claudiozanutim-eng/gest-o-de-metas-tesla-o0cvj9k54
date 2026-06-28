@@ -92,7 +92,9 @@ onRecordAfterCreateSuccess((e) => {
     'cobertura mensal': 'cobertura_mensal',
     cnpjs: 'cnpjs',
     'empresa foco': 'cnpjs',
+    empresa: 'cnpjs',
     'frota foco': 'frota',
+    cobertura: 'cobertura',
   }
   function normH(h) {
     return h
@@ -128,21 +130,23 @@ onRecordAfterCreateSuccess((e) => {
     })
 
     const rec = $app.findRecordById('import_history', e.record.id)
-    if (apiRes.statusCode === 200) {
-      const result = apiRes.json
-      let st = 'Sucesso'
-      if (result.errors > 0 && result.created === 0 && result.updated === 0) st = 'Falha'
-      else if (result.errors > 0) st = 'Parcial'
-      rec.set('status', st)
+    const result = apiRes.json || {}
+
+    if (apiRes.statusCode === 200 && result.success) {
+      rec.set('status', 'Sucesso')
       rec.set('stats', {
-        created: result.created,
-        updated: result.updated,
-        errors: result.errors,
-        errorDetails: (result.errorDetails || []).slice(0, 100),
+        created: result.created || 0,
+        faturamentoCount: result.faturamentoCount || 0,
+        coberturaCount: result.coberturaCount || 0,
+        totalRows: result.totalRows || 0,
+        countVerified: result.countVerified || false,
       })
     } else {
       rec.set('status', 'Falha')
-      rec.set('stats', { error: 'Processing failed: ' + apiRes.statusCode })
+      rec.set('stats', {
+        error: 'Processing failed',
+        errors: (result.errors || []).slice(0, 100),
+      })
     }
     $app.save(rec)
   } catch (err) {

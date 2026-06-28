@@ -36,7 +36,15 @@ import { useAuth } from '@/hooks/use-auth'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 
-export const EXPLICIT_METRICS = ['Mix_F1', 'Mix_F2', 'Mix_F3', 'Mix_Outros', 'Faturamento (Geral)']
+export const EXPLICIT_METRICS = [
+  'Faturamento',
+  'Cobertura',
+  'Mix_F1',
+  'Mix_F2',
+  'Mix_F3',
+  'Mix_Outros',
+  'Faturamento (Geral)',
+]
 
 const maskMoney = (v: any) => {
   const n = String(v).replace(/\D/g, '')
@@ -142,7 +150,7 @@ function MonthPicker({ value, onChange }: { value: string; onChange: (v: string)
   )
 }
 
-export default function GoalManualEntry() {
+export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger?: number }) {
   const { toast } = useToast()
   const { user } = useAuth()
   const [data, setData] = useState<any>({ sellers: [], regionals: [], areas: [], districts: [] })
@@ -211,7 +219,11 @@ export default function GoalManualEntry() {
 
     let gId = null
     try {
-      const mixFamily = isCoverage ? '' : metric
+      const mixFamily = isCoverage
+        ? ''
+        : metric.startsWith('Mix_')
+          ? metric.replace('Mix_', '')
+          : ''
       const g = await pb
         .collection('goals')
         .getFirstListItem(
@@ -284,7 +296,7 @@ export default function GoalManualEntry() {
 
   useEffect(() => {
     loadData()
-  }, [sellerId, areaId, period, metric, data.sellers])
+  }, [sellerId, areaId, period, metric, data.sellers, refreshTrigger])
 
   const calcBase = parseVal(targetBase)
   const calcBronze = parseVal(targetBronze)
@@ -332,7 +344,11 @@ export default function GoalManualEntry() {
 
     setIsSubmitting(true)
     try {
-      const mixFamily = isCoverage ? '' : metric
+      const mixFamily = isCoverage
+        ? ''
+        : metric.startsWith('Mix_')
+          ? metric.replace('Mix_', '')
+          : ''
 
       let existingGoal = null
       try {

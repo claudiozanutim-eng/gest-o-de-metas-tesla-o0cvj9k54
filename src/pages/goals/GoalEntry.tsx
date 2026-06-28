@@ -1,12 +1,12 @@
+import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import GoalManualEntry from './GoalManualEntry'
 import BatchImportGoals from './BatchImportGoals'
 import GoalDashboard from './GoalDashboard'
 import CoverageGoalEntry from './CoverageGoalEntry'
-import { useAuth } from '@/hooks/use-auth'
 
 export default function GoalEntry() {
-  const { user } = useAuth()
+  const [importTrigger, setImportTrigger] = useState(0)
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
@@ -33,10 +33,10 @@ export default function GoalEntry() {
               <GoalDashboard />
             </TabsContent>
             <TabsContent value="manual" className="mt-0">
-              <GoalManualEntry />
+              <GoalManualEntry refreshTrigger={importTrigger} />
             </TabsContent>
             <TabsContent value="lote" className="mt-0">
-              <BatchImportGoals user={user} />
+              <BatchImportGoals onImportSuccess={() => setImportTrigger((d) => d + 1)} />
             </TabsContent>
           </Tabs>
         </TabsContent>
