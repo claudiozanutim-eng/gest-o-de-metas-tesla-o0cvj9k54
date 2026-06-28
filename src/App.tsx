@@ -11,6 +11,7 @@ import GoalEntry from './pages/goals/GoalEntry'
 import Tracking from './pages/tracking/Tracking'
 import Simulation from './pages/simulation/Simulation'
 import Assistant from './pages/assistant/Assistant'
+import GoalSkip from './pages/goalskip/GoalSkip'
 import Users from './pages/admin/Users'
 import Structure from './pages/admin/Structure'
 import Districts from './pages/admin/Districts'
@@ -91,6 +92,7 @@ const App = () => (
                 <Route element={<NonSellerRoute />}>
                   <Route path="/acompanhamento" element={<Tracking />} />
                   <Route path="/assistente" element={<Assistant />} />
+                  <Route path="/goalskip" element={<GoalSkip />} />
                   <Route path="/relatorios" element={<Reports />} />
                 </Route>
 
