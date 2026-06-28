@@ -35,6 +35,7 @@ import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
+import { useRealtime } from '@/hooks/use-realtime'
 import { Info, Plus, Pencil, Trash2 } from 'lucide-react'
 
 export default function Parameters() {
@@ -126,6 +127,10 @@ export default function Parameters() {
   useEffect(() => {
     loadData()
   }, [])
+
+  useRealtime('system_parameters', () => {
+    loadData()
+  })
 
   const handleTierSave = async () => {
     if (tierFormData.min_pct > tierFormData.max_pct) {
@@ -243,9 +248,9 @@ export default function Parameters() {
       await pb.collection('system_parameters').delete(paramToDelete.id)
       setDeleteDialog(false)
       loadData()
-      toast({ title: 'Item excluído com sucesso.' })
+      toast({ title: 'Parâmetro excluída com sucesso.' })
     } catch (e: any) {
-      toast({ title: 'Erro ao excluir item', description: e.message, variant: 'destructive' })
+      toast({ title: 'Erro ao excluir parâmetro. Tente novamente.', variant: 'destructive' })
     }
   }
 
@@ -771,7 +776,6 @@ export default function Parameters() {
                               setParamToDelete(p)
                               setDeleteDialog(true)
                             }}
-                            disabled={!isAllowedToDelete}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -1011,8 +1015,10 @@ export default function Parameters() {
       <AlertDialog open={deleteDialog} onOpenChange={setDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Tem certeza que deseja excluir este item?</AlertDialogTitle>
-            <AlertDialogDescription>Essa ação não poderá ser desfeita.</AlertDialogDescription>
+            <AlertDialogTitle>Excluir Parâmetro</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este parâmetro? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
