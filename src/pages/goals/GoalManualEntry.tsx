@@ -36,14 +36,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 
-export const EXPLICIT_METRICS = [
-  'Coverage',
-  'Mix_F1',
-  'Mix_F2',
-  'Mix_F3',
-  'Mix_Outros',
-  'Faturamento (Geral)',
-]
+export const EXPLICIT_METRICS = ['Mix_F1', 'Mix_F2', 'Mix_F3', 'Mix_Outros', 'Faturamento (Geral)']
 
 const maskMoney = (v: any) => {
   const n = String(v).replace(/\D/g, '')

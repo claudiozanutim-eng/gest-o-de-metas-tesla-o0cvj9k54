@@ -7,7 +7,7 @@ import { MixDonutChart } from '@/components/dashboard/mix-donut'
 import { ProductsRanking } from '@/components/dashboard/products-ranking'
 import { BrazilMap } from '@/components/dashboard/brazil-map'
 import { TrendLineChart } from '@/components/dashboard/trend-line'
-import { CoverageLaunch } from '@/components/dashboard/coverage-launch'
+import { ConsolidatedCoverage } from '@/components/dashboard/consolidated-coverage'
 import { Activity } from 'lucide-react'
 import { EmptyState } from '@/components/ui/empty-state'
 
@@ -47,7 +47,7 @@ function DashboardContent() {
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-8">
         <BrazilMap />
-        <CoverageLaunch />
+        <ConsolidatedCoverage />
       </div>
     </div>
   )
