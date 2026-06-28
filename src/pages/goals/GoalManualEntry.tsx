@@ -593,7 +593,9 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
               </CardHeader>
               <CardContent className="px-4 pb-4">
                 <div className="text-2xl font-bold">
-                  {isCurrency ? formatCurrency(calcBase) : calcBase}
+                  {isCurrency
+                    ? formatCurrency(calcBase)
+                    : `${calcBase.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`}
                 </div>
               </CardContent>
             </Card>
@@ -605,7 +607,9 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
               </CardHeader>
               <CardContent className="px-4 pb-4">
                 <div className="text-2xl font-bold">
-                  {isCurrency ? formatCurrency(calcActual) : calcActual}
+                  {isCurrency
+                    ? formatCurrency(calcActual)
+                    : `${calcActual.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`}
                 </div>
               </CardContent>
             </Card>
@@ -628,7 +632,9 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
                   )}
                 >
                   {diff >= 0 ? '+' : '-'}
-                  {isCurrency ? formatCurrency(Math.abs(diff)) : Math.abs(diff)}
+                  {isCurrency
+                    ? formatCurrency(Math.abs(diff))
+                    : `${Math.abs(diff).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`}
                 </div>
               </CardContent>
             </Card>
@@ -651,7 +657,9 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
                   )}
                 >
                   {ouroDiff >= 0 ? '+' : '-'}
-                  {isCurrency ? formatCurrency(Math.abs(ouroDiff)) : Math.abs(ouroDiff)}
+                  {isCurrency
+                    ? formatCurrency(Math.abs(ouroDiff))
+                    : `${Math.abs(ouroDiff).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`}
                 </div>
               </CardContent>
             </Card>

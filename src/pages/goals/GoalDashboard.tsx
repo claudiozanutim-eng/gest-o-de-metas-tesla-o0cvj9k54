@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import pb from '@/lib/pocketbase/client'
+import { isCoverageMetric } from '@/lib/metric-utils'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
   Select,
@@ -327,7 +328,7 @@ export default function GoalDashboard() {
     load()
   }, [distId, regId, areaId, sellerId, period, metric, data.sellers])
 
-  const isCoverage = metric === 'Coverage'
+  const isCoverage = isCoverageMetric(metric)
   const isCurrency = !isCoverage
 
   const formatVal = (v: number) =>

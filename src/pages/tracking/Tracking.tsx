@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/mock-data'
+import { formatTrackingValue } from '@/lib/metric-utils'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { BarChart3, TrendingUp, Target } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
@@ -23,7 +24,9 @@ export default function Tracking() {
 
       const aggregated: any[] = []
 
-      const revGoals = goals.filter((g) => g.metric === 'Revenue')
+      const revGoals = goals.filter((g) =>
+        ['Revenue', 'Faturamento', 'Faturamento (Geral)'].includes(g.metric),
+      )
       revGoals.forEach((g) => {
         const actualRec = actuals.find(
           (a) => a.seller_id === g.seller_id && a.period === g.period && a.metric === g.metric,
@@ -36,6 +39,7 @@ export default function Tracking() {
           id: g.id,
           name: g.expand?.seller_id?.name || 'Vendedor',
           period: g.period,
+          metric: g.metric,
           target_base: g.target_base,
           target_bronze: g.target_bronze,
           target_prata: g.target_prata,
@@ -52,6 +56,7 @@ export default function Tracking() {
             id: '1',
             name: 'João Silva',
             period: '2026-06',
+            metric: 'Faturamento',
             target_base: 150000,
             target_bronze: 160000,
             target_ouro: 180000,
@@ -63,6 +68,7 @@ export default function Tracking() {
             id: '2',
             name: 'Maria Santos',
             period: '2026-06',
+            metric: 'Faturamento',
             target_base: 200000,
             target_bronze: 220000,
             target_ouro: 260000,
@@ -236,18 +242,20 @@ export default function Tracking() {
                   <div className="flex gap-6 min-w-[300px]">
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Realizado</p>
-                      <p className="font-mono font-medium">{formatCurrency(seller.actual)}</p>
+                      <p className="font-mono font-medium">
+                        {formatTrackingValue(seller.actual, seller.metric)}
+                      </p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Meta Base</p>
                       <p className="font-mono font-medium text-muted-foreground">
-                        {formatCurrency(seller.target_base)}
+                        {formatTrackingValue(seller.target_base, seller.metric)}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Meta Ouro</p>
                       <p className="font-mono font-medium text-yellow-600">
-                        {formatCurrency(seller.target_ouro)}
+                        {formatTrackingValue(seller.target_ouro, seller.metric)}
                       </p>
                     </div>
                   </div>
