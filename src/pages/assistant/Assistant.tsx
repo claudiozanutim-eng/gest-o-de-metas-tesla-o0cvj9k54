@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Bot, Send, Sparkles, User } from 'lucide-react'
-const mascotUrl = 'https://img.usecurling.com/p/200/200?q=friendly%20robot%20mascot'
+import nicoImg from '@/assets/nico-5adbf.webp'
 import { streamAgentChat } from '@/lib/skipAi'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
@@ -90,7 +90,7 @@ export default function Assistant() {
     <div className="h-[calc(100vh-8rem)] max-w-4xl mx-auto flex flex-col">
       <div className="mb-4">
         <h1 className="text-3xl font-bold tracking-tight text-primary flex items-center gap-2">
-          <Bot className="w-8 h-8 text-accent" />
+          <img src={nicoImg} alt="Nico IA" className="w-8 h-8 object-contain" />
           Nico IA
         </h1>
         <p className="text-muted-foreground">Análise inteligente e insights sobre sua operação.</p>
@@ -120,7 +120,7 @@ export default function Assistant() {
                 >
                   {msg.role === 'assistant' ? (
                     <>
-                      <AvatarImage src={mascotUrl} alt="Nico IA" />
+                      <AvatarImage src={nicoImg} alt="Nico IA" />
                       <AvatarFallback className="bg-primary text-primary-foreground">
                         <Bot className="w-4 h-4" />
                       </AvatarFallback>
@@ -157,7 +157,7 @@ export default function Assistant() {
             {isTyping && messages[messages.length - 1]?.role === 'user' && (
               <div className="flex gap-4 max-w-[85%]">
                 <Avatar className="w-8 h-8 mt-1 border shadow-sm bg-primary text-primary-foreground">
-                  <AvatarImage src={mascotUrl} alt="Nico IA" />
+                  <AvatarImage src={nicoImg} alt="Nico IA" />
                   <AvatarFallback>
                     <Bot className="w-4 h-4" />
                   </AvatarFallback>
