@@ -4,7 +4,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { PieChart, Pie, Cell, Tooltip as RTooltip, ResponsiveContainer, Legend } from 'recharts'
 import { useMemo } from 'react'
 
-const COLORS = ['#003DA5', '#0066CC', '#4D94FF', '#80B5FF']
+const COLORS: Record<string, string> = {
+  'Fase 1': '#003DA5',
+  'Fase 2': '#0066CC',
+  'Fase 3': '#4D94FF',
+  Outros: '#80B5FF',
+}
+const COLOR_ARRAY = Object.values(COLORS)
 const nameMap: Record<string, string> = {
   F1: 'Fase 1',
   F2: 'Fase 2',
@@ -33,61 +39,68 @@ export function MixDonutChart() {
   const fmtCur = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
+  const getColor = (name: string) => COLORS[name] || COLOR_ARRAY[3]
+
   return (
-    <Card className="shadow-sm flex flex-col hover:shadow-md transition-all duration-300">
-      <CardHeader className="pb-2">
+    <Card className="shadow-sm flex flex-col hover:shadow-md transition-all duration-300 min-h-[250px]">
+      <CardHeader className="pb-2 px-4 pt-4">
         <CardTitle className="text-sm font-bold text-[#003DA5] uppercase tracking-wider">
           Composição de Mix
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 min-h-[250px]">
+      <CardContent className="flex-1 flex flex-col px-4 pb-4 gap-3">
         {data.length > 0 ? (
           <>
-            <ResponsiveContainer width="100%" height="50%">
-              <PieChart>
-                <Pie
-                  data={data}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={70}
-                  paddingAngle={2}
-                  dataKey="value"
-                >
-                  {data.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <RTooltip formatter={(value: number) => fmtCur(value)} />
-                <Legend verticalAlign="bottom" height={28} iconType="circle" />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="space-y-2 mt-3 border-t pt-2">
+            <div className="w-full h-[160px] flex items-center justify-center">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={data}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={48}
+                    outerRadius={68}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {data.map((d, index) => (
+                      <Cell key={`cell-${d._key}`} fill={getColor(d.name)} />
+                    ))}
+                  </Pie>
+                  <RTooltip formatter={(value: number) => fmtCur(value)} />
+                  <Legend
+                    verticalAlign="bottom"
+                    height={24}
+                    iconType="circle"
+                    wrapperStyle={{ fontSize: '11px' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-2.5 border-t pt-3">
               {data.map((d) => {
                 const code = Object.entries(nameMap).find(([, v]) => v === d.name)?.[0]
                 const pf = productFamilies.find((p) => p.code === code)
                 const targetPct = pf?.weight || 0
                 const actualPct = total > 0 ? (d.value / total) * 100 : 0
-                const colorIdx = code ? Object.keys(nameMap).indexOf(code) : 3
-                const barColor = COLORS[colorIdx >= 0 ? colorIdx : 3]
+                const barColor = getColor(d.name)
+                const withinTarget = Math.abs(actualPct - targetPct) < 5
                 return (
                   <Tooltip key={d._key}>
                     <TooltipTrigger asChild>
                       <div className="cursor-help">
-                        <div className="flex justify-between items-center text-xs mb-0.5">
-                          <span className="text-muted-foreground">{d.name}</span>
+                        <div className="flex justify-between items-center text-xs mb-1">
+                          <span className="text-muted-foreground font-medium">{d.name}</span>
                           <span
-                            className="font-semibold"
-                            style={{
-                              color: Math.abs(actualPct - targetPct) < 5 ? '#10b981' : barColor,
-                            }}
+                            className="font-bold"
+                            style={{ color: withinTarget ? '#10b981' : barColor }}
                           >
                             {actualPct.toFixed(1)}%
                           </span>
                         </div>
-                        <div className="relative h-2.5 rounded-full bg-muted overflow-hidden">
+                        <div className="relative h-2.5 rounded-full bg-muted overflow-visible">
                           <div
-                            className="absolute h-full rounded-full transition-all duration-500"
+                            className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
                             style={{
                               width: `${Math.min(actualPct, 100)}%`,
                               backgroundColor: barColor,
@@ -95,13 +108,13 @@ export function MixDonutChart() {
                           />
                           {targetPct > 0 && (
                             <div
-                              className="absolute top-[-2px] bottom-[-2px] w-1 rounded-full bg-foreground/50 transition-all duration-300"
-                              style={{ left: `calc(${Math.min(targetPct, 100)}% - 2px)` }}
+                              className="absolute top-[-3px] bottom-[-3px] w-[2px] bg-foreground/60 rounded-full transition-all duration-300"
+                              style={{ left: `calc(${Math.min(targetPct, 100)}% - 1px)` }}
                             />
                           )}
                         </div>
                         {targetPct > 0 && (
-                          <div className="flex justify-between items-center text-[9px] text-muted-foreground mt-0.5">
+                          <div className="flex justify-between items-center text-[10px] text-muted-foreground mt-1">
                             <span>Realizado</span>
                             <span>Meta: {targetPct}%</span>
                           </div>
@@ -120,7 +133,7 @@ export function MixDonutChart() {
             </div>
           </>
         ) : (
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+          <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
             Sem dados
           </div>
         )}
