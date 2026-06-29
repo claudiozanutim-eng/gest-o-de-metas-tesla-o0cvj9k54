@@ -61,7 +61,7 @@ export default function Reports() {
         period,
         regionalId,
         areaId,
-        sellerUserId,
+        sellerId: sellerUserId,
         family,
         metricType,
       }
@@ -100,7 +100,7 @@ export default function Reports() {
       period,
       regionalId,
       areaId,
-      sellerUserId,
+      sellerId: sellerUserId,
       family,
       metricType,
     }

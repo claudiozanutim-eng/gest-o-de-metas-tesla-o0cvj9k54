@@ -128,6 +128,13 @@ export async function loadReportData(f: ReportFilters): Promise<DashboardData> {
     pb.collection('regionals').getFullList(),
   ])
 
+  // Scope actuals to the same seller set as goals when regional/area filters are active
+  let scopedActuals = actuals
+  if (f.sellerId === 'all' && (f.regionalId !== 'all' || f.areaId !== 'all')) {
+    const goalSellerIds = new Set(goals.map((g) => g.seller_id))
+    scopedActuals = actuals.filter((a) => goalSellerIds.has(a.seller_id))
+  }
+
   const aMap = new Map(areas.map((a) => [a.id, a]))
   const rMap = new Map(regionals.map((r) => [r.id, r]))
   const sInfo = new Map<
@@ -172,7 +179,7 @@ export async function loadReportData(f: ReportFilters): Promise<DashboardData> {
     e.target_base += getTarget(g, f.metricType)
     grouped.set(k, e)
   }
-  for (const a of actuals) {
+  for (const a of scopedActuals) {
     const fam = a.mix_family || 'Outros'
     const k = `${a.seller_id}|${fam}`
     const e = grouped.get(k) || {
@@ -238,16 +245,26 @@ export async function loadReportData(f: ReportFilters): Promise<DashboardData> {
   if (f.areaId !== 'all') hp.push(`area_id="${f.areaId}"`)
   if (f.sellerId !== 'all') hp.push(`seller_id="${f.sellerId}"`)
   if (f.family !== 'all') hp.push(`mix_family="${f.family}"`)
+  // Build a separate filter for actual_performance — it lacks regional_id and area_id fields
+  const actualsHp: string[] = [`period ~ "${year}"`, getMetricFilter(f.metricType)]
+  if (f.sellerId !== 'all') actualsHp.push(`seller_id="${f.sellerId}"`)
+  if (f.family !== 'all') actualsHp.push(`mix_family="${f.family}"`)
   const [ag, aa] = await Promise.all([
     pb.collection('goals').getFullList({ filter: hp.join(' && ') }),
-    pb.collection('actual_performance').getFullList({ filter: hp.join(' && ') }),
+    pb.collection('actual_performance').getFullList({ filter: actualsHp.join(' && ') }),
   ])
+  // Scope actuals to the same seller set as goals when regional/area filters are active
+  let scopedAa = aa
+  if (f.sellerId === 'all' && (f.regionalId !== 'all' || f.areaId !== 'all')) {
+    const agSellerIds = new Set(ag.map((g) => g.seller_id))
+    scopedAa = aa.filter((a) => agSellerIds.has(a.seller_id))
+  }
   const pMap = new Map<string, { target: number; actual: number }>()
   for (const g of ag) {
     if (!pMap.has(g.period)) pMap.set(g.period, { target: 0, actual: 0 })
     pMap.get(g.period)!.target += getTarget(g, f.metricType)
   }
-  for (const a of aa) {
+  for (const a of scopedAa) {
     if (!pMap.has(a.period)) pMap.set(a.period, { target: 0, actual: 0 })
     pMap.get(a.period)!.actual += getActual(a, f.metricType)
   }
