@@ -59,6 +59,7 @@ export interface DashboardContextType {
   regionals: any[]
   areas: any[]
   sellers: any[]
+  commissionTiers: any[]
   filters: DashboardFilters
   setFilters: (f: Partial<DashboardFilters>) => void
   clearFilters: () => void
@@ -76,6 +77,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [regionals, setRegionals] = useState<any[]>([])
   const [areas, setAreas] = useState<any[]>([])
   const [sellers, setSellers] = useState<any[]>([])
+  const [commissionTiers, setCommissionTiers] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   const defaultFilters = {
@@ -99,7 +101,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const loadData = async () => {
     setIsLoading(true)
     try {
-      const [acts, gls, fams, regs, ars, sels] = await Promise.all([
+      const [acts, gls, fams, regs, ars, sels, tiers] = await Promise.all([
         pb
           .collection('actual_performance')
           .getFullList({ expand: 'seller_id.regional_id,seller_id.area_id' }),
@@ -108,6 +110,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         pb.collection('regionals').getFullList({ filter: 'is_active = true' }),
         pb.collection('areas').getFullList({ filter: 'is_active = true' }),
         pb.collection('sellers').getFullList({ filter: 'is_active = true' }),
+        pb.collection('commission_tiers').getFullList({ filter: 'is_active = true' }),
       ])
       setActuals(dedupById(acts))
       setGoals(dedupById(gls))
@@ -115,6 +118,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       setRegionals(dedupById(regs))
       setAreas(dedupById(ars))
       setSellers(dedupById(sels))
+      setCommissionTiers(dedupById(tiers))
     } catch (e) {
       console.error(e)
     } finally {
@@ -186,6 +190,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         regionals,
         areas,
         sellers,
+        commissionTiers,
         filters,
         setFilters,
         clearFilters,

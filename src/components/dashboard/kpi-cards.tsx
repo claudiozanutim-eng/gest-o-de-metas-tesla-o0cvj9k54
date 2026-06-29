@@ -1,125 +1,199 @@
 import { useDashboard } from '@/hooks/use-dashboard'
 import { Card, CardContent } from '@/components/ui/card'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DollarSign, Target, Activity, Building2, PieChart } from 'lucide-react'
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
+import { AutoScaleText } from './auto-scale-text'
+import { getTierColor, getTierName } from '@/lib/tier-utils'
+
+const REVENUE_METRICS = ['Faturamento', 'Revenue', 'Faturamento (Geral)']
+const PHASE_NAMES: Record<string, string> = {
+  F1: 'Fase 1',
+  F2: 'Fase 2',
+  F3: 'Fase 3',
+  Outros: 'Fase 4',
+}
+const PHASE_COLORS: Record<string, string> = {
+  F1: '#003DA5',
+  F2: '#0066CC',
+  F3: '#4D94FF',
+  Outros: '#80B5FF',
+}
 
 export function DashboardKPIs() {
-  const { filteredActuals, filteredGoals } = useDashboard()
+  const { filteredActuals, filteredGoals, commissionTiers, productFamilies } = useDashboard()
 
-  const metrics = useMemo(() => {
-    const isRevenue = (m: string) => ['Faturamento', 'Revenue', 'Faturamento (Geral)'].includes(m)
-
+  const m = useMemo(() => {
     const revActual = filteredActuals
-      .filter((a) => isRevenue(a.metric))
-      .reduce((sum, a) => sum + (a.actual_value || 0), 0)
+      .filter((a) => REVENUE_METRICS.includes(a.metric))
+      .reduce((s, a) => s + (a.actual_value || 0), 0)
     const revGoal = filteredGoals
-      .filter((g) => isRevenue(g.metric))
-      .reduce((sum, g) => sum + (g.target_base || 0), 0)
-
+      .filter((g) => REVENUE_METRICS.includes(g.metric))
+      .reduce((s, g) => s + (g.target_base || 0), 0)
     const achievement = revGoal > 0 ? (revActual / revGoal) * 100 : 0
 
     const covActual = filteredActuals
       .filter((a) => a.metric === 'Coverage')
-      .reduce((sum, a) => sum + (a.actual_coverage || a.actual_value || 0), 0)
+      .reduce((s, a) => s + (a.actual_coverage || a.actual_value || 0), 0)
     const covGoal = filteredGoals
       .filter((g) => g.metric === 'Coverage')
-      .reduce((sum, g) => sum + (g.target_monthly_coverage || g.target_base || 0), 0)
-    const covAchievement = covGoal > 0 ? (covActual / covGoal) * 100 : 0
+      .reduce((s, g) => s + (g.target_monthly_coverage || g.target_base || 0), 0)
+    const covAch = covGoal > 0 ? (covActual / covGoal) * 100 : 0
 
     const fams = new Map<string, number>()
     filteredActuals.forEach((a) => {
-      if (a.mix_family) {
+      if (a.mix_family)
         fams.set(a.mix_family, (fams.get(a.mix_family) || 0) + (a.actual_value || 0))
-      }
     })
-
     const totalMix = Array.from(fams.values()).reduce((a, b) => a + b, 0)
+    const phases = ['F1', 'F2', 'F3', 'Outros'].map((code) => ({
+      code,
+      name: PHASE_NAMES[code],
+      pct: totalMix > 0 ? ((fams.get(code) || 0) / totalMix) * 100 : 0,
+      value: fams.get(code) || 0,
+    }))
 
-    const getPhasePct = (fam: string) => {
-      const val = fams.get(fam) || 0
-      return totalMix > 0 ? (val / totalMix) * 100 : 0
-    }
-
-    const phases = [
-      { name: 'Fase 1', pct: getPhasePct('F1') },
-      { name: 'Fase 2', pct: getPhasePct('F2') },
-      { name: 'Fase 3', pct: getPhasePct('F3') },
-      { name: 'Fase 4', pct: getPhasePct('Outros') },
-    ]
-
-    return { revActual, revGoal, achievement, covActual, covGoal, covAchievement, phases }
+    return { revActual, revGoal, achievement, covActual, covGoal, covAch, phases, totalMix }
   }, [filteredActuals, filteredGoals])
 
-  const formatCurrency = (v: number) =>
+  const fmtCur = (v: number) =>
     new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      maximumFractionDigits: 0,
     }).format(v)
-
-  const formatNumber = (v: number) => new Intl.NumberFormat('pt-BR').format(v)
+  const achColor = getTierColor(commissionTiers, m.achievement)
+  const covColor = getTierColor(commissionTiers, m.covAch)
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
+      <KPICard title="Faturamento Realizado" icon={DollarSign} color="#0066CC" delay={0}>
+        <AutoScaleText
+          value={fmtCur(m.revActual)}
+          maxSize={26}
+          minSize={13}
+          className="font-extrabold text-[#003DA5] tracking-tight"
+        />
+      </KPICard>
+      <KPICard title="Meta de Faturamento" icon={Target} color="#003DA5" delay={75}>
+        <AutoScaleText
+          value={fmtCur(m.revGoal)}
+          maxSize={26}
+          minSize={13}
+          className="font-extrabold text-[#003DA5] tracking-tight"
+        />
+      </KPICard>
       <KPICard
-        title="Faturamento Realizado"
-        value={formatCurrency(metrics.revActual)}
-        icon={DollarSign}
-        color="text-[#0066CC]"
-        bgAccent="bg-[#0066CC]/10"
-        borderColor="border-l-[#0066CC]"
-        delay={0}
-      />
-      <KPICard
-        title="Meta de Faturamento"
-        value={formatCurrency(metrics.revGoal)}
-        icon={Target}
-        color="text-[#003DA5]"
-        bgAccent="bg-[#003DA5]/10"
-        borderColor="border-l-[#003DA5]"
-        delay={75}
-      />
-      <KPICard
-        title="% Atingimento"
-        value={`${metrics.achievement.toFixed(1)}%`}
+        title="Atingimento"
         icon={Activity}
-        color={metrics.achievement >= 100 ? 'text-emerald-600' : 'text-red-600'}
-        bgAccent={metrics.achievement >= 100 ? 'bg-emerald-600/10' : 'bg-red-600/10'}
-        borderColor={metrics.achievement >= 100 ? 'border-l-emerald-600' : 'border-l-red-600'}
-        subtitle="Vs Meta Base"
+        color={achColor}
         delay={150}
-      />
+        tier={getTierName(commissionTiers, m.achievement)}
+      >
+        <span
+          className="text-2xl lg:text-3xl font-extrabold tracking-tight block mb-2"
+          style={{ color: achColor }}
+        >
+          {m.achievement.toFixed(1)}%
+        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="w-full cursor-help">
+              <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(m.achievement, 100)}%`, backgroundColor: achColor }}
+                />
+              </div>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="font-semibold">
+              {getTierName(commissionTiers, m.achievement) || 'Sem faixa'}
+            </p>
+            <p>Realizado: {fmtCur(m.revActual)}</p>
+            <p>Meta: {fmtCur(m.revGoal)}</p>
+            <p>Atingimento: {m.achievement.toFixed(1)}%</p>
+          </TooltipContent>
+        </Tooltip>
+      </KPICard>
       <KPICard
-        title="Atingimento de Cobertura"
-        value={metrics.covAchievement.toFixed(1)}
+        title="Ating. Cobertura"
         icon={Building2}
-        color={metrics.covAchievement >= 100 ? 'text-emerald-600' : 'text-[#003DA5]'}
-        bgAccent={metrics.covAchievement >= 100 ? 'bg-emerald-600/10' : 'bg-[#003DA5]/10'}
-        borderColor={metrics.covAchievement >= 100 ? 'border-l-emerald-600' : 'border-l-[#003DA5]'}
-        subtitle={`Realizado: ${metrics.covActual.toFixed(1)} | Meta: ${metrics.covGoal.toFixed(1)}`}
+        color={covColor}
         delay={225}
-      />
+        tier={getTierName(commissionTiers, m.covAch)}
+      >
+        <span
+          className="text-2xl lg:text-3xl font-extrabold tracking-tight block mb-2"
+          style={{ color: covColor }}
+        >
+          {m.covAch.toFixed(1)}%
+        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="w-full cursor-help">
+              <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(m.covAch, 100)}%`, backgroundColor: covColor }}
+                />
+              </div>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="font-semibold">{getTierName(commissionTiers, m.covAch) || 'Sem faixa'}</p>
+            <p>Realizado: {m.covActual.toFixed(1)}</p>
+            <p>Meta: {m.covGoal.toFixed(1)}</p>
+            <p>Atingimento: {m.covAch.toFixed(1)}%</p>
+          </TooltipContent>
+        </Tooltip>
+      </KPICard>
       <Card
-        className="border-l-4 border-l-[#4D94FF] shadow-sm relative overflow-hidden group hover:shadow-md hover:scale-[1.02] transition-all duration-300 animate-fade-in-up"
+        className="shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.99] transition-all duration-300 animate-fade-in-up"
         style={{ animationDelay: '300ms' }}
       >
-        <div className="absolute top-0 right-0 p-4 rounded-bl-3xl bg-[#4D94FF]/10 transition-all duration-300 group-hover:scale-110">
-          <PieChart className="h-6 w-6 text-[#4D94FF]" strokeWidth={2} />
-        </div>
-        <CardContent className="p-4 flex flex-col justify-center h-full relative z-10">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            Mix Principal
-          </p>
-          <div className="grid grid-cols-2 gap-x-2 gap-y-3 mt-1">
-            {metrics.phases.map((p, i) => (
-              <div key={`phase-${p.name}-${i}`} className="flex flex-col">
-                <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
-                  {p.name}
-                </span>
-                <span className="text-base font-extrabold text-[#003DA5]">{p.pct.toFixed(1)}%</span>
-              </div>
-            ))}
+        <CardContent className="p-4 flex flex-col h-full">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="p-1.5 rounded-lg bg-[#4D94FF]/10 shrink-0">
+              <PieChart className="h-4 w-4 text-[#4D94FF]" strokeWidth={2} />
+            </div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Mix Principal
+            </p>
+          </div>
+          <div className="space-y-2.5 flex-1 flex flex-col justify-center">
+            {m.phases.map((p) => {
+              const pf = productFamilies.find((f) => f.code === p.code)
+              const targetPct = pf?.weight || 0
+              return (
+                <Tooltip key={p.code}>
+                  <TooltipTrigger asChild>
+                    <div className="cursor-help">
+                      <div className="flex justify-between items-center text-[10px] mb-0.5">
+                        <span className="font-medium text-muted-foreground">{p.name}</span>
+                        <span className="font-bold text-[#003DA5]">{p.pct.toFixed(1)}%</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{
+                            width: `${Math.min(p.pct, 100)}%`,
+                            backgroundColor: PHASE_COLORS[p.code],
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="font-semibold">{p.name}</p>
+                    <p>Atual: {p.pct.toFixed(1)}%</p>
+                    {targetPct > 0 && <p>Meta: {targetPct}%</p>}
+                    <p>Valor: {fmtCur(p.value)}</p>
+                  </TooltipContent>
+                </Tooltip>
+              )
+            })}
           </div>
         </CardContent>
       </Card>
@@ -127,28 +201,44 @@ export function DashboardKPIs() {
   )
 }
 
-function KPICard({ title, value, icon: Icon, color, bgAccent, borderColor, subtitle, delay }: any) {
+function KPICard({
+  title,
+  icon: Icon,
+  color,
+  delay,
+  tier,
+  children,
+}: {
+  title: string
+  icon: any
+  color: string
+  delay: number
+  tier?: string
+  children: ReactNode
+}) {
   return (
     <Card
-      className={`border-l-4 ${borderColor} shadow-sm relative overflow-hidden group hover:shadow-md hover:scale-[1.02] transition-all duration-300 animate-fade-in-up`}
+      className="shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.99] transition-all duration-300 animate-fade-in-up"
       style={{ animationDelay: `${delay}ms` }}
     >
-      <div
-        className={`absolute top-0 right-0 p-4 rounded-bl-3xl ${bgAccent} transition-all duration-300 group-hover:scale-110`}
-      >
-        <Icon className={`h-6 w-6 ${color}`} strokeWidth={2} />
-      </div>
-      <CardContent className="p-4 flex flex-col justify-center h-full relative z-10">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-          {title}
-        </p>
-        <h3
-          className="text-2xl lg:text-3xl font-extrabold text-[#003DA5] truncate tracking-tight"
-          title={value}
-        >
-          {value}
-        </h3>
-        {subtitle && <p className="text-xs text-muted-foreground mt-1 font-medium">{subtitle}</p>}
+      <CardContent className="p-4 flex flex-col h-full">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="p-1.5 rounded-lg shrink-0" style={{ backgroundColor: `${color}15` }}>
+            <Icon className="h-4 w-4" strokeWidth={2} style={{ color }} />
+          </div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider truncate flex-1">
+            {title}
+          </p>
+          {tier && (
+            <span
+              className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
+              style={{ backgroundColor: `${color}20`, color }}
+            >
+              {tier}
+            </span>
+          )}
+        </div>
+        <div className="flex-1 flex flex-col justify-end">{children}</div>
       </CardContent>
     </Card>
   )
