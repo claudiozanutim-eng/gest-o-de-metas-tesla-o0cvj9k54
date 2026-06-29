@@ -174,6 +174,8 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
   const [covDaily, setCovDaily] = useState('')
   const [covWeekly, setCovWeekly] = useState('')
   const [covMonthly, setCovMonthly] = useState('')
+  const [focusFleet, setFocusFleet] = useState('')
+  const [focusCompanies, setFocusCompanies] = useState('')
 
   const [history, setHistory] = useState<any[]>([])
   const [auditLogs, setAuditLogs] = useState<any[]>([])
@@ -241,6 +243,8 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
       setCovDaily(String(g.target_daily_coverage || ''))
       setCovWeekly(String(g.target_weekly_coverage || ''))
       setCovMonthly(String(g.target_monthly_coverage || ''))
+      setFocusFleet(String(g.focus_fleet || ''))
+      setFocusCompanies(String(g.focus_companies || ''))
     } catch {
       setLoadedGoal(null)
       setTargetBase('')
@@ -250,6 +254,8 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
       setCovDaily('')
       setCovWeekly('')
       setCovMonthly('')
+      setFocusFleet('')
+      setFocusCompanies('')
     }
 
     try {
@@ -320,6 +326,8 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
   const calcCovDaily = parseVal(covDaily)
   const calcCovWeekly = parseVal(covWeekly)
   const calcCovMonthly = parseVal(covMonthly)
+  const calcFleet = parseVal(focusFleet)
+  const calcCompanies = parseVal(focusCompanies)
 
   const diff = calcActual - calcBase
   const ouroDiff = calcActual - calcOuro
@@ -407,6 +415,8 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
         target_daily_coverage: calcCovDaily,
         target_weekly_coverage: calcCovWeekly,
         target_monthly_coverage: calcCovMonthly || (isCoverage ? calcBase : 0),
+        focus_fleet: calcFleet,
+        focus_companies: calcCompanies,
       }
 
       let currentGoalId = existingGoal?.id
@@ -901,6 +911,43 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
                 </TableRow>
               </TableBody>
             </Table>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader className="py-3 px-4">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Frota da Área
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={focusFleet}
+                  onChange={(e) => setFocusFleet(e.target.value)}
+                  placeholder="0"
+                />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="py-3 px-4">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Empresas da Área
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={focusCompanies}
+                  onChange={(e) => setFocusCompanies(e.target.value)}
+                  placeholder="0"
+                />
+              </CardContent>
+            </Card>
           </div>
 
           {isCoverage && (
