@@ -34,7 +34,7 @@ const ALL_FAMILIES = [
   { id: 'F1', name: 'Fase 1' },
   { id: 'F2', name: 'Fase 2' },
   { id: 'F3', name: 'Fase 3' },
-  { id: 'Outros', name: 'Fase 4' },
+  { id: 'Outros', name: 'Outros' },
 ]
 
 export function DashboardHeader() {

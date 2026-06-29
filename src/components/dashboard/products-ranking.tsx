@@ -21,7 +21,10 @@ export function ProductsRanking() {
   }, [filteredActuals])
 
   return (
-    <Card className="shadow-sm flex flex-col hover:shadow-md transition-all duration-300">
+    <Card
+      className="shadow-sm flex flex-col hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all duration-300 border-l-4"
+      style={{ borderLeftColor: '#0066CC' }}
+    >
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-bold text-[#003DA5] uppercase tracking-wider">
           Top Produtos / Famílias

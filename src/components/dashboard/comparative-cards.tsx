@@ -90,7 +90,7 @@ function PillarCard({
 
   return (
     <Card
-      className="border-l-4 shadow-sm hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all duration-300 animate-fade-in-up overflow-hidden"
+      className="border-l-4 shadow-sm hover:shadow-lg hover:scale-[1.02] active:scale-[0.99] transition-all duration-300 animate-fade-in-up overflow-hidden"
       style={{ animationDelay: `${delay}ms`, borderLeftColor: tierColor }}
     >
       <CardContent className="p-5">
@@ -107,17 +107,21 @@ function PillarCard({
             <TooltipTrigger asChild>
               <div
                 className={cn(
-                  'flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold shrink-0 cursor-help',
-                  isPositive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700',
+                  'flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold shrink-0 cursor-help transition-colors duration-200',
+                  isPositive
+                    ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                    : 'bg-red-100 text-red-700 hover:bg-red-200',
                 )}
               >
                 {isPositive ? (
-                  <TrendingUp className="w-3.5 h-3.5" />
+                  <TrendingUp className="w-3.5 h-3.5 shrink-0" />
                 ) : (
-                  <TrendingDown className="w-3.5 h-3.5" />
+                  <TrendingDown className="w-3.5 h-3.5 shrink-0" />
                 )}
-                {data.pct.toFixed(1)}
-                {!isCoverage && '%'}
+                <span className="tabular-nums">
+                  {data.pct.toFixed(1)}
+                  {!isCoverage && '%'}
+                </span>
               </div>
             </TooltipTrigger>
             <TooltipContent>

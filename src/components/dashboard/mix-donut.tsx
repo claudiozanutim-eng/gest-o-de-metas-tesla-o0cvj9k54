@@ -9,7 +9,7 @@ const nameMap: Record<string, string> = {
   F1: 'Fase 1',
   F2: 'Fase 2',
   F3: 'Fase 3',
-  Outros: 'Fase 4',
+  Outros: 'Outros',
 }
 
 export function MixDonutChart() {
@@ -82,10 +82,10 @@ export function MixDonutChart() {
                               color: Math.abs(actualPct - targetPct) < 5 ? '#10b981' : barColor,
                             }}
                           >
-                            {actualPct.toFixed(1)}% / Meta: {targetPct}%
+                            {actualPct.toFixed(1)}%
                           </span>
                         </div>
-                        <div className="relative h-2 rounded-full bg-muted overflow-hidden">
+                        <div className="relative h-2.5 rounded-full bg-muted overflow-hidden">
                           <div
                             className="absolute h-full rounded-full transition-all duration-500"
                             style={{
@@ -95,16 +95,22 @@ export function MixDonutChart() {
                           />
                           {targetPct > 0 && (
                             <div
-                              className="absolute top-0 bottom-0 w-0.5 bg-foreground/40"
-                              style={{ left: `${Math.min(targetPct, 100)}%` }}
+                              className="absolute top-[-2px] bottom-[-2px] w-1 rounded-full bg-foreground/50 transition-all duration-300"
+                              style={{ left: `calc(${Math.min(targetPct, 100)}% - 2px)` }}
                             />
                           )}
                         </div>
+                        {targetPct > 0 && (
+                          <div className="flex justify-between items-center text-[9px] text-muted-foreground mt-0.5">
+                            <span>Realizado</span>
+                            <span>Meta: {targetPct}%</span>
+                          </div>
+                        )}
                       </div>
                     </TooltipTrigger>
                     <TooltipContent>
                       <p className="font-semibold">{d.name}</p>
-                      <p>Atual: {actualPct.toFixed(1)}%</p>
+                      <p>Realizado: {actualPct.toFixed(1)}%</p>
                       <p>Meta: {targetPct}%</p>
                       <p>Valor: {fmtCur(d.value)}</p>
                     </TooltipContent>

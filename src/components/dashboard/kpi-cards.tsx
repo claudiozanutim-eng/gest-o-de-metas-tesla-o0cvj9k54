@@ -11,7 +11,7 @@ const PHASE_NAMES: Record<string, string> = {
   F1: 'Fase 1',
   F2: 'Fase 2',
   F3: 'Fase 3',
-  Outros: 'Fase 4',
+  Outros: 'Outros',
 }
 const PHASE_COLORS: Record<string, string> = {
   F1: '#003DA5',
@@ -150,8 +150,8 @@ export function DashboardKPIs() {
         </Tooltip>
       </KPICard>
       <Card
-        className="shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.99] transition-all duration-300 animate-fade-in-up"
-        style={{ animationDelay: '300ms' }}
+        className="shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.99] transition-all duration-300 animate-fade-in-up border-l-4"
+        style={{ animationDelay: '300ms', borderLeftColor: '#4D94FF' }}
       >
         <CardContent className="p-4 flex flex-col h-full">
           <div className="flex items-center gap-2 mb-3">
@@ -162,32 +162,50 @@ export function DashboardKPIs() {
               Mix Principal
             </p>
           </div>
-          <div className="space-y-2.5 flex-1 flex flex-col justify-center">
+          <div className="space-y-2 flex-1 flex flex-col justify-center">
             {m.phases.map((p) => {
               const pf = productFamilies.find((f) => f.code === p.code)
               const targetPct = pf?.weight || 0
+              const isOnTarget = targetPct > 0 && Math.abs(p.pct - targetPct) < 5
               return (
                 <Tooltip key={p.code}>
                   <TooltipTrigger asChild>
                     <div className="cursor-help">
                       <div className="flex justify-between items-center text-[10px] mb-0.5">
                         <span className="font-medium text-muted-foreground">{p.name}</span>
-                        <span className="font-bold text-[#003DA5]">{p.pct.toFixed(1)}%</span>
+                        <span
+                          className="font-bold"
+                          style={{ color: isOnTarget ? '#10b981' : '#003DA5' }}
+                        >
+                          {p.pct.toFixed(1)}%
+                        </span>
                       </div>
-                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                      <div className="relative h-2 rounded-full bg-muted overflow-hidden">
                         <div
-                          className="h-full rounded-full transition-all duration-500"
+                          className="absolute h-full rounded-full transition-all duration-500"
                           style={{
                             width: `${Math.min(p.pct, 100)}%`,
                             backgroundColor: PHASE_COLORS[p.code],
                           }}
                         />
+                        {targetPct > 0 && (
+                          <div
+                            className="absolute top-[-2px] bottom-[-2px] w-1 rounded-full bg-foreground/50 transition-all duration-300"
+                            style={{ left: `calc(${Math.min(targetPct, 100)}% - 2px)` }}
+                          />
+                        )}
                       </div>
+                      {targetPct > 0 && (
+                        <div className="flex justify-between items-center text-[8px] text-muted-foreground mt-0.5">
+                          <span>Realizado</span>
+                          <span>Meta: {targetPct}%</span>
+                        </div>
+                      )}
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p className="font-semibold">{p.name}</p>
-                    <p>Atual: {p.pct.toFixed(1)}%</p>
+                    <p>Realizado: {p.pct.toFixed(1)}%</p>
                     {targetPct > 0 && <p>Meta: {targetPct}%</p>}
                     <p>Valor: {fmtCur(p.value)}</p>
                   </TooltipContent>
@@ -218,8 +236,8 @@ function KPICard({
 }) {
   return (
     <Card
-      className="shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.99] transition-all duration-300 animate-fade-in-up"
-      style={{ animationDelay: `${delay}ms` }}
+      className="shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.99] transition-all duration-300 animate-fade-in-up border-l-4"
+      style={{ animationDelay: `${delay}ms`, borderLeftColor: color }}
     >
       <CardContent className="p-4 flex flex-col h-full">
         <div className="flex items-center gap-2 mb-2">
