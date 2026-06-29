@@ -169,9 +169,7 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
   const [targetBronze, setTargetBronze] = useState('')
   const [targetPrata, setTargetPrata] = useState('')
   const [targetOuro, setTargetOuro] = useState('')
-  const [pctBronze, setPctBronze] = useState('140')
-  const [pctPrata, setPctPrata] = useState('160')
-  const [pctOuro, setPctOuro] = useState('180')
+  const [tiersTouched, setTiersTouched] = useState(false)
   const [atual, setAtual] = useState('')
   const [covDaily, setCovDaily] = useState('')
   const [covWeekly, setCovWeekly] = useState('')
@@ -207,6 +205,7 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
 
   const loadData = async () => {
     const seller = data.sellers.find((s: any) => s.id === sellerId)
+    setTiersTouched(false)
     if (!seller?.user_id || !period || !metric) {
       setLoadedGoal(null)
       setPerfId(null)
@@ -239,17 +238,6 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
       setTargetBronze(formatVal(g.target_bronze || 0))
       setTargetPrata(formatVal(g.target_prata || 0))
       setTargetOuro(formatVal(g.target_ouro || 0))
-      if (isCoverage) {
-        if (baseVal > 0) {
-          setPctBronze(String(((g.target_bronze || 0) / baseVal) * 100))
-          setPctPrata(String(((g.target_prata || 0) / baseVal) * 100))
-          setPctOuro(String(((g.target_ouro || 0) / baseVal) * 100))
-        } else {
-          setPctBronze('140')
-          setPctPrata('160')
-          setPctOuro('180')
-        }
-      }
       setCovDaily(String(g.target_daily_coverage || ''))
       setCovWeekly(String(g.target_weekly_coverage || ''))
       setCovMonthly(String(g.target_monthly_coverage || ''))
@@ -259,11 +247,6 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
       setTargetBronze('')
       setTargetPrata('')
       setTargetOuro('')
-      if (isCoverage) {
-        setPctBronze('140')
-        setPctPrata('160')
-        setPctOuro('180')
-      }
       setCovDaily('')
       setCovWeekly('')
       setCovMonthly('')
@@ -318,10 +301,21 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
     loadData()
   }, [sellerId, areaId, period, metric, data.sellers, refreshTrigger])
 
+  useEffect(() => {
+    if (isCoverage && calcBase > 0 && !loadedGoal && !tiersTouched) {
+      setTargetBronze(String(Math.round(calcBase * 1.4)))
+      setTargetPrata(String(Math.round(calcBase * 1.6)))
+      setTargetOuro(String(Math.round(calcBase * 1.8)))
+    }
+  }, [targetBase, isCoverage, loadedGoal, tiersTouched, calcBase])
+
   const calcBase = parseVal(targetBase)
-  const calcBronze = isCoverage ? (calcBase * Number(pctBronze || 0)) / 100 : parseVal(targetBronze)
-  const calcPrata = isCoverage ? (calcBase * Number(pctPrata || 0)) / 100 : parseVal(targetPrata)
-  const calcOuro = isCoverage ? (calcBase * Number(pctOuro || 0)) / 100 : parseVal(targetOuro)
+  const calcBronze = parseVal(targetBronze)
+  const calcPrata = parseVal(targetPrata)
+  const calcOuro = parseVal(targetOuro)
+  const pctBronzeDisp = calcBase > 0 ? (calcBronze / calcBase) * 100 : 0
+  const pctPrataDisp = calcBase > 0 ? (calcPrata / calcBase) * 100 : 0
+  const pctOuroDisp = calcBase > 0 ? (calcOuro / calcBase) * 100 : 0
   const calcActual = parseVal(atual)
   const calcCovDaily = parseVal(covDaily)
   const calcCovWeekly = parseVal(covWeekly)
@@ -345,13 +339,24 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
 
   const savePerf = async () => {
     if (isCoverage) {
-      const b = Number(pctBronze)
-      const p = Number(pctPrata)
-      const o = Number(pctOuro)
-      if (b >= p || p >= o) {
+      if (calcBronze > calcPrata) {
         return toast({
           title: 'Atenção',
-          description: 'Os percentuais devem seguir a hierarquia: Bronze < Prata < Ouro',
+          description: 'Meta Bronze não pode ser maior que Meta Prata.',
+          variant: 'destructive',
+        })
+      }
+      if (calcPrata > calcOuro) {
+        return toast({
+          title: 'Atenção',
+          description: 'Meta Prata não pode ser maior que Meta Ouro.',
+          variant: 'destructive',
+        })
+      }
+      if ([calcBase, calcBronze, calcPrata, calcOuro].some((v) => v < 0)) {
+        return toast({
+          title: 'Atenção',
+          description: 'Todos os valores devem ser positivos.',
           variant: 'destructive',
         })
       }
@@ -766,9 +771,9 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
               <TableHeader>
                 <TableRow>
                   <TableHead>Meta Base</TableHead>
-                  <TableHead>Meta Bronze {isCoverage && '(%)'}</TableHead>
-                  <TableHead>Meta Prata {isCoverage && '(%)'}</TableHead>
-                  <TableHead>Meta Ouro {isCoverage && '(%)'}</TableHead>
+                  <TableHead>Meta Bronze</TableHead>
+                  <TableHead>Meta Prata</TableHead>
+                  <TableHead>Meta Ouro</TableHead>
                   <TableHead className="bg-primary/5">Realizado</TableHead>
                 </TableRow>
               </TableHeader>
@@ -776,6 +781,9 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
                 <TableRow>
                   <TableCell>
                     <Input
+                      type={isCoverage ? 'number' : 'text'}
+                      min={isCoverage ? 0 : undefined}
+                      step={isCoverage ? 1 : undefined}
                       value={targetBase}
                       onChange={(e) =>
                         setTargetBase(isCurrency ? maskMoney(e.target.value) : e.target.value)
@@ -787,49 +795,58 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
                     <>
                       <TableCell>
                         <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-1">
-                            <Input
-                              type="number"
-                              value={pctBronze}
-                              onChange={(e) => setPctBronze(e.target.value)}
-                              className="w-20 font-medium text-amber-700"
-                            />
-                            <span className="text-sm">%</span>
-                          </div>
+                          <Input
+                            type="number"
+                            min={0}
+                            step={1}
+                            value={targetBronze}
+                            onChange={(e) => {
+                              setTargetBronze(e.target.value)
+                              setTiersTouched(true)
+                            }}
+                            placeholder="0"
+                            className="font-medium text-amber-700"
+                          />
                           <span className="text-[10px] text-muted-foreground font-medium">
-                            Abs: {((calcBase * Number(pctBronze || 0)) / 100).toFixed(1)}
+                            {pctBronzeDisp.toFixed(1)}% da Meta Base
                           </span>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-1">
-                            <Input
-                              type="number"
-                              value={pctPrata}
-                              onChange={(e) => setPctPrata(e.target.value)}
-                              className="w-20 font-medium text-slate-500"
-                            />
-                            <span className="text-sm">%</span>
-                          </div>
+                          <Input
+                            type="number"
+                            min={0}
+                            step={1}
+                            value={targetPrata}
+                            onChange={(e) => {
+                              setTargetPrata(e.target.value)
+                              setTiersTouched(true)
+                            }}
+                            placeholder="0"
+                            className="font-medium text-slate-500"
+                          />
                           <span className="text-[10px] text-muted-foreground font-medium">
-                            Abs: {((calcBase * Number(pctPrata || 0)) / 100).toFixed(1)}
+                            {pctPrataDisp.toFixed(1)}% da Meta Base
                           </span>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-1">
-                            <Input
-                              type="number"
-                              value={pctOuro}
-                              onChange={(e) => setPctOuro(e.target.value)}
-                              className="w-20 font-medium text-yellow-600"
-                            />
-                            <span className="text-sm">%</span>
-                          </div>
+                          <Input
+                            type="number"
+                            min={0}
+                            step={1}
+                            value={targetOuro}
+                            onChange={(e) => {
+                              setTargetOuro(e.target.value)
+                              setTiersTouched(true)
+                            }}
+                            placeholder="0"
+                            className="font-medium text-yellow-600"
+                          />
                           <span className="text-[10px] text-muted-foreground font-medium">
-                            Abs: {((calcBase * Number(pctOuro || 0)) / 100).toFixed(1)}
+                            {pctOuroDisp.toFixed(1)}% da Meta Base
                           </span>
                         </div>
                       </TableCell>
@@ -870,6 +887,9 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
                   )}
                   <TableCell className="bg-primary/5">
                     <Input
+                      type={isCoverage ? 'number' : 'text'}
+                      min={isCoverage ? 0 : undefined}
+                      step={isCoverage ? 1 : undefined}
                       value={atual}
                       onChange={(e) =>
                         setAtual(isCurrency ? maskMoney(e.target.value) : e.target.value)
@@ -882,6 +902,35 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
               </TableBody>
             </Table>
           </div>
+
+          {isCoverage && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <CoverageTierCard
+                label="Bronze"
+                value={calcBronze}
+                pct={pctBronzeDisp}
+                actual={calcActual}
+                colorClass="text-amber-700"
+                borderClass="border-amber-300/50"
+              />
+              <CoverageTierCard
+                label="Prata"
+                value={calcPrata}
+                pct={pctPrataDisp}
+                actual={calcActual}
+                colorClass="text-slate-600"
+                borderClass="border-slate-300/50"
+              />
+              <CoverageTierCard
+                label="Ouro"
+                value={calcOuro}
+                pct={pctOuroDisp}
+                actual={calcActual}
+                colorClass="text-yellow-600"
+                borderClass="border-yellow-300/50"
+              />
+            </div>
+          )}
 
           {isCoverage && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -978,5 +1027,60 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
         </div>
       )}
     </div>
+  )
+}
+
+function getAchievementLevel(actual: number, target: number) {
+  if (target <= 0)
+    return { label: 'N/A', color: 'text-muted-foreground', bg: 'bg-muted/50 border-muted' }
+  const pct = (actual / target) * 100
+  if (pct >= 100)
+    return {
+      label: `${pct.toFixed(1)}%`,
+      color: 'text-green-600',
+      bg: 'bg-green-50 border-green-300',
+    }
+  if (pct >= 80)
+    return {
+      label: `${pct.toFixed(1)}%`,
+      color: 'text-yellow-600',
+      bg: 'bg-yellow-50 border-yellow-300',
+    }
+  return { label: `${pct.toFixed(1)}%`, color: 'text-red-600', bg: 'bg-red-50 border-red-300' }
+}
+
+function CoverageTierCard({
+  label,
+  value,
+  pct,
+  actual,
+  colorClass,
+  borderClass,
+}: {
+  label: string
+  value: number
+  pct: number
+  actual: number
+  colorClass: string
+  borderClass: string
+}) {
+  const achievement = getAchievementLevel(actual, value)
+  return (
+    <Card className={cn('p-4', borderClass)}>
+      <div className="flex items-center justify-between mb-2">
+        <span className={cn('text-sm font-bold', colorClass)}>{label}</span>
+        <span className="text-xs text-muted-foreground">{pct.toFixed(1)}% da Base</span>
+      </div>
+      <div className="text-2xl font-bold mb-2">{value.toLocaleString('pt-BR')}</div>
+      <div
+        className={cn(
+          'inline-flex items-center px-2 py-1 rounded-full text-xs font-bold border',
+          achievement.bg,
+          achievement.color,
+        )}
+      >
+        Atingimento: {achievement.label}
+      </div>
+    </Card>
   )
 }
