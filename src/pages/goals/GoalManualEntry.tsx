@@ -318,9 +318,9 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
     setBaseChangedByUser(false)
     const base = parseVal(targetBase)
     if (base > 0) {
-      const bronze = Math.round(base * 1.4)
-      const prata = Math.round(base * 1.6)
-      const ouro = Math.round(base * 1.8)
+      const bronze = base * 1.4
+      const prata = base * 1.6
+      const ouro = base * 1.8
       setTargetBronze(isCurrency ? formatCurrency(bronze) : String(bronze))
       setTargetPrata(isCurrency ? formatCurrency(prata) : String(prata))
       setTargetOuro(isCurrency ? formatCurrency(ouro) : String(ouro))
@@ -801,7 +801,7 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
                     <Input
                       type={isCoverage ? 'number' : 'text'}
                       min={isCoverage ? 0 : undefined}
-                      step={isCoverage ? 1 : undefined}
+                      step={isCoverage ? 'any' : undefined}
                       value={targetBase}
                       onChange={(e) => {
                         setBaseChangedByUser(true)
@@ -817,7 +817,7 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
                           <Input
                             type="number"
                             min={0}
-                            step={1}
+                            step="any"
                             value={targetBronze}
                             onChange={(e) => {
                               setTargetBronze(e.target.value)
@@ -836,7 +836,7 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
                           <Input
                             type="number"
                             min={0}
-                            step={1}
+                            step="any"
                             value={targetPrata}
                             onChange={(e) => {
                               setTargetPrata(e.target.value)
@@ -855,7 +855,7 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
                           <Input
                             type="number"
                             min={0}
-                            step={1}
+                            step="any"
                             value={targetOuro}
                             onChange={(e) => {
                               setTargetOuro(e.target.value)
@@ -873,34 +873,56 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
                   ) : (
                     <>
                       <TableCell>
-                        <Input
-                          value={targetBronze}
-                          onChange={(e) =>
-                            setTargetBronze(isCurrency ? maskMoney(e.target.value) : e.target.value)
-                          }
-                          placeholder="0"
-                          className="text-amber-700 font-medium"
-                        />
+                        <div className="flex flex-col gap-1">
+                          <Input
+                            value={targetBronze}
+                            onChange={(e) => {
+                              setTargetBronze(
+                                isCurrency ? maskMoney(e.target.value) : e.target.value,
+                              )
+                              setTiersTouched(true)
+                            }}
+                            placeholder="0"
+                            className="text-amber-700 font-medium"
+                          />
+                          <span className="text-[10px] text-muted-foreground font-medium">
+                            {pctBronzeDisp.toFixed(1)}% da Meta Base
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell>
-                        <Input
-                          value={targetPrata}
-                          onChange={(e) =>
-                            setTargetPrata(isCurrency ? maskMoney(e.target.value) : e.target.value)
-                          }
-                          placeholder="0"
-                          className="text-slate-500 font-medium"
-                        />
+                        <div className="flex flex-col gap-1">
+                          <Input
+                            value={targetPrata}
+                            onChange={(e) => {
+                              setTargetPrata(
+                                isCurrency ? maskMoney(e.target.value) : e.target.value,
+                              )
+                              setTiersTouched(true)
+                            }}
+                            placeholder="0"
+                            className="text-slate-500 font-medium"
+                          />
+                          <span className="text-[10px] text-muted-foreground font-medium">
+                            {pctPrataDisp.toFixed(1)}% da Meta Base
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell>
-                        <Input
-                          value={targetOuro}
-                          onChange={(e) =>
-                            setTargetOuro(isCurrency ? maskMoney(e.target.value) : e.target.value)
-                          }
-                          placeholder="0"
-                          className="text-yellow-600 font-medium"
-                        />
+                        <div className="flex flex-col gap-1">
+                          <Input
+                            value={targetOuro}
+                            onChange={(e) => {
+                              setTargetOuro(isCurrency ? maskMoney(e.target.value) : e.target.value)
+                              setTiersTouched(true)
+                            }}
+                            placeholder="0"
+                            className="text-yellow-600 font-medium"
+                          />
+                          <span className="text-[10px] text-muted-foreground font-medium">
+                            {pctOuroDisp.toFixed(1)}% da Meta Base
+                          </span>
+                        </div>
                       </TableCell>
                     </>
                   )}
@@ -908,7 +930,7 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
                     <Input
                       type={isCoverage ? 'number' : 'text'}
                       min={isCoverage ? 0 : undefined}
-                      step={isCoverage ? 1 : undefined}
+                      step={isCoverage ? 'any' : undefined}
                       value={atual}
                       onChange={(e) =>
                         setAtual(isCurrency ? maskMoney(e.target.value) : e.target.value)

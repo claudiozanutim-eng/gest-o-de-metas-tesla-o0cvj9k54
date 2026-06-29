@@ -59,6 +59,18 @@ export default function CoverageGoalEntry() {
   const [actualCov, setActualCov] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
+  const [baseChangedByUser, setBaseChangedByUser] = useState(false)
+
+  useEffect(() => {
+    if (!baseChangedByUser) return
+    setBaseChangedByUser(false)
+    const base = Number(covBase)
+    if (base > 0) {
+      setCovBronze(String(base * 1.4))
+      setCovPrata(String(base * 1.6))
+      setCovOuro(String(base * 1.8))
+    }
+  }, [covBase, baseChangedByUser])
 
   useEffect(() => {
     Promise.all([
@@ -133,7 +145,7 @@ export default function CoverageGoalEntry() {
       ['covPrata', prata, 'Prata'],
       ['covOuro', ouro, 'Ouro'],
     ] as const) {
-      if (val < 0 || val > 100) errs[field] = `${label} deve estar entre 0 e 100`
+      if (val < 0) errs[field] = `${label} não pode ser negativo`
     }
 
     if (bronze <= base && !errs.covBronze)
@@ -321,7 +333,10 @@ export default function CoverageGoalEntry() {
               <CoverageField
                 label="Meta Base"
                 value={covBase}
-                onChange={setCovBase}
+                onChange={(v) => {
+                  setBaseChangedByUser(true)
+                  setCovBase(v)
+                }}
                 error={errors.covBase}
               />
               <CoverageField
@@ -330,6 +345,7 @@ export default function CoverageGoalEntry() {
                 onChange={setCovBronze}
                 error={errors.covBronze}
                 color="amber"
+                baseValue={Number(covBase) || 0}
               />
               <CoverageField
                 label="Meta Prata"
@@ -337,6 +353,7 @@ export default function CoverageGoalEntry() {
                 onChange={setCovPrata}
                 error={errors.covPrata}
                 color="slate"
+                baseValue={Number(covBase) || 0}
               />
               <CoverageField
                 label="Meta Ouro"
@@ -344,6 +361,7 @@ export default function CoverageGoalEntry() {
                 onChange={setCovOuro}
                 error={errors.covOuro}
                 color="yellow"
+                baseValue={Number(covBase) || 0}
               />
             </div>
             <div className="max-w-xs">
@@ -352,6 +370,7 @@ export default function CoverageGoalEntry() {
                 type="number"
                 min={0}
                 max={100}
+                step="any"
                 placeholder="0"
                 value={actualCov}
                 onChange={(e) => setActualCov(e.target.value)}
@@ -385,12 +404,14 @@ function CoverageField({
   onChange,
   error,
   color,
+  baseValue,
 }: {
   label: string
   value: string
   onChange: (v: string) => void
   error?: string
   color?: string
+  baseValue?: number
 }) {
   const colorClass =
     color === 'amber'
@@ -400,6 +421,9 @@ function CoverageField({
         : color === 'yellow'
           ? 'text-yellow-600'
           : ''
+
+  const pct = baseValue && baseValue > 0 ? (Number(value) / baseValue) * 100 : 0
+
   return (
     <div className="space-y-1">
       <Label className={cn('text-xs', colorClass)}>{label}</Label>
@@ -407,11 +431,17 @@ function CoverageField({
         type="number"
         min={0}
         max={100}
+        step="any"
         placeholder="0"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="bg-white"
       />
+      {baseValue !== undefined && (
+        <p className="text-[10px] text-muted-foreground font-medium">
+          {pct.toFixed(1)}% da Meta Base
+        </p>
+      )}
       {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   )
