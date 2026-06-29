@@ -7,7 +7,6 @@ import { MixDonutChart } from '@/components/dashboard/mix-donut'
 import { ProductsRanking } from '@/components/dashboard/products-ranking'
 import { BrazilMap } from '@/components/dashboard/brazil-map'
 import { TrendLineChart } from '@/components/dashboard/trend-line'
-import { ConsolidatedCoverage } from '@/components/dashboard/consolidated-coverage'
 import { Activity } from 'lucide-react'
 import { EmptyState } from '@/components/ui/empty-state'
 
@@ -45,9 +44,8 @@ function DashboardContent() {
         <ProductsRanking />
         <TrendLineChart />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-8">
+      <div className="pb-8">
         <BrazilMap />
-        <ConsolidatedCoverage />
       </div>
     </div>
   )
