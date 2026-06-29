@@ -10,9 +10,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { FileDown, FileText, Loader2 } from 'lucide-react'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { FileDown, FileText, Loader2, BarChart3 } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
+import { formatCurrency } from '@/lib/mock-data'
+import {
+  METRICS,
+  loadCommissionTiers,
+  loadFinancialAdjustments,
+  generateReport,
+  exportReportCSV,
+  type ReportRow,
+  type CommissionTier,
+  type FinancialAdjustments,
+} from '@/services/reports'
 
 interface Regional {
   id: string
@@ -23,23 +42,17 @@ interface Area {
   name: string
   regional_id: string
 }
-interface Seller {
-  id: string
+interface SellerEntry {
+  user_id: string
   name: string
-  regional_id: string
+  code: string
   area_id: string
-}
-
-const METRICS = ['Coverage', 'Mix_F1', 'Mix_F2', 'Mix_F3', 'Mix_Outros', 'Faturamento (Geral)']
-
-function normalizeMetric(m: string) {
-  return m.split('(')[0].trim()
 }
 
 export default function Reports() {
   const [regionals, setRegionals] = useState<Regional[]>([])
   const [areas, setAreas] = useState<Area[]>([])
-  const [sellers, setSellers] = useState<Seller[]>([])
+  const [sellers, setSellers] = useState<SellerEntry[]>([])
 
   const [startPeriod, setStartPeriod] = useState('2026-01')
   const [endPeriod, setEndPeriod] = useState('2026-12')
@@ -47,28 +60,43 @@ export default function Reports() {
   const [regionalId, setRegionalId] = useState('all')
   const [areaId, setAreaId] = useState('all')
   const [sellerId, setSellerId] = useState('all')
-  const [isExporting, setIsExporting] = useState(false)
+
+  const [tiers, setTiers] = useState<CommissionTier[]>([])
+  const [adjustments, setAdjustments] = useState<FinancialAdjustments>({
+    rate: 0,
+    tax: 32,
+    retention: 0,
+    discount: 0,
+  })
+  const [reportData, setReportData] = useState<ReportRow[]>([])
+  const [isGenerating, setIsGenerating] = useState(false)
 
   const { toast } = useToast()
 
   useEffect(() => {
     async function loadFilters() {
       try {
-        const [regs, ars, slls] = await Promise.all([
+        const [regs, ars, slls, t, adj] = await Promise.all([
           pb.collection('regionals').getFullList({ filter: 'is_active = true', sort: 'name' }),
           pb.collection('areas').getFullList({ filter: 'is_active = true', sort: 'name' }),
-          pb.collection('users').getFullList({ filter: "role = 'Vendedor'", sort: 'name' }),
+          pb.collection('sellers').getFullList({ filter: 'is_active = true', sort: 'name' }),
+          loadCommissionTiers(),
+          loadFinancialAdjustments(),
         ])
         setRegionals(regs.map((r) => ({ id: r.id, name: r.name })))
         setAreas(ars.map((a) => ({ id: a.id, name: a.name, regional_id: a.regional_id })))
         setSellers(
-          slls.map((s) => ({
-            id: s.id,
-            name: s.name,
-            regional_id: s.regional_id,
-            area_id: s.area_id,
-          })),
+          slls
+            .filter((s) => s.user_id)
+            .map((s) => ({
+              user_id: s.user_id,
+              name: s.name,
+              code: s.code,
+              area_id: s.area_id,
+            })),
         )
+        setTiers(t)
+        setAdjustments(adj)
       } catch (error) {
         console.error('Failed to load filters:', error)
         toast({
@@ -78,176 +106,72 @@ export default function Reports() {
         })
       }
     }
-
     loadFilters()
   }, [toast])
 
   const filteredAreas =
     regionalId === 'all' ? areas : areas.filter((a) => a.regional_id === regionalId)
   const filteredSellers = sellers.filter((s) => {
-    if (regionalId !== 'all' && s.regional_id !== regionalId) return false
+    if (regionalId !== 'all') {
+      const area = areas.find((a) => a.id === s.area_id)
+      if (!area || area.regional_id !== regionalId) return false
+    }
     if (areaId !== 'all' && s.area_id !== areaId) return false
     return true
   })
 
-  const handleExport = async () => {
-    setIsExporting(true)
+  const handleGenerate = async () => {
+    setIsGenerating(true)
     try {
-      const filters: string[] = []
-      if (startPeriod) filters.push(`period >= '${startPeriod}'`)
-      if (endPeriod) filters.push(`period <= '${endPeriod}'`)
-      if (metric !== 'all') filters.push(`metric ~ '${metric}'`)
-      if (regionalId !== 'all') filters.push(`seller_id.regional_id = '${regionalId}'`)
-      if (areaId !== 'all') filters.push(`seller_id.area_id = '${areaId}'`)
-      if (sellerId !== 'all') filters.push(`seller_id = '${sellerId}'`)
-
-      const filterString = filters.join(' && ')
-
-      const [goalsRes, performanceRes, sellersRes] = await Promise.all([
-        pb.collection('goals').getFullList({
-          filter: filterString,
-          expand: 'seller_id,seller_id.regional_id,seller_id.area_id',
-        }),
-        pb.collection('actual_performance').getFullList({
-          filter: filterString,
-          expand: 'seller_id,seller_id.regional_id,seller_id.area_id',
-        }),
-        pb.collection('sellers').getFullList(),
-      ])
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const map = new Map<string, any>()
-      const getKey = (sId: string, per: string, met: string, mix: string = '') =>
-        `${sId}|${per}|${met}|${mix}`
-
-      const sellerCodes = new Map<string, string>()
-      const sellerCodesByName = new Map<string, string>()
-      for (const s of sellersRes) {
-        if (s.user_id) sellerCodes.set(s.user_id, s.code)
-        if (s.name) sellerCodesByName.set(s.name, s.code)
-      }
-
-      goalsRes.forEach((g) => {
-        const mix = g.mix_family || ''
-        const key = getKey(g.seller_id, g.period, g.metric, mix)
-        const user = g.expand?.seller_id
-        const code =
-          sellerCodes.get(g.seller_id) || (user ? sellerCodesByName.get(user.name) : '') || ''
-
-        map.set(key, {
-          period: g.period,
-          metric: g.metric,
-          seller_id: g.seller_id,
-          seller_name: user?.name || 'Desconhecido',
-          seller_code: code,
-          regional_name: user?.expand?.regional_id?.name || '-',
-          area_name: user?.expand?.area_id?.name || '-',
-          target_bronze: g.target_bronze || 0,
-          target_prata: g.target_prata || 0,
-          target_ouro: g.target_ouro || 0,
-          actual_value: 0,
-          mix_family: mix,
-        })
+      const rows = await generateReport({
+        startPeriod,
+        endPeriod,
+        metric,
+        regionalId,
+        areaId,
+        sellerId,
+        tiers,
+        adjustments,
       })
-
-      performanceRes.forEach((p) => {
-        const mix = p.mix_family || ''
-        const key = getKey(p.seller_id, p.period, p.metric, mix)
-        const existing = map.get(key)
-        if (existing) {
-          existing.actual_value = p.actual_value || 0
-        } else {
-          const user = p.expand?.seller_id
-          const code =
-            sellerCodes.get(p.seller_id) || (user ? sellerCodesByName.get(user.name) : '') || ''
-          map.set(key, {
-            period: p.period,
-            metric: p.metric,
-            seller_id: p.seller_id,
-            seller_name: user?.name || 'Desconhecido',
-            seller_code: code,
-            regional_name: user?.expand?.regional_id?.name || '-',
-            area_name: user?.expand?.area_id?.name || '-',
-            target_bronze: 0,
-            target_prata: 0,
-            target_ouro: 0,
-            actual_value: p.actual_value || 0,
-            mix_family: mix,
-          })
-        }
-      })
-
-      if (map.size === 0) {
+      if (rows.length === 0) {
         toast({
           title: 'Nenhum dado',
-          description: 'Os filtros selecionados não retornaram dados para exportação.',
+          description: 'Os filtros selecionados não retornaram dados para o relatório.',
           variant: 'destructive',
         })
-        setIsExporting(false)
-        return
       }
-
-      const csvRows = []
-      csvRows.push([
-        'Periodo',
-        'Metrica',
-        'Vendedor',
-        'Codigo Vendedor',
-        'Regional',
-        'Area',
-        'Mix / Familia',
-        'Meta Bronze',
-        'Meta Prata',
-        'Meta Ouro',
-        'Realizado',
-      ])
-
-      for (const row of Array.from(map.values())) {
-        csvRows.push(
-          [
-            row.period,
-            normalizeMetric(row.metric),
-            row.seller_name,
-            row.seller_code,
-            row.regional_name,
-            row.area_name,
-            row.mix_family || '-',
-            row.target_bronze.toString(),
-            row.target_prata.toString(),
-            row.target_ouro.toString(),
-            row.actual_value.toString(),
-          ]
-            .map((field) => `"${String(field).replace(/"/g, '""')}"`)
-            .join(','),
-        )
-      }
-
-      const csvContent = csvRows.join('\n')
-      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `relatorio_metas_${new Date().toISOString().split('T')[0]}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+      setReportData(rows)
     } catch (error) {
-      console.error('Export error:', error)
+      console.error('Report error:', error)
       toast({
-        title: 'Erro na exportação',
+        title: 'Erro na geração',
         description: 'Ocorreu um erro ao gerar o relatório.',
         variant: 'destructive',
       })
     } finally {
-      setIsExporting(false)
+      setIsGenerating(false)
     }
+  }
+
+  const handleExport = () => {
+    if (reportData.length === 0) {
+      toast({
+        title: 'Nenhum dado',
+        description: 'Gere o relatório antes de exportar.',
+        variant: 'destructive',
+      })
+      return
+    }
+    exportReportCSV(reportData)
   }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-primary">Relatórios</h1>
-        <p className="text-muted-foreground">Gere extrações detalhadas para análise externa.</p>
+        <p className="text-muted-foreground">
+          Gere extrações detalhadas com cálculo automático de comissões.
+        </p>
       </div>
 
       <Card className="max-w-2xl">
@@ -257,127 +181,194 @@ export default function Reports() {
             Gerador de Relatórios
           </CardTitle>
           <CardDescription>
-            Configure os filtros para baixar os dados em formato de planilha (.csv).
+            Configure os filtros para gerar o relatório de performance com comissionamento.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Período Inicial</Label>
-                <Input
-                  type="month"
-                  value={startPeriod}
-                  onChange={(e) => setStartPeriod(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Período Final</Label>
-                <Input
-                  type="month"
-                  value={endPeriod}
-                  onChange={(e) => setEndPeriod(e.target.value)}
-                />
-              </div>
-            </div>
-
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Métrica</Label>
-              <Select value={metric} onValueChange={setMetric}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a métrica" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as Métricas</SelectItem>
-                  {METRICS.map((m) => (
-                    <SelectItem key={m} value={m}>
-                      {m}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Período Inicial</Label>
+              <Input
+                type="month"
+                value={startPeriod}
+                onChange={(e) => setStartPeriod(e.target.value)}
+              />
             </div>
-
             <div className="space-y-2">
-              <Label>Regional</Label>
-              <Select
-                value={regionalId}
-                onValueChange={(val) => {
-                  setRegionalId(val)
-                  setAreaId('all')
-                  setSellerId('all')
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a regional" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as Regionais</SelectItem>
-                  {regionals.map((regional) => (
-                    <SelectItem key={regional.id} value={regional.id}>
-                      {regional.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Área</Label>
-              <Select
-                value={areaId}
-                onValueChange={(val) => {
-                  setAreaId(val)
-                  setSellerId('all')
-                }}
-                disabled={filteredAreas.length === 0}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a área" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as Áreas</SelectItem>
-                  {filteredAreas.map((area) => (
-                    <SelectItem key={area.id} value={area.id}>
-                      {area.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Vendedor</Label>
-              <Select
-                value={sellerId}
-                onValueChange={setSellerId}
-                disabled={filteredSellers.length === 0}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o vendedor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os Vendedores</SelectItem>
-                  {filteredSellers.map((seller) => (
-                    <SelectItem key={seller.id} value={seller.id}>
-                      {seller.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Período Final</Label>
+              <Input
+                type="month"
+                value={endPeriod}
+                onChange={(e) => setEndPeriod(e.target.value)}
+              />
             </div>
           </div>
 
-          <Button className="w-full gap-2" onClick={handleExport} disabled={isExporting}>
-            {isExporting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <FileDown className="w-4 h-4" />
-            )}
-            {isExporting ? 'Exportando...' : 'Exportar Dados'}
-          </Button>
+          <div className="space-y-2">
+            <Label>Métrica</Label>
+            <Select value={metric} onValueChange={setMetric}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a métrica" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as Métricas</SelectItem>
+                {METRICS.map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Regional</Label>
+            <Select
+              value={regionalId}
+              onValueChange={(val) => {
+                setRegionalId(val)
+                setAreaId('all')
+                setSellerId('all')
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a regional" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as Regionais</SelectItem>
+                {regionals.map((regional) => (
+                  <SelectItem key={regional.id} value={regional.id}>
+                    {regional.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Área</Label>
+            <Select
+              value={areaId}
+              onValueChange={(val) => {
+                setAreaId(val)
+                setSellerId('all')
+              }}
+              disabled={filteredAreas.length === 0}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a área" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as Áreas</SelectItem>
+                {filteredAreas.map((area) => (
+                  <SelectItem key={area.id} value={area.id}>
+                    {area.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Vendedor</Label>
+            <Select value={sellerId} onValueChange={setSellerId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o vendedor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Vendedores</SelectItem>
+                {filteredSellers.map((seller) => (
+                  <SelectItem key={seller.user_id} value={seller.user_id}>
+                    {seller.name} ({seller.code})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex gap-2">
+            <Button className="flex-1 gap-2" onClick={handleGenerate} disabled={isGenerating}>
+              {isGenerating ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <BarChart3 className="w-4 h-4" />
+              )}
+              {isGenerating ? 'Gerando...' : 'Gerar Relatório'}
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={handleExport}
+              disabled={reportData.length === 0}
+            >
+              <FileDown className="w-4 h-4" /> Exportar CSV
+            </Button>
+          </div>
         </CardContent>
       </Card>
+
+      {reportData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Resultados do Relatório</CardTitle>
+            <CardDescription>
+              {reportData.length} registro(s) encontrado(s) com cálculo de comissionamento.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Vendedor</TableHead>
+                    <TableHead>Código</TableHead>
+                    <TableHead>Regional</TableHead>
+                    <TableHead>Área</TableHead>
+                    <TableHead>Métrica</TableHead>
+                    <TableHead className="text-right">Meta Base</TableHead>
+                    <TableHead className="text-right">Realizado</TableHead>
+                    <TableHead className="text-right">% Ating.</TableHead>
+                    <TableHead>Faixa</TableHead>
+                    <TableHead className="text-right">% Comiss.</TableHead>
+                    <TableHead className="text-right">Comissão (R$)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {reportData.map((row, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-medium">{row.seller_name}</TableCell>
+                      <TableCell className="font-mono text-xs">{row.seller_code}</TableCell>
+                      <TableCell className="text-sm">{row.regional_name}</TableCell>
+                      <TableCell className="text-sm">{row.area_name}</TableCell>
+                      <TableCell className="text-sm">{row.metric}</TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        {formatCurrency(row.target_base)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        {formatCurrency(row.actual_value)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono font-semibold">
+                        {row.achievement_pct.toFixed(1)}%
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-semibold text-sm" style={{ color: row.tier_color }}>
+                          {row.tier_name}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        {row.commission_pct.toFixed(2)}%
+                      </TableCell>
+                      <TableCell className="text-right font-mono font-semibold text-primary">
+                        {formatCurrency(row.commission_value)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
