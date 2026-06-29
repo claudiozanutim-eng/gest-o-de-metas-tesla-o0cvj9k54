@@ -301,6 +301,11 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
     loadData()
   }, [sellerId, areaId, period, metric, data.sellers, refreshTrigger])
 
+  const calcBase = parseVal(targetBase)
+  const calcBronze = parseVal(targetBronze)
+  const calcPrata = parseVal(targetPrata)
+  const calcOuro = parseVal(targetOuro)
+
   useEffect(() => {
     if (isCoverage && calcBase > 0 && !loadedGoal && !tiersTouched) {
       setTargetBronze(String(Math.round(calcBase * 1.4)))
@@ -308,11 +313,6 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
       setTargetOuro(String(Math.round(calcBase * 1.8)))
     }
   }, [targetBase, isCoverage, loadedGoal, tiersTouched, calcBase])
-
-  const calcBase = parseVal(targetBase)
-  const calcBronze = parseVal(targetBronze)
-  const calcPrata = parseVal(targetPrata)
-  const calcOuro = parseVal(targetOuro)
   const pctBronzeDisp = calcBase > 0 ? (calcBronze / calcBase) * 100 : 0
   const pctPrataDisp = calcBase > 0 ? (calcPrata / calcBase) * 100 : 0
   const pctOuroDisp = calcBase > 0 ? (calcOuro / calcBase) * 100 : 0
