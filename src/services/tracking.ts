@@ -160,6 +160,98 @@ export async function upsertActualPerformance(
   }
 }
 
+export interface FamilyEntry {
+  family: string
+  value: number
+}
+
+export interface FamilyPerformanceResult {
+  family: string
+  oldValue: number
+  newValue: number
+}
+
+export async function fetchFamilyActuals(sellerId: string, period: string, metric: string) {
+  return pb.collection('actual_performance').getFullList({
+    filter: `seller_id="${sellerId}" && ${buildPeriodFilter(period)} && metric="${metric}"`,
+  })
+}
+
+export async function upsertFamilyPerformance(
+  sellerId: string,
+  period: string,
+  metric: string,
+  familyEntries: FamilyEntry[],
+): Promise<FamilyPerformanceResult[]> {
+  const months = expandPeriodToMonths(period)
+  const results: FamilyPerformanceResult[] = []
+
+  for (const p of months) {
+    try {
+      const legacy = await pb
+        .collection('actual_performance')
+        .getFirstListItem(
+          `seller_id="${sellerId}" && period="${p}" && metric="${metric}" && mix_family=""`,
+        )
+      if ((legacy.actual_value || 0) !== 0) {
+        await pb.collection('actual_performance').update(legacy.id, { actual_value: 0 })
+      }
+    } catch {
+      // No legacy record — skip
+    }
+  }
+
+  for (const entry of familyEntries) {
+    const mixFamily = entry.family || ''
+    if (months.length > 1) {
+      const perMonth = entry.value / months.length
+      let oldTotal = 0
+      for (const p of months) {
+        try {
+          const existing = await pb
+            .collection('actual_performance')
+            .getFirstListItem(
+              `seller_id="${sellerId}" && period="${p}" && metric="${metric}" && mix_family="${mixFamily}"`,
+            )
+          oldTotal += existing.actual_value || 0
+          await pb.collection('actual_performance').update(existing.id, { actual_value: perMonth })
+        } catch {
+          await pb.collection('actual_performance').create({
+            seller_id: sellerId,
+            period: p,
+            metric,
+            actual_value: perMonth,
+            mix_family: mixFamily,
+          })
+        }
+      }
+      results.push({ family: mixFamily, oldValue: oldTotal, newValue: entry.value })
+    } else {
+      try {
+        const existing = await pb
+          .collection('actual_performance')
+          .getFirstListItem(
+            `seller_id="${sellerId}" && period="${months[0]}" && metric="${metric}" && mix_family="${mixFamily}"`,
+          )
+        const oldValue = existing.actual_value || 0
+        await pb.collection('actual_performance').update(existing.id, { actual_value: entry.value })
+        results.push({ family: mixFamily, oldValue, newValue: entry.value })
+      } catch {
+        await pb.collection('actual_performance').create({
+          seller_id: sellerId,
+          period: months[0],
+          metric,
+          actual_value: entry.value,
+          mix_family: mixFamily,
+        })
+        results.push({ family: mixFamily, oldValue: 0, newValue: entry.value })
+      }
+    }
+  }
+
+  return results
+}
+
 export async function createAuditLog(
   goalId: string,
   userId: string,

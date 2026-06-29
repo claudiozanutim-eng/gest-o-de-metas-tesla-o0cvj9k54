@@ -147,9 +147,12 @@ export default function Tracking() {
         const sellerActuals = actuals.filter(
           (a) => a.seller_id === g.sellerId && a.metric === g.metric,
         )
+        const relevantActuals = g.mixFamily
+          ? sellerActuals.filter((a) => (a.mix_family || '') === g.mixFamily)
+          : sellerActuals
         const actualValue = isCoverage
-          ? sellerActuals.reduce((s, a) => s + (a.actual_coverage || a.actual_value || 0), 0)
-          : sellerActuals.reduce((s, a) => s + (a.actual_value || 0), 0)
+          ? relevantActuals.reduce((s, a) => s + (a.actual_coverage || a.actual_value || 0), 0)
+          : relevantActuals.reduce((s, a) => s + (a.actual_value || 0), 0)
         const baseTarget = isCoverage ? g.targetMonthlyCoverage : g.targetBase
         return {
           goalId: g.goalIds[0],
@@ -168,15 +171,18 @@ export default function Tracking() {
       })
     }
     return goals.map((g) => {
-      const actualRec = actuals.find(
+      const sellerActuals = actuals.filter(
         (a) => a.seller_id === g.seller_id && a.period === g.period && a.metric === g.metric,
       )
+      const relevantActuals = g.mix_family
+        ? sellerActuals.filter((a) => (a.mix_family || '') === g.mix_family)
+        : sellerActuals
       const baseTarget = isCoverage
         ? g.target_monthly_coverage || g.target_base || 0
         : g.target_base || 0
       const actualValue = isCoverage
-        ? actualRec?.actual_coverage || actualRec?.actual_value || 0
-        : actualRec?.actual_value || 0
+        ? relevantActuals.reduce((s, a) => s + (a.actual_coverage || a.actual_value || 0), 0)
+        : relevantActuals.reduce((s, a) => s + (a.actual_value || 0), 0)
       return {
         goalId: g.id,
         goalIds: [g.id],
