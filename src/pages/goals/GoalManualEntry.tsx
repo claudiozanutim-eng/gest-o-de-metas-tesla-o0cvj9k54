@@ -170,6 +170,7 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
   const [targetPrata, setTargetPrata] = useState('')
   const [targetOuro, setTargetOuro] = useState('')
   const [tiersTouched, setTiersTouched] = useState(false)
+  const [baseChangedByUser, setBaseChangedByUser] = useState(false)
   const [atual, setAtual] = useState('')
   const [covDaily, setCovDaily] = useState('')
   const [covWeekly, setCovWeekly] = useState('')
@@ -313,12 +314,19 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
   const calcOuro = parseVal(targetOuro)
 
   useEffect(() => {
-    if (isCoverage && calcBase > 0 && !loadedGoal && !tiersTouched) {
-      setTargetBronze(String(Math.round(calcBase * 1.4)))
-      setTargetPrata(String(Math.round(calcBase * 1.6)))
-      setTargetOuro(String(Math.round(calcBase * 1.8)))
+    if (!baseChangedByUser) return
+    setBaseChangedByUser(false)
+    const base = parseVal(targetBase)
+    if (base > 0) {
+      const bronze = Math.round(base * 1.4)
+      const prata = Math.round(base * 1.6)
+      const ouro = Math.round(base * 1.8)
+      setTargetBronze(isCurrency ? formatCurrency(bronze) : String(bronze))
+      setTargetPrata(isCurrency ? formatCurrency(prata) : String(prata))
+      setTargetOuro(isCurrency ? formatCurrency(ouro) : String(ouro))
+      setTiersTouched(false)
     }
-  }, [targetBase, isCoverage, loadedGoal, tiersTouched, calcBase])
+  }, [targetBase, baseChangedByUser, isCurrency])
   const pctBronzeDisp = calcBase > 0 ? (calcBronze / calcBase) * 100 : 0
   const pctPrataDisp = calcBase > 0 ? (calcPrata / calcBase) * 100 : 0
   const pctOuroDisp = calcBase > 0 ? (calcOuro / calcBase) * 100 : 0
@@ -795,9 +803,10 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
                       min={isCoverage ? 0 : undefined}
                       step={isCoverage ? 1 : undefined}
                       value={targetBase}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        setBaseChangedByUser(true)
                         setTargetBase(isCurrency ? maskMoney(e.target.value) : e.target.value)
-                      }
+                      }}
                       placeholder="0"
                     />
                   </TableCell>
