@@ -45,7 +45,7 @@ export default function Tracking() {
           target_prata: g.target_prata,
           target_ouro: g.target_ouro,
           actual: actual,
-          avatar: g.expand?.seller_id?.id,
+          sellerRecord: g.expand?.seller_id,
           regional_id: g.expand?.seller_id?.regional_id,
         })
       })
@@ -61,7 +61,7 @@ export default function Tracking() {
             target_bronze: 160000,
             target_ouro: 180000,
             actual: 170000,
-            avatar: '1',
+            sellerRecord: null,
             regional_id: 'r1',
           },
           {
@@ -73,7 +73,7 @@ export default function Tracking() {
             target_bronze: 220000,
             target_ouro: 260000,
             actual: 210000,
-            avatar: '2',
+            sellerRecord: null,
             regional_id: 'r2',
           },
         ])
@@ -112,6 +112,7 @@ export default function Tracking() {
 
   useRealtime('goals', () => loadData())
   useRealtime('actual_performance', () => loadData())
+  useRealtime('users', () => loadData())
 
   const getPercent = (actual: number, target_base: number) => {
     return target_base > 0 ? Math.round((actual / target_base) * 100) : 0
@@ -229,10 +230,14 @@ export default function Tracking() {
                 <div className="flex flex-col md:flex-row md:items-center gap-6">
                   <div className="flex items-center gap-4 min-w-[200px]">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage
-                        src={`https://img.usecurling.com/ppl/thumbnail?gender=male&seed=${seller.avatar}`}
-                      />
-                      <AvatarFallback>{seller.name.substring(0, 2)}</AvatarFallback>
+                      {seller.sellerRecord?.avatar && (
+                        <AvatarImage
+                          src={pb.files.getUrl(seller.sellerRecord, seller.sellerRecord.avatar, {
+                            thumb: '128x128',
+                          })}
+                        />
+                      )}
+                      <AvatarFallback>{seller.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div>
                       <h3 className="font-semibold">{seller.name}</h3>
