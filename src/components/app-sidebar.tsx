@@ -37,7 +37,7 @@ import pb from '@/lib/pocketbase/client'
 
 const mainNavItems = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
-  { title: 'Metas', url: '/metas', icon: Target },
+  { title: 'Lançamento de Metas', url: '/metas', icon: Target },
   { title: 'Acompanhamento', url: '/acompanhamento', icon: TrendingUp },
   { title: 'Simulação', url: '/simulacao', icon: Calculator },
   { title: 'Relatórios', url: '/relatorios', icon: FileText },
