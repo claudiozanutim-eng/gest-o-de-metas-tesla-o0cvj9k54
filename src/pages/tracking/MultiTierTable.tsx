@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 
 export interface TierRow {
   goalId: string
+  goalIds: string[]
   sellerName: string
   sellerId: string
   period: string

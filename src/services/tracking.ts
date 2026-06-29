@@ -11,14 +11,58 @@ export interface TrackingFilters {
 
 const REVENUE_METRICS = ['Faturamento', 'Revenue', 'Faturamento (Geral)']
 const COVERAGE_METRICS = ['Coverage', 'Cobertura']
+const MONTH_LABELS = [
+  'Jan',
+  'Fev',
+  'Mar',
+  'Abr',
+  'Mai',
+  'Jun',
+  'Jul',
+  'Ago',
+  'Set',
+  'Out',
+  'Nov',
+  'Dez',
+]
 
 export function getMetricFilter(metricType: 'faturamento' | 'cobertura'): string {
   const metrics = metricType === 'faturamento' ? REVENUE_METRICS : COVERAGE_METRICS
   return `(${metrics.map((m) => `metric="${m}"`).join(' || ')})`
 }
 
+export function isQuarterlyPeriod(period: string): boolean {
+  return /^\d{4}-Q[1-4]$/.test(period)
+}
+
+export function expandPeriodToMonths(period: string): string[] {
+  if (!isQuarterlyPeriod(period)) return [period]
+  const [year, q] = period.split('-')
+  const quarterNum = parseInt(q[1])
+  const startMonth = (quarterNum - 1) * 3 + 1
+  return [startMonth, startMonth + 1, startMonth + 2].map(
+    (m) => `${year}-${String(m).padStart(2, '0')}`,
+  )
+}
+
+export function buildPeriodFilter(period: string): string {
+  const months = expandPeriodToMonths(period)
+  if (months.length === 1) return `period="${months[0]}"`
+  return `(${months.map((m) => `period="${m}"`).join(' || ')})`
+}
+
+export function formatPeriodLabel(period: string): string {
+  if (isQuarterlyPeriod(period)) {
+    const [year, q] = period.split('-')
+    return `${q} ${year}`
+  }
+  const [year, month] = period.split('-')
+  const idx = parseInt(month) - 1
+  return `${MONTH_LABELS[idx]}/${year}`
+}
+
 function buildGoalFilter(filters: TrackingFilters): string {
-  const parts: string[] = [`period="${filters.period}"`, getMetricFilter(filters.metricType)]
+  const parts: string[] = [buildPeriodFilter(filters.period), getMetricFilter(filters.metricType)]
   if (filters.regionalId && filters.regionalId !== 'all') {
     parts.push(`regional_id="${filters.regionalId}"`)
   }
@@ -42,7 +86,7 @@ export async function fetchGoals(filters: TrackingFilters) {
 }
 
 export async function fetchActuals(filters: TrackingFilters) {
-  const parts: string[] = [`period="${filters.period}"`, getMetricFilter(filters.metricType)]
+  const parts: string[] = [buildPeriodFilter(filters.period), getMetricFilter(filters.metricType)]
   if (filters.sellerUserId && filters.sellerUserId !== 'all') {
     parts.push(`seller_id="${filters.sellerUserId}"`)
   }
@@ -72,6 +116,29 @@ export async function upsertActualPerformance(
   value: number,
   mixFamily?: string,
 ) {
+  const months = expandPeriodToMonths(period)
+  if (months.length > 1) {
+    const perMonth = value / months.length
+    let oldTotal = 0
+    for (const p of months) {
+      try {
+        const existing = await pb
+          .collection('actual_performance')
+          .getFirstListItem(`seller_id="${sellerId}" && period="${p}" && metric="${metric}"`)
+        oldTotal += existing.actual_value || 0
+        await pb.collection('actual_performance').update(existing.id, { actual_value: perMonth })
+      } catch {
+        await pb.collection('actual_performance').create({
+          seller_id: sellerId,
+          period: p,
+          metric,
+          actual_value: perMonth,
+          mix_family: mixFamily || '',
+        })
+      }
+    }
+    return { record: null, oldValue: oldTotal }
+  }
   try {
     const existing = await pb
       .collection('actual_performance')
@@ -107,9 +174,14 @@ export async function createAuditLog(
   })
 }
 
-export async function fetchAuditLogs(goalId: string) {
+export async function fetchAuditLogs(goalIds: string | string[]) {
+  const ids = Array.isArray(goalIds) ? goalIds : [goalIds]
+  const filter =
+    ids.length === 1
+      ? `goal_id="${ids[0]}"`
+      : `(${ids.map((id) => `goal_id="${id}"`).join(' || ')})`
   return pb.collection('goal_audit_logs').getFullList({
-    filter: `goal_id="${goalId}"`,
+    filter,
     sort: '-created',
     expand: 'user_id',
   })

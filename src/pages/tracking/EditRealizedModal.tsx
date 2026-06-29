@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { TierRow } from './MultiTierTable'
-import { upsertActualPerformance, createAuditLog } from '@/services/tracking'
+import { upsertActualPerformance, createAuditLog, formatPeriodLabel } from '@/services/tracking'
 import { useAuth } from '@/hooks/use-auth'
 
 function getPctColor(pct: number): string {
@@ -77,6 +77,7 @@ export function EditRealizedModal({ open, onClose, row, isCoverage, onSaved }: P
         { actual_value: numValue },
       )
       toast.success('Realizado atualizado com sucesso!')
+      if (navigator.vibrate) navigator.vibrate(50)
       onSaved()
       onClose()
     } catch {
@@ -100,7 +101,7 @@ export function EditRealizedModal({ open, onClose, row, isCoverage, onSaved }: P
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Período</Label>
-              <p className="font-medium">{row.period}</p>
+              <p className="font-medium">{formatPeriodLabel(row.period)}</p>
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Métrica</Label>

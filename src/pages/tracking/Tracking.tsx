@@ -12,6 +12,7 @@ import {
   fetchActuals,
   fetchAllGoalsForMetric,
   fetchAllActualsForMetric,
+  isQuarterlyPeriod,
   type TrackingFilters,
 } from '@/services/tracking'
 
@@ -65,6 +66,7 @@ export default function Tracking() {
   }, [sellerId, sellers])
 
   const isCoverage = metricType === 'cobertura'
+  const isQuarterly = isQuarterlyPeriod(period)
 
   const loadData = async () => {
     setLoading(true)
@@ -101,6 +103,70 @@ export default function Tracking() {
   useRealtime('actual_performance', () => loadData())
 
   const rows: TierRow[] = useMemo(() => {
+    if (isQuarterly) {
+      const grouped = new Map<
+        string,
+        {
+          goalIds: string[]
+          sellerName: string
+          sellerId: string
+          metric: string
+          mixFamily: string
+          targetBase: number
+          targetBronze: number
+          targetPrata: number
+          targetOuro: number
+          targetMonthlyCoverage: number
+        }
+      >()
+      for (const g of goals) {
+        const key = `${g.seller_id}-${g.metric}-${g.mix_family || ''}`
+        if (!grouped.has(key)) {
+          grouped.set(key, {
+            goalIds: [],
+            sellerName: g.expand?.seller_id?.name || 'Vendedor',
+            sellerId: g.seller_id,
+            metric: g.metric,
+            mixFamily: g.mix_family || '',
+            targetBase: 0,
+            targetBronze: 0,
+            targetPrata: 0,
+            targetOuro: 0,
+            targetMonthlyCoverage: 0,
+          })
+        }
+        const entry = grouped.get(key)!
+        entry.goalIds.push(g.id)
+        entry.targetBase += g.target_base || 0
+        entry.targetBronze += g.target_bronze || 0
+        entry.targetPrata += g.target_prata || 0
+        entry.targetOuro += g.target_ouro || 0
+        entry.targetMonthlyCoverage += g.target_monthly_coverage || 0
+      }
+      return Array.from(grouped.values()).map((g) => {
+        const sellerActuals = actuals.filter(
+          (a) => a.seller_id === g.sellerId && a.metric === g.metric,
+        )
+        const actualValue = isCoverage
+          ? sellerActuals.reduce((s, a) => s + (a.actual_coverage || a.actual_value || 0), 0)
+          : sellerActuals.reduce((s, a) => s + (a.actual_value || 0), 0)
+        const baseTarget = isCoverage ? g.targetMonthlyCoverage : g.targetBase
+        return {
+          goalId: g.goalIds[0],
+          goalIds: g.goalIds,
+          sellerName: g.sellerName,
+          sellerId: g.sellerId,
+          period,
+          metric: g.metric,
+          mixFamily: g.mixFamily,
+          targetBase: baseTarget,
+          targetBronze: g.targetBronze,
+          targetPrata: g.targetPrata,
+          targetOuro: g.targetOuro,
+          actual: actualValue,
+        }
+      })
+    }
     return goals.map((g) => {
       const actualRec = actuals.find(
         (a) => a.seller_id === g.seller_id && a.period === g.period && a.metric === g.metric,
@@ -113,6 +179,7 @@ export default function Tracking() {
         : actualRec?.actual_value || 0
       return {
         goalId: g.id,
+        goalIds: [g.id],
         sellerName: g.expand?.seller_id?.name || 'Vendedor',
         sellerId: g.seller_id,
         period: g.period,
@@ -125,7 +192,7 @@ export default function Tracking() {
         actual: actualValue,
       }
     })
-  }, [goals, actuals, isCoverage])
+  }, [goals, actuals, isCoverage, isQuarterly, period])
 
   const totalActual = rows.reduce((s, r) => s + r.actual, 0)
   const totalTarget = rows.reduce((s, r) => s + r.targetBase, 0)

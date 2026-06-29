@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { fetchAuditLogs } from '@/services/tracking'
+import { fetchAuditLogs, formatPeriodLabel } from '@/services/tracking'
 import type { TierRow } from './MultiTierTable'
 
 interface Props {
@@ -38,7 +38,7 @@ export function AuditHistoryModal({ open, onClose, row }: Props) {
   useEffect(() => {
     if (!open || !row) return
     setLoading(true)
-    fetchAuditLogs(row.goalId)
+    fetchAuditLogs(row.goalIds)
       .then((data) => setLogs(data))
       .catch(() => setLogs([]))
       .finally(() => setLoading(false))
@@ -50,7 +50,9 @@ export function AuditHistoryModal({ open, onClose, row }: Props) {
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Histórico de Lançamentos — {row.sellerName}</DialogTitle>
+          <DialogTitle>
+            Histórico de Lançamentos — {row.sellerName} ({formatPeriodLabel(row.period)})
+          </DialogTitle>
         </DialogHeader>
         {loading ? (
           <div className="py-8 text-center text-muted-foreground">Carregando...</div>

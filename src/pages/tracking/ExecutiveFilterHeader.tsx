@@ -1,7 +1,10 @@
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
@@ -22,15 +25,27 @@ const MONTHS_PT = [
   'Dezembro',
 ]
 
-function generatePeriods(): { value: string; label: string }[] {
-  const periods: { value: string; label: string }[] = []
-  const now = new Date()
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    periods.push({ value, label: `${MONTHS_PT[d.getMonth()]}/${d.getFullYear()}` })
-  }
-  return periods
+const YEARS = [2025, 2026, 2027]
+
+const QUARTERS = [
+  { suffix: 'Q1', label: 'Q1 (Jan-Mar)' },
+  { suffix: 'Q2', label: 'Q2 (Abr-Jun)' },
+  { suffix: 'Q3', label: 'Q3 (Jul-Set)' },
+  { suffix: 'Q4', label: 'Q4 (Out-Dez)' },
+]
+
+function generatePeriods() {
+  return YEARS.map((year) => ({
+    year,
+    months: MONTHS_PT.map((m, i) => ({
+      value: `${year}-${String(i + 1).padStart(2, '0')}`,
+      label: `${m} ${year}`,
+    })),
+    quarters: QUARTERS.map((q) => ({
+      value: `${year}-${q.suffix}`,
+      label: `${q.label} ${year}`,
+    })),
+  }))
 }
 
 const FAMILIES = [
@@ -71,10 +86,21 @@ export function ExecutiveFilterHeader(p: Props) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {periods.map((per) => (
-                <SelectItem key={per.value} value={per.value}>
-                  {per.label}
-                </SelectItem>
+              {periods.map((yp, idx) => (
+                <SelectGroup key={yp.year}>
+                  <SelectLabel className="font-bold text-primary">{yp.year}</SelectLabel>
+                  {yp.months.map((per) => (
+                    <SelectItem key={per.value} value={per.value}>
+                      {per.label}
+                    </SelectItem>
+                  ))}
+                  {yp.quarters.map((per) => (
+                    <SelectItem key={per.value} value={per.value}>
+                      {per.label}
+                    </SelectItem>
+                  ))}
+                  {idx < periods.length - 1 && <SelectSeparator />}
+                </SelectGroup>
               ))}
             </SelectContent>
           </Select>
