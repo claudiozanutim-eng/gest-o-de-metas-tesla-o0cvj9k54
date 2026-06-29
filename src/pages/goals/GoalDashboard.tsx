@@ -476,8 +476,10 @@ export default function GoalDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-primary">
-                  {aggData.target > 0 ? ((aggData.actual / aggData.target) * 100).toFixed(1) : 0}
-                  {!isCoverage && '%'}
+                  {aggData.target > 0
+                    ? ((aggData.actual / aggData.target) * 100).toFixed(1)
+                    : 'N/A'}
+                  {aggData.target > 0 && '%'}
                 </div>
               </CardContent>
             </Card>
@@ -503,14 +505,11 @@ export default function GoalDashboard() {
                         fontSize={12}
                         tickLine={false}
                         axisLine={false}
-                        tickFormatter={(v) => (isCoverage ? `${v}` : `${v}%`)}
+                        tickFormatter={(v) => `${v}%`}
                       />
                       <RechartsTooltip
                         cursor={{ fill: 'rgba(0,0,0,0.05)' }}
-                        formatter={(v: number) => [
-                          isCoverage ? v.toFixed(1) : `${v.toFixed(1)}%`,
-                          'Atingimento',
-                        ]}
+                        formatter={(v: number) => [`${v.toFixed(1)}%`, 'Atingimento']}
                       />
                       <Bar
                         dataKey="pct"
@@ -593,8 +592,7 @@ export default function GoalDashboard() {
                       <TableCell className="text-right">{formatVal(s.target)}</TableCell>
                       <TableCell className="text-right">{formatVal(s.actual)}</TableCell>
                       <TableCell className="text-right font-bold text-primary">
-                        {s.pct.toFixed(1)}
-                        {!isCoverage && '%'}
+                        {s.target > 0 ? `${s.pct.toFixed(1)}%` : 'N/A'}
                       </TableCell>
                     </TableRow>
                   ))}

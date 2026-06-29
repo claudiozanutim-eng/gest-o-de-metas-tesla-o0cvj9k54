@@ -71,11 +71,11 @@ export function MultiTierTable({ rows, isCoverage, onEdit, onHistory }: Props) {
           <span
             className={cn(
               'text-xs font-bold inline-flex items-center w-fit px-1.5 py-0.5 rounded',
-              getPctBg(pct),
-              getPctColor(pct),
+              target > 0 ? getPctBg(pct) : 'bg-muted text-muted-foreground',
+              target > 0 ? getPctColor(pct) : '',
             )}
           >
-            {pct.toFixed(1)}%
+            {target > 0 ? `${pct.toFixed(1)}%` : 'N/A'}
           </span>
         </div>
       </TableCell>
@@ -114,11 +114,13 @@ export function MultiTierTable({ rows, isCoverage, onEdit, onHistory }: Props) {
                     <Flag
                       className={cn(
                         'w-4 h-4',
-                        basePct >= 100
-                          ? 'text-emerald-500'
-                          : basePct >= 80
-                            ? 'text-yellow-500'
-                            : 'text-red-500',
+                        row.targetBase === 0
+                          ? 'text-muted-foreground'
+                          : basePct >= 100
+                            ? 'text-emerald-500'
+                            : basePct >= 80
+                              ? 'text-yellow-500'
+                              : 'text-red-500',
                       )}
                     />
                   </button>

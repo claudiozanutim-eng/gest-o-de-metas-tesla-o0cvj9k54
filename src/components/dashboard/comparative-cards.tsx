@@ -118,10 +118,7 @@ function PillarCard({
                 ) : (
                   <TrendingDown className="w-3.5 h-3.5 shrink-0" />
                 )}
-                <span className="tabular-nums">
-                  {data.pct.toFixed(1)}
-                  {!isCoverage && '%'}
-                </span>
+                <span className="tabular-nums">{data.pct.toFixed(1)}%</span>
               </div>
             </TooltipTrigger>
             <TooltipContent>
@@ -132,10 +129,7 @@ function PillarCard({
                 Diferença: {data.diff >= 0 ? '+' : ''}
                 {formatFn(data.diff)}
               </p>
-              <p>
-                Atingimento: {data.pct.toFixed(1)}
-                {!isCoverage && '%'}
-              </p>
+              <p>Atingimento: {data.pct.toFixed(1)}%</p>
             </TooltipContent>
           </Tooltip>
         </div>

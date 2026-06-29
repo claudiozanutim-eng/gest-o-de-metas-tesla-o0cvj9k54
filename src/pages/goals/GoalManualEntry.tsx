@@ -169,6 +169,9 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
   const [targetBronze, setTargetBronze] = useState('')
   const [targetPrata, setTargetPrata] = useState('')
   const [targetOuro, setTargetOuro] = useState('')
+  const [pctBronze, setPctBronze] = useState('140')
+  const [pctPrata, setPctPrata] = useState('160')
+  const [pctOuro, setPctOuro] = useState('180')
   const [atual, setAtual] = useState('')
   const [covDaily, setCovDaily] = useState('')
   const [covWeekly, setCovWeekly] = useState('')
@@ -231,10 +234,22 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
         )
       setLoadedGoal(g)
       gId = g.id
-      setTargetBase(formatVal(g.target_base || g.target_monthly_coverage || 0))
+      const baseVal = g.target_base || g.target_monthly_coverage || 0
+      setTargetBase(formatVal(baseVal))
       setTargetBronze(formatVal(g.target_bronze || 0))
       setTargetPrata(formatVal(g.target_prata || 0))
       setTargetOuro(formatVal(g.target_ouro || 0))
+      if (isCoverage) {
+        if (baseVal > 0) {
+          setPctBronze(String(((g.target_bronze || 0) / baseVal) * 100))
+          setPctPrata(String(((g.target_prata || 0) / baseVal) * 100))
+          setPctOuro(String(((g.target_ouro || 0) / baseVal) * 100))
+        } else {
+          setPctBronze('140')
+          setPctPrata('160')
+          setPctOuro('180')
+        }
+      }
       setCovDaily(String(g.target_daily_coverage || ''))
       setCovWeekly(String(g.target_weekly_coverage || ''))
       setCovMonthly(String(g.target_monthly_coverage || ''))
@@ -244,6 +259,11 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
       setTargetBronze('')
       setTargetPrata('')
       setTargetOuro('')
+      if (isCoverage) {
+        setPctBronze('140')
+        setPctPrata('160')
+        setPctOuro('180')
+      }
       setCovDaily('')
       setCovWeekly('')
       setCovMonthly('')
@@ -299,9 +319,9 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
   }, [sellerId, areaId, period, metric, data.sellers, refreshTrigger])
 
   const calcBase = parseVal(targetBase)
-  const calcBronze = parseVal(targetBronze)
-  const calcPrata = parseVal(targetPrata)
-  const calcOuro = parseVal(targetOuro)
+  const calcBronze = isCoverage ? (calcBase * Number(pctBronze || 0)) / 100 : parseVal(targetBronze)
+  const calcPrata = isCoverage ? (calcBase * Number(pctPrata || 0)) / 100 : parseVal(targetPrata)
+  const calcOuro = isCoverage ? (calcBase * Number(pctOuro || 0)) / 100 : parseVal(targetOuro)
   const calcActual = parseVal(atual)
   const calcCovDaily = parseVal(covDaily)
   const calcCovWeekly = parseVal(covWeekly)
@@ -324,6 +344,19 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
   const isOverachieving = calcActual > calcOuro && calcOuro > 0
 
   const savePerf = async () => {
+    if (isCoverage) {
+      const b = Number(pctBronze)
+      const p = Number(pctPrata)
+      const o = Number(pctOuro)
+      if (b >= p || p >= o) {
+        return toast({
+          title: 'Atenção',
+          description: 'Os percentuais devem seguir a hierarquia: Bronze < Prata < Ouro',
+          variant: 'destructive',
+        })
+      }
+    }
+
     const seller = data.sellers.find((s: any) => s.id === sellerId)
     if (!seller?.user_id || !period || !metric || !regId || !areaId || !distId) {
       return toast({
@@ -683,9 +716,19 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                <div className="text-2xl font-bold text-primary">
-                  {pct.toFixed(1)}
-                  {!isCoverage && '%'}
+                <div
+                  className={cn(
+                    'text-2xl font-bold',
+                    isCoverage
+                      ? pct >= 100
+                        ? 'text-green-600'
+                        : pct >= 80
+                          ? 'text-yellow-600'
+                          : 'text-red-600'
+                      : 'text-primary',
+                  )}
+                >
+                  {calcBase === 0 ? 'N/A' : `${pct.toFixed(1)}%`}
                 </div>
               </CardContent>
             </Card>
@@ -723,9 +766,9 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
               <TableHeader>
                 <TableRow>
                   <TableHead>Meta Base</TableHead>
-                  <TableHead>Meta Bronze</TableHead>
-                  <TableHead>Meta Prata</TableHead>
-                  <TableHead>Meta Ouro</TableHead>
+                  <TableHead>Meta Bronze {isCoverage && '(%)'}</TableHead>
+                  <TableHead>Meta Prata {isCoverage && '(%)'}</TableHead>
+                  <TableHead>Meta Ouro {isCoverage && '(%)'}</TableHead>
                   <TableHead className="bg-primary/5">Realizado</TableHead>
                 </TableRow>
               </TableHeader>
@@ -740,36 +783,91 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
                       placeholder="0"
                     />
                   </TableCell>
-                  <TableCell>
-                    <Input
-                      value={targetBronze}
-                      onChange={(e) =>
-                        setTargetBronze(isCurrency ? maskMoney(e.target.value) : e.target.value)
-                      }
-                      placeholder="0"
-                      className="text-amber-700 font-medium"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      value={targetPrata}
-                      onChange={(e) =>
-                        setTargetPrata(isCurrency ? maskMoney(e.target.value) : e.target.value)
-                      }
-                      placeholder="0"
-                      className="text-slate-500 font-medium"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      value={targetOuro}
-                      onChange={(e) =>
-                        setTargetOuro(isCurrency ? maskMoney(e.target.value) : e.target.value)
-                      }
-                      placeholder="0"
-                      className="text-yellow-600 font-medium"
-                    />
-                  </TableCell>
+                  {isCoverage ? (
+                    <>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="number"
+                              value={pctBronze}
+                              onChange={(e) => setPctBronze(e.target.value)}
+                              className="w-20 font-medium text-amber-700"
+                            />
+                            <span className="text-sm">%</span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground font-medium">
+                            Abs: {((calcBase * Number(pctBronze || 0)) / 100).toFixed(1)}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="number"
+                              value={pctPrata}
+                              onChange={(e) => setPctPrata(e.target.value)}
+                              className="w-20 font-medium text-slate-500"
+                            />
+                            <span className="text-sm">%</span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground font-medium">
+                            Abs: {((calcBase * Number(pctPrata || 0)) / 100).toFixed(1)}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="number"
+                              value={pctOuro}
+                              onChange={(e) => setPctOuro(e.target.value)}
+                              className="w-20 font-medium text-yellow-600"
+                            />
+                            <span className="text-sm">%</span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground font-medium">
+                            Abs: {((calcBase * Number(pctOuro || 0)) / 100).toFixed(1)}
+                          </span>
+                        </div>
+                      </TableCell>
+                    </>
+                  ) : (
+                    <>
+                      <TableCell>
+                        <Input
+                          value={targetBronze}
+                          onChange={(e) =>
+                            setTargetBronze(isCurrency ? maskMoney(e.target.value) : e.target.value)
+                          }
+                          placeholder="0"
+                          className="text-amber-700 font-medium"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={targetPrata}
+                          onChange={(e) =>
+                            setTargetPrata(isCurrency ? maskMoney(e.target.value) : e.target.value)
+                          }
+                          placeholder="0"
+                          className="text-slate-500 font-medium"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={targetOuro}
+                          onChange={(e) =>
+                            setTargetOuro(isCurrency ? maskMoney(e.target.value) : e.target.value)
+                          }
+                          placeholder="0"
+                          className="text-yellow-600 font-medium"
+                        />
+                      </TableCell>
+                    </>
+                  )}
                   <TableCell className="bg-primary/5">
                     <Input
                       value={atual}
