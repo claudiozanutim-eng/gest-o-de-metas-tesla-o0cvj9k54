@@ -1,4 +1,3 @@
-// @deps xlsx@0.18.5
 routerAdd(
   'POST',
   '/backend/v1/parse-excel',
@@ -6,13 +5,6 @@ routerAdd(
     const body = e.requestInfo().body || {}
     const b64 = body.data
     if (!b64) return e.badRequestError('No data provided')
-
-    let XLSX
-    try {
-      XLSX = require('xlsx')
-    } catch (err) {
-      return e.json(500, { error: 'Biblioteca de Excel não disponível. Use formato CSV.' })
-    }
 
     function base64ToBytes(str) {
       var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
@@ -38,32 +30,102 @@ routerAdd(
       return e.badRequestError('Failed to decode file data')
     }
 
-    var workbook
+    var text
     try {
-      workbook = XLSX.read(bytes, { type: 'array' })
+      text = new TextDecoder('utf-8').decode(bytes)
     } catch (err) {
-      return e.badRequestError('Failed to parse Excel file: ' + err.message)
+      return e.badRequestError('Failed to decode file text')
     }
 
-    if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
-      return e.badRequestError('Empty or invalid Excel file')
+    var trimmed = text.replace(/^\uFEFF/, '').trim()
+    if (!trimmed) {
+      return e.badRequestError('Empty file content')
     }
 
-    var sheetName = workbook.SheetNames[0]
-    var sheet = workbook.Sheets[sheetName]
-    var json = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' })
+    if (trimmed.charAt(0) === '{' || trimmed.charAt(0) === '[') {
+      var jsonData
+      try {
+        jsonData = JSON.parse(trimmed)
+      } catch (err) {
+        return e.badRequestError('Invalid JSON: ' + err.message)
+      }
 
-    if (!json || json.length < 2) {
-      return e.badRequestError('Empty or invalid Excel file')
+      var arr = Array.isArray(jsonData) ? jsonData : [jsonData]
+      if (arr.length === 0) {
+        return e.badRequestError('No data rows found in JSON')
+      }
+
+      var jsonHeaders = Object.keys(arr[0])
+      var jsonRows = arr.map(function (row) {
+        var rowObj = {}
+        jsonHeaders.forEach(function (h) {
+          rowObj[h] = row[h] !== undefined && row[h] !== null ? String(row[h]).trim() : ''
+        })
+        return rowObj
+      })
+
+      var jsonValid = jsonRows.filter(function (r) {
+        return Object.values(r).some(function (v) {
+          return v && v.length > 0
+        })
+      })
+
+      if (jsonValid.length === 0) {
+        return e.badRequestError('No data rows found in JSON')
+      }
+
+      return e.json(200, { headers: jsonHeaders, data: jsonValid })
     }
 
-    var headers = json[0].map(function (h) {
-      return String(h).trim()
+    function parseCSVLine(line) {
+      var result = []
+      var current = ''
+      var inQuotes = false
+      for (var i = 0; i < line.length; i++) {
+        var ch = line[i]
+        if (inQuotes) {
+          if (ch === '"') {
+            if (i + 1 < line.length && line[i + 1] === '"') {
+              current += '"'
+              i++
+            } else {
+              inQuotes = false
+            }
+          } else {
+            current += ch
+          }
+        } else {
+          if (ch === '"') {
+            inQuotes = true
+          } else if (ch === ',' || ch === ';') {
+            result.push(current)
+            current = ''
+          } else {
+            current += ch
+          }
+        }
+      }
+      result.push(current)
+      return result
+    }
+
+    var lines = trimmed.split(/\r\n|\r|\n/).filter(function (l) {
+      return l.trim().length > 0
     })
-    var dataRows = json.slice(1).map(function (row) {
+
+    if (lines.length < 2) {
+      return e.badRequestError('No data rows found in CSV file')
+    }
+
+    var headers = parseCSVLine(lines[0]).map(function (h) {
+      return h.trim()
+    })
+
+    var dataRows = lines.slice(1).map(function (line) {
+      var values = parseCSVLine(line)
       var rowObj = {}
       headers.forEach(function (h, idx) {
-        rowObj[h] = row[idx] !== undefined ? String(row[idx]).trim() : ''
+        rowObj[h] = values[idx] !== undefined ? values[idx].trim() : ''
       })
       return rowObj
     })
@@ -75,7 +137,7 @@ routerAdd(
     })
 
     if (validRows.length === 0) {
-      return e.badRequestError('No data rows found in Excel file')
+      return e.badRequestError('No data rows found in CSV file')
     }
 
     return e.json(200, { headers: headers, data: validRows })
