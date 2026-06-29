@@ -165,12 +165,14 @@ export default function Reports() {
             totalActual={data.summary.total_actual}
             totalTarget={data.summary.total_target}
             achievementPct={data.summary.achievement_pct}
+            totalCommission={data.summary.total_commission}
             isCoverage={isCoverage}
           />
           <ReportsPerformanceTable rows={data.tableRows} isCoverage={isCoverage} />
           <ReportsCharts
             barData={data.charts.barData}
             donutData={data.charts.donutData}
+            commissionDonutData={data.charts.commissionDonutData}
             lineData={data.charts.lineData}
             isCoverage={isCoverage}
           />

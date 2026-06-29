@@ -40,11 +40,18 @@ function formatTooltip(v: number, isCoverage: boolean) {
 interface Props {
   barData: { name: string; target: number; actual: number }[]
   donutData: { name: string; value: number }[]
+  commissionDonutData: { name: string; value: number }[]
   lineData: { period: string; target: number; actual: number }[]
   isCoverage: boolean
 }
 
-export function ReportsCharts({ barData, donutData, lineData, isCoverage }: Props) {
+export function ReportsCharts({
+  barData,
+  donutData,
+  commissionDonutData,
+  lineData,
+  isCoverage,
+}: Props) {
   const chartConfig = {
     target: { label: 'Meta Base', color: 'hsl(217, 91%, 60%)' },
     actual: { label: 'Realizado', color: 'hsl(142, 71%, 45%)' },
@@ -97,11 +104,11 @@ export function ReportsCharts({ barData, donutData, lineData, isCoverage }: Prop
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Distribuição por Família</CardTitle>
-          <CardDescription>Participação por família de produto</CardDescription>
+          <CardTitle className="text-base">Comissão por Família</CardTitle>
+          <CardDescription>Participação na comissão total por família</CardDescription>
         </CardHeader>
         <CardContent>
-          {donutData.length === 0 ? (
+          {commissionDonutData.length === 0 ? (
             <div className="h-[300px] flex items-center justify-center text-muted-foreground">
               Sem dados
             </div>
@@ -109,7 +116,7 @@ export function ReportsCharts({ barData, donutData, lineData, isCoverage }: Prop
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={donutData}
+                  data={commissionDonutData}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
@@ -117,11 +124,19 @@ export function ReportsCharts({ barData, donutData, lineData, isCoverage }: Prop
                   paddingAngle={2}
                   dataKey="value"
                 >
-                  {donutData.map((d, i) => (
+                  {commissionDonutData.map((d, i) => (
                     <Cell key={i} fill={COLORS[d.name] || '#80B5FF'} />
                   ))}
                 </Pie>
-                <RTooltip formatter={(v: number) => formatTooltip(v, isCoverage)} />
+                <RTooltip
+                  formatter={(v: number) =>
+                    new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL',
+                      maximumFractionDigits: 2,
+                    }).format(v)
+                  }
+                />
                 <Legend
                   verticalAlign="bottom"
                   height={24}

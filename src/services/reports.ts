@@ -35,15 +35,21 @@ export interface DashboardTableRow {
   actual_value: number
   difference: number
   achievement_pct: number
+  tier_name: string
+  tier_color: string
+  commission_pct: number
+  commission_value: number
 }
 export interface DashboardSummary {
   total_actual: number
   total_target: number
   achievement_pct: number
+  total_commission: number
 }
 export interface DashboardChartData {
   barData: { name: string; target: number; actual: number }[]
   donutData: { name: string; value: number }[]
+  commissionDonutData: { name: string; value: number }[]
   lineData: { period: string; target: number; actual: number }[]
 }
 export interface DashboardData {
@@ -118,7 +124,7 @@ const getActual = (a: any, mt: string) =>
   mt === 'cobertura' ? a.actual_coverage || a.actual_value || 0 : a.actual_value || 0
 
 export async function loadReportData(f: ReportFilters): Promise<DashboardData> {
-  const [goals, actuals, sellers, areas, regionals] = await Promise.all([
+  const [goals, actuals, sellers, areas, regionals, tiers, adjustments] = await Promise.all([
     pb.collection('goals').getFullList({ filter: buildGoalFilter(f), expand: 'seller_id' }),
     pb
       .collection('actual_performance')
@@ -126,6 +132,8 @@ export async function loadReportData(f: ReportFilters): Promise<DashboardData> {
     pb.collection('sellers').getFullList(),
     pb.collection('areas').getFullList(),
     pb.collection('regionals').getFullList(),
+    loadCommissionTiers(),
+    loadFinancialAdjustments(),
   ])
 
   // Scope actuals to the same seller set as goals when regional/area filters are active
@@ -200,6 +208,13 @@ export async function loadReportData(f: ReportFilters): Promise<DashboardData> {
       area_name: '-',
       regional_name: '-',
     }
+    const achievement_pct = d.target_base > 0 ? (d.actual_value / d.target_base) * 100 : 0
+    const tier = findTier(achievement_pct, tiers)
+    const { commissionPct, commissionValue } = calculateCommission(
+      d.actual_value,
+      tier,
+      adjustments,
+    )
     tableRows.push({
       seller_name: i.name,
       seller_code: i.code,
@@ -209,7 +224,11 @@ export async function loadReportData(f: ReportFilters): Promise<DashboardData> {
       target_base: d.target_base,
       actual_value: d.actual_value,
       difference: d.target_base - d.actual_value,
-      achievement_pct: d.target_base > 0 ? (d.actual_value / d.target_base) * 100 : 0,
+      achievement_pct,
+      tier_name: tier?.name || '-',
+      tier_color: tier?.color || '#003DA5',
+      commission_pct: commissionPct,
+      commission_value: commissionValue,
     })
   }
   tableRows.sort(
@@ -218,6 +237,7 @@ export async function loadReportData(f: ReportFilters): Promise<DashboardData> {
 
   const total_actual = tableRows.reduce((s, r) => s + r.actual_value, 0)
   const total_target = tableRows.reduce((s, r) => s + r.target_base, 0)
+  const total_commission = tableRows.reduce((s, r) => s + r.commission_value, 0)
   const achievement_pct = total_target > 0 ? (total_actual / total_target) * 100 : 0
 
   const sMap = new Map<string, { target: number; actual: number }>()
@@ -236,6 +256,12 @@ export async function loadReportData(f: ReportFilters): Promise<DashboardData> {
   const fMap = new Map<string, number>()
   for (const r of tableRows) fMap.set(r.family, (fMap.get(r.family) || 0) + r.actual_value)
   const donutData = Array.from(fMap.entries())
+    .map(([name, value]) => ({ name, value }))
+    .filter((d) => d.value > 0)
+
+  const cMap = new Map<string, number>()
+  for (const r of tableRows) cMap.set(r.family, (cMap.get(r.family) || 0) + r.commission_value)
+  const commissionDonutData = Array.from(cMap.entries())
     .map(([name, value]) => ({ name, value }))
     .filter((d) => d.value > 0)
 
@@ -280,7 +306,7 @@ export async function loadReportData(f: ReportFilters): Promise<DashboardData> {
 
   return {
     tableRows,
-    summary: { total_actual, total_target, achievement_pct },
-    charts: { barData, donutData, lineData },
+    summary: { total_actual, total_target, achievement_pct, total_commission },
+    charts: { barData, donutData, commissionDonutData, lineData },
   }
 }

@@ -1,6 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { DollarSign, Target, Activity } from 'lucide-react'
+import { DollarSign, Target, Activity, Wallet } from 'lucide-react'
 
 function getColor(pct: number): string {
   if (pct >= 100) return '#10b981'
@@ -18,6 +18,7 @@ interface Props {
   totalActual: number
   totalTarget: number
   achievementPct: number
+  totalCommission: number
   isCoverage: boolean
 }
 
@@ -25,6 +26,7 @@ export function ReportsSummaryCards({
   totalActual,
   totalTarget,
   achievementPct,
+  totalCommission,
   isCoverage,
 }: Props) {
   const fmt = (v: number) => {
@@ -38,7 +40,7 @@ export function ReportsSummaryCards({
   const color = getColor(achievementPct)
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <Card
         className="border-l-4 shadow-sm hover:shadow-md transition-all duration-300 animate-fade-in-up"
         style={{ borderLeftColor: '#0066CC' }}
@@ -96,6 +98,28 @@ export function ReportsSummaryCards({
               style={{ width: `${Math.min(achievementPct, 100)}%` }}
             />
           </div>
+        </CardContent>
+      </Card>
+      <Card
+        className="border-l-4 shadow-sm hover:shadow-md transition-all duration-300 animate-fade-in-up"
+        style={{ borderLeftColor: '#7c3aed', animationDelay: '225ms' }}
+      >
+        <CardContent className="p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-2 rounded-lg bg-[#7c3aed]/10">
+              <Wallet className="w-5 h-5 text-[#7c3aed]" />
+            </div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Total Comissões
+            </p>
+          </div>
+          <p className="text-2xl font-extrabold text-[#7c3aed]">
+            {new Intl.NumberFormat('pt-BR', {
+              style: 'currency',
+              currency: 'BRL',
+              maximumFractionDigits: 2,
+            }).format(totalCommission)}
+          </p>
         </CardContent>
       </Card>
     </div>

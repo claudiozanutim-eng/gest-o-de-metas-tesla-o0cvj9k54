@@ -57,6 +57,8 @@ export function ReportsPerformanceTable({ rows, isCoverage }: Props) {
             <TableHead className="text-right">Realizado</TableHead>
             <TableHead className="text-right">Diferença</TableHead>
             <TableHead className="text-right">% Atingimento</TableHead>
+            <TableHead>Tier</TableHead>
+            <TableHead className="text-right">Comissão</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -97,6 +99,24 @@ export function ReportsPerformanceTable({ rows, isCoverage }: Props) {
                   >
                     {row.achievement_pct.toFixed(1)}%
                   </span>
+                </TableCell>
+                <TableCell>
+                  <span
+                    className="text-xs font-bold px-2 py-0.5 rounded"
+                    style={{
+                      backgroundColor: `${row.tier_color}20`,
+                      color: row.tier_color,
+                    }}
+                  >
+                    {row.tier_name}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm font-semibold">
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL',
+                    maximumFractionDigits: 2,
+                  }).format(row.commission_value)}
                 </TableCell>
               </TableRow>
             )
