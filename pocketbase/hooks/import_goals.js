@@ -5,6 +5,38 @@ routerAdd(
     const body = e.requestInfo().body
     const rows = body.rows || []
 
+    var authRole = e.auth ? e.auth.getString('role') : ''
+    if (authRole === 'Vendedor') {
+      return e.json(403, {
+        success: false,
+        errors: [
+          {
+            line: 0,
+            field: 'permission',
+            value: authRole,
+            message: 'Acesso negado. Vendedores não podem importar metas.',
+          },
+        ],
+        created: 0,
+        faturamentoCount: 0,
+        coberturaCount: 0,
+        totalRows: 0,
+      })
+    }
+
+    if (!rows || rows.length === 0) {
+      return e.json(400, {
+        success: false,
+        errors: [
+          { line: 0, field: 'rows', value: '', message: 'Nenhuma linha encontrada no arquivo' },
+        ],
+        created: 0,
+        faturamentoCount: 0,
+        coberturaCount: 0,
+        totalRows: 0,
+      })
+    }
+
     function parseNum(val) {
       if (!val || val === '') return 0
       var s = String(val).replace(/R\$/gi, '').replace(/%/g, '').replace(/\s/g, '')
@@ -41,6 +73,7 @@ routerAdd(
     var areas = $app.findRecordsByFilter('areas', '1=1', '', 10000, 0)
     var sellers = $app.findRecordsByFilter('sellers', '1=1', '', 10000, 0)
     var users = $app.findRecordsByFilter('users', '1=1', '', 10000, 0)
+    var productFamilies = $app.findRecordsByFilter('product_families', '1=1', '', 10000, 0)
 
     var dMap = {},
       rMap = {},
@@ -69,6 +102,15 @@ routerAdd(
     for (var u of users) {
       var un = norm(u.getString('name'))
       if (un) uMap[un] = u.id
+    }
+
+    var validFamilyCodes = {}
+    for (var pf of productFamilies) {
+      var fcode = pf.getString('code')
+      if (fcode) validFamilyCodes[fcode.toUpperCase()] = true
+    }
+    if (Object.keys(validFamilyCodes).length === 0) {
+      validFamilyCodes = { F1: true, F2: true, F3: true, F4: true, F5: true, OUTROS: true }
     }
 
     var valid = [],
@@ -107,68 +149,80 @@ routerAdd(
         continue
       }
 
-      var district = null
-      if (distritoName) {
-        district = dMap[norm(distritoName)] || null
-        if (!district) {
-          errs.push({
-            line: lineNum,
-            field: 'distrito',
-            value: distritoName,
-            message: 'Distrito "' + distritoName + '" não encontrado',
-          })
-          continue
-        }
+      if (!distritoName) {
+        errs.push({
+          line: lineNum,
+          field: 'distrito',
+          value: '',
+          message: 'Distrito é obrigatório',
+        })
+        continue
+      }
+      var district = dMap[norm(distritoName)] || null
+      if (!district) {
+        errs.push({
+          line: lineNum,
+          field: 'distrito',
+          value: distritoName,
+          message: 'Distrito "' + distritoName + '" não encontrado',
+        })
+        continue
       }
 
-      var regional = null
-      if (regionalName) {
-        regional = rMap[norm(regionalName)] || null
-        if (!regional) {
-          errs.push({
-            line: lineNum,
-            field: 'regional',
-            value: regionalName,
-            message: 'Regional "' + regionalName + '" não encontrada',
-          })
-          continue
-        }
-        if (district && regional.getString('district_id') !== district.id) {
-          errs.push({
-            line: lineNum,
-            field: 'regional',
-            value: regionalName,
-            message:
-              'Regional "' + regionalName + '" não pertence ao Distrito "' + distritoName + '"',
-          })
-          continue
-        }
+      if (!regionalName) {
+        errs.push({
+          line: lineNum,
+          field: 'regional',
+          value: '',
+          message: 'Regional é obrigatória',
+        })
+        continue
+      }
+      var regional = rMap[norm(regionalName)] || null
+      if (!regional) {
+        errs.push({
+          line: lineNum,
+          field: 'regional',
+          value: regionalName,
+          message: 'Regional "' + regionalName + '" não encontrada',
+        })
+        continue
+      }
+      if (regional.getString('district_id') !== district.id) {
+        errs.push({
+          line: lineNum,
+          field: 'regional',
+          value: regionalName,
+          message:
+            'Regional "' + regionalName + '" não pertence ao Distrito "' + distritoName + '"',
+        })
+        continue
       }
 
-      var area = null
-      if (areaName) {
-        area = aMap[norm(areaName)] || null
-        if (!area) {
-          errs.push({
-            line: lineNum,
-            field: 'area',
-            value: areaName,
-            message: 'Área "' + areaName + '" não encontrada',
-          })
-          continue
-        }
-        if (regional && area.getString('regional_id') !== regional.id) {
-          errs.push({
-            line: lineNum,
-            field: 'area',
-            value: areaName,
-            message: 'Área "' + areaName + '" não pertence à Regional "' + regionalName + '"',
-          })
-          continue
-        }
+      if (!areaName) {
+        errs.push({ line: lineNum, field: 'area', value: '', message: 'Área é obrigatória' })
+        continue
+      }
+      var area = aMap[norm(areaName)] || null
+      if (!area) {
+        errs.push({
+          line: lineNum,
+          field: 'area',
+          value: areaName,
+          message: 'Área "' + areaName + '" não encontrada',
+        })
+        continue
+      }
+      if (area.getString('regional_id') !== regional.id) {
+        errs.push({
+          line: lineNum,
+          field: 'area',
+          value: areaName,
+          message: 'Área "' + areaName + '" não pertence à Regional "' + regionalName + '"',
+        })
+        continue
       }
 
-      var sellerId = ''
       if (!vendedor) {
         errs.push({
           line: lineNum,
@@ -178,6 +232,7 @@ routerAdd(
         })
         continue
       }
+      var sellerId = ''
       var vn = norm(vendedor)
       if (uMap[vn]) sellerId = uMap[vn]
       else if (sMap[vn] && sMap[vn].getString('user_id')) sellerId = sMap[vn].getString('user_id')
@@ -201,13 +256,12 @@ routerAdd(
         continue
       }
 
-      var validFamilies = ['F1', 'F2', 'F3', 'F4', 'F5', 'OUTROS', '']
-      if (familia && validFamilies.indexOf(familia) === -1) {
+      if (familia && !validFamilyCodes[familia]) {
         errs.push({
           line: lineNum,
           field: 'familia',
           value: familia,
-          message: 'Família "' + familia + '" inválida. Use F1, F2, F3 ou deixe em branco',
+          message: 'Família "' + familia + '" não encontrada no cadastro de famílias de produtos',
         })
         continue
       }
@@ -221,25 +275,32 @@ routerAdd(
         })
         continue
       }
-      if (metaBronze > 0 && metaPrata > 0 && metaOuro > 0) {
-        if (metaBronze >= metaPrata) {
-          errs.push({
-            line: lineNum,
-            field: 'meta_bronze',
-            value: String(metaBronze),
-            message: 'Meta Bronze deve ser menor que Meta Prata',
-          })
-          continue
-        }
-        if (metaPrata >= metaOuro) {
-          errs.push({
-            line: lineNum,
-            field: 'meta_prata',
-            value: String(metaPrata),
-            message: 'Meta Prata deve ser menor que Meta Ouro',
-          })
-          continue
-        }
+      if (metaBronze > 0 && metaPrata > 0 && metaBronze >= metaPrata) {
+        errs.push({
+          line: lineNum,
+          field: 'meta_bronze',
+          value: String(metaBronze),
+          message: 'Meta Bronze deve ser menor que Meta Prata',
+        })
+        continue
+      }
+      if (metaPrata > 0 && metaOuro > 0 && metaPrata >= metaOuro) {
+        errs.push({
+          line: lineNum,
+          field: 'meta_prata',
+          value: String(metaPrata),
+          message: 'Meta Prata deve ser menor que Meta Ouro',
+        })
+        continue
+      }
+      if (metaBronze > 0 && metaOuro > 0 && metaBronze >= metaOuro) {
+        errs.push({
+          line: lineNum,
+          field: 'meta_bronze',
+          value: String(metaBronze),
+          message: 'Meta Bronze deve ser menor que Meta Ouro',
+        })
+        continue
       }
 
       if (cobertura < 0 || cobertura > 100) {
@@ -256,9 +317,9 @@ routerAdd(
         sellerId: sellerId,
         periodo: periodo,
         familia: familia,
-        districtId: district ? district.id : '',
-        regionalId: regional ? regional.id : '',
-        areaId: area ? area.id : '',
+        districtId: district.id,
+        regionalId: regional.id,
+        areaId: area.id,
         metaBase: metaBase,
         metaBronze: metaBronze,
         metaPrata: metaPrata,

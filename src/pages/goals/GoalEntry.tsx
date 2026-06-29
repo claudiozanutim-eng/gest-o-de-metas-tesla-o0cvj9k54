@@ -2,46 +2,26 @@ import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import GoalManualEntry from './GoalManualEntry'
 import BatchImportGoals from './BatchImportGoals'
-import GoalDashboard from './GoalDashboard'
-import CoverageGoalEntry from './CoverageGoalEntry'
 
 export default function GoalEntry() {
-  const [importTrigger, setImportTrigger] = useState(0)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-12">
+    <div className="space-y-6 p-4 md:p-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-primary">Lançamento de Metas</h1>
-        <p className="text-muted-foreground">
-          Gerencie e acompanhe metas de faturamento e cobertura.
-        </p>
+        <h1 className="text-2xl font-bold tracking-tight">Lançamento de Metas</h1>
+        <p className="text-muted-foreground">Gerencie e importe metas comerciais</p>
       </div>
-
-      <Tabs defaultValue="faturamento" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-6">
-          <TabsTrigger value="faturamento">Faturamento</TabsTrigger>
-          <TabsTrigger value="cobertura">Cobertura</TabsTrigger>
+      <Tabs defaultValue="manual" className="w-full">
+        <TabsList>
+          <TabsTrigger value="manual">Entrada Manual</TabsTrigger>
+          <TabsTrigger value="batch">Importação em Lote</TabsTrigger>
         </TabsList>
-        <TabsContent value="faturamento" className="mt-0">
-          <Tabs defaultValue="dashboard" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-6">
-              <TabsTrigger value="dashboard">Visualização</TabsTrigger>
-              <TabsTrigger value="manual">Entrada Manual</TabsTrigger>
-              <TabsTrigger value="lote">Importação em Lote</TabsTrigger>
-            </TabsList>
-            <TabsContent value="dashboard" className="mt-0">
-              <GoalDashboard />
-            </TabsContent>
-            <TabsContent value="manual" className="mt-0">
-              <GoalManualEntry refreshTrigger={importTrigger} />
-            </TabsContent>
-            <TabsContent value="lote" className="mt-0">
-              <BatchImportGoals onImportSuccess={() => setImportTrigger((d) => d + 1)} />
-            </TabsContent>
-          </Tabs>
+        <TabsContent value="manual">
+          <GoalManualEntry refreshTrigger={refreshTrigger} />
         </TabsContent>
-        <TabsContent value="cobertura" className="mt-0">
-          <CoverageGoalEntry />
+        <TabsContent value="batch">
+          <BatchImportGoals onImportSuccess={() => setRefreshTrigger((prev) => prev + 1)} />
         </TabsContent>
       </Tabs>
     </div>
