@@ -40,7 +40,7 @@ export function ComparativeCards() {
   }, [filteredActuals, filteredGoals])
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <PillarCard
         title="Faturamento"
         icon={DollarSign}
@@ -85,22 +85,22 @@ function PillarCard({
   const isPositive = data.pct >= 100
   return (
     <Card
-      className="border-l-4 border-l-[#003DA5] shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-300 animate-fade-in-up overflow-hidden"
+      className="border-l-4 border-l-[#003DA5] shadow-sm hover:shadow-md hover:scale-[1.01] transition-all duration-300 animate-fade-in-up overflow-hidden"
       style={{ animationDelay: `${delay}ms` }}
     >
       <CardContent className="p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-[#E6F0FF]">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="p-2 rounded-lg bg-[#E6F0FF] shrink-0">
               <Icon className="w-5 h-5 text-[#003DA5]" />
             </div>
-            <span className="text-sm font-bold text-[#003DA5] uppercase tracking-wider">
+            <span className="text-sm font-bold text-[#003DA5] uppercase tracking-wider truncate">
               {title}
             </span>
           </div>
           <div
             className={cn(
-              'flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold',
+              'flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold shrink-0',
               isPositive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700',
             )}
           >
@@ -113,24 +113,30 @@ function PillarCard({
             {!isCoverage && '%'}
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-1">Meta</p>
-            <p className="text-lg font-extrabold text-[#003DA5]">{formatFn(data.target)}</p>
+        <div className="flex flex-col sm:flex-row sm:items-stretch gap-3 sm:gap-2">
+          <div className="flex-1 flex flex-col gap-1 sm:px-2 sm:border-r sm:border-border/50">
+            <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">
+              Meta
+            </p>
+            <p className="text-base md:text-lg font-extrabold text-[#003DA5] leading-tight break-words">
+              {formatFn(data.target)}
+            </p>
           </div>
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-1">
+          <div className="flex-1 flex flex-col gap-1 sm:px-2 sm:border-r sm:border-border/50">
+            <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">
               Realizado
             </p>
-            <p className="text-lg font-extrabold text-[#0066CC]">{formatFn(data.actual)}</p>
+            <p className="text-base md:text-lg font-extrabold text-[#0066CC] leading-tight break-words">
+              {formatFn(data.actual)}
+            </p>
           </div>
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-1">
+          <div className="flex-1 flex flex-col gap-1 sm:px-2">
+            <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">
               Diferença
             </p>
             <p
               className={cn(
-                'text-lg font-extrabold',
+                'text-base md:text-lg font-extrabold leading-tight break-words',
                 data.diff >= 0 ? 'text-emerald-600' : 'text-red-500',
               )}
             >
