@@ -84,7 +84,7 @@ export default function CoverageGoalEntry() {
     }
     const loadExisting = async () => {
       try {
-        const filter = `seller_id="${selectedSeller.user_id}" && area_id="${areaId}" && regional_id="${regId}" && period="${period}" && metric="Coverage" && mix_family=""`
+        const filter = `seller_id="${selectedSeller.user_id}" && district_id="${distId}" && area_id="${areaId}" && regional_id="${regId}" && period="${period}" && metric="Coverage" && mix_family=""`
         const goal = await pb.collection('goals').getFirstListItem(filter)
         setCovBase(String(goal.target_base || ''))
         setCovBronze(String(goal.target_bronze || ''))
@@ -178,9 +178,10 @@ export default function CoverageGoalEntry() {
         target_monthly_coverage: baseVal,
       }
 
-      const goalFilter = `seller_id="${seller.user_id}" && area_id="${areaId}" && regional_id="${regId}" && period="${period}" && metric="Coverage" && mix_family=""`
+      const goalFilter = `seller_id="${seller.user_id}" && district_id="${distId}" && area_id="${areaId}" && regional_id="${regId}" && period="${period}" && metric="Coverage" && mix_family=""`
       const goalCreate = {
         seller_id: seller.user_id,
+        district_id: distId,
         area_id: areaId,
         regional_id: regId,
         period,

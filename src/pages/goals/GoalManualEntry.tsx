@@ -227,7 +227,7 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
       const g = await pb
         .collection('goals')
         .getFirstListItem(
-          `seller_id="${seller.user_id}" && area_id="${areaId}" && regional_id="${regId}" && period="${period}" && metric="${metric}" && mix_family="${mixFamily}"`,
+          `seller_id="${seller.user_id}" && district_id="${distId}" && area_id="${areaId}" && regional_id="${regId}" && period="${period}" && metric="${metric}" && mix_family="${mixFamily}"`,
         )
       setLoadedGoal(g)
       gId = g.id
@@ -268,7 +268,7 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
         sort: '-period',
       })
       const goals = await pb.collection('goals').getFullList({
-        filter: `seller_id="${seller.user_id}" && area_id="${areaId}" && metric="${metric}"`,
+        filter: `seller_id="${seller.user_id}" && district_id="${distId}" && area_id="${areaId}" && metric="${metric}"`,
       })
       setHistory(
         perfs.map((p) => ({
@@ -355,7 +355,7 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
         existingGoal = await pb
           .collection('goals')
           .getFirstListItem(
-            `seller_id="${seller.user_id}" && area_id="${areaId}" && regional_id="${regId}" && period="${period}" && metric="${metric}" && mix_family="${mixFamily}"`,
+            `seller_id="${seller.user_id}" && district_id="${distId}" && area_id="${areaId}" && regional_id="${regId}" && period="${period}" && metric="${metric}" && mix_family="${mixFamily}"`,
           )
       } catch (err) {
         // Not found, will create
@@ -395,6 +395,7 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
         try {
           const g = await pb.collection('goals').create({
             seller_id: seller.user_id,
+            district_id: distId,
             area_id: areaId,
             regional_id: regId,
             period,
@@ -413,7 +414,7 @@ export default function GoalManualEntry({ refreshTrigger = 0 }: { refreshTrigger
           const foundGoal = await pb
             .collection('goals')
             .getFirstListItem(
-              `seller_id="${seller.user_id}" && area_id="${areaId}" && regional_id="${regId}" && period="${period}" && metric="${metric}" && mix_family="${mixFamily}"`,
+              `seller_id="${seller.user_id}" && district_id="${distId}" && area_id="${areaId}" && regional_id="${regId}" && period="${period}" && metric="${metric}" && mix_family="${mixFamily}"`,
             )
             .catch(() => null)
           if (foundGoal) {

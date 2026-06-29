@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-29T10:34:08.693Z",
+  "generatedAt": "2026-06-29T10:43:59.992Z",
   "collections": [
     {
       "name": "users",
@@ -466,6 +466,13 @@
           "type": "number",
           "required": false,
           "system": false
+        },
+        {
+          "name": "district_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "districts"
         }
       ],
       "indexes": [

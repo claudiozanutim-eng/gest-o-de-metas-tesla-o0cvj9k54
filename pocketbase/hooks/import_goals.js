@@ -256,6 +256,7 @@ routerAdd(
         sellerId: sellerId,
         periodo: periodo,
         familia: familia,
+        districtId: district ? district.id : '',
         regionalId: regional ? regional.id : '',
         areaId: area ? area.id : '',
         metaBase: metaBase,
@@ -297,6 +298,7 @@ routerAdd(
           } catch (_) {}
 
           if (fatGoal) {
+            fatGoal.set('district_id', v.districtId)
             fatGoal.set('target_base', v.metaBase)
             fatGoal.set('target_bronze', v.metaBronze)
             fatGoal.set('target_prata', v.metaPrata)
@@ -309,6 +311,7 @@ routerAdd(
             g1.set('seller_id', v.sellerId)
             g1.set('period', v.periodo)
             g1.set('metric', 'Faturamento')
+            g1.set('district_id', v.districtId)
             g1.set('area_id', v.areaId)
             g1.set('regional_id', v.regionalId)
             g1.set('mix_family', v.familia)
@@ -336,6 +339,7 @@ routerAdd(
           } catch (_) {}
 
           if (covGoal) {
+            covGoal.set('district_id', v.districtId)
             covGoal.set('target_base', covBase)
             covGoal.set('target_bronze', covBronze)
             covGoal.set('target_prata', covPrata)
@@ -349,6 +353,7 @@ routerAdd(
             g2.set('seller_id', v.sellerId)
             g2.set('period', v.periodo)
             g2.set('metric', 'Cobertura')
+            g2.set('district_id', v.districtId)
             g2.set('area_id', v.areaId)
             g2.set('regional_id', v.regionalId)
             g2.set('mix_family', '')
